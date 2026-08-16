@@ -365,15 +365,47 @@ class PhotoChallenge(
      * refus grimperait sans raison visible à l'écran. Tout se fait en
      * mémoire : aucun fichier n'est créé.
      */
+    /**
+     * Décode la capture, la redresse selon l'orientation du capteur, et la
+     * réduit. Tout se passe en mémoire : aucune image n'atteint le disque.
+     *
+     * Le redressement n'est pas cosmétique. [JugeEmbarque] déclare une rotation
+     * nulle à la reconnaissance — il reçoit un bitmap déjà constitué et ne peut
+     * pas connaître l'orientation de la prise de vue. Sans ce redressement, le
+     * modèle recevrait une image couchée de 90° en portrait et refuserait
+     * beaucoup plus souvent, **sans qu'aucun seuil ne paraisse en cause**.
+     *
+     * La réduction sert le juge distant : la capture sort en pleine résolution
+     * du capteur, l'encodage en base64 l'alourdit encore d'un tiers, et le tout
+     * doit tenir dans les huit secondes du budget réseau, à six heures du matin
+     * sur le réseau d'une chambre. Au-delà de [COTE_MAX_PX], la résolution
+     * supplémentaire n'apporte plus rien à la reconnaissance. Cela réduit du
+     * même coup le risque de saturation mémoire du redressement, qui alloue
+     * l'image d'origine plus sa copie pivotée.
+     */
     private fun ImageProxy.versBitmapRedresse(): Bitmap {
         val tampon = planes[0].buffer
         val octets = ByteArray(tampon.remaining())
         tampon.get(octets)
         val brut = BitmapFactory.decodeByteArray(octets, 0, octets.size)
+        val reduit = reduire(brut)
         val rotation = imageInfo.rotationDegrees
-        if (rotation == 0) return brut
+        if (rotation == 0) return reduit
         val matrice = Matrix().apply { postRotate(rotation.toFloat()) }
-        return Bitmap.createBitmap(brut, 0, 0, brut.width, brut.height, matrice, true)
+        return Bitmap.createBitmap(reduit, 0, 0, reduit.width, reduit.height, matrice, true)
+    }
+
+    /** Ramène le côté long à [COTE_MAX_PX], en conservant les proportions. */
+    private fun reduire(image: Bitmap): Bitmap {
+        val coteLong = maxOf(image.width, image.height)
+        if (coteLong <= COTE_MAX_PX) return image
+        val facteur = COTE_MAX_PX.toFloat() / coteLong
+        return Bitmap.createScaledBitmap(
+            image,
+            (image.width * facteur).toInt().coerceAtLeast(1),
+            (image.height * facteur).toInt().coerceAtLeast(1),
+            true,
+        )
     }
 
     companion object {
@@ -398,6 +430,13 @@ class PhotoChallenge(
 
         /** Durée d'appui exigée par le bouton de renoncement. Voir sa KDoc. */
         private const val SEUIL_APPUI_LONG_MS = 600L
+
+        /**
+         * Côté long maximal de l'image soumise aux juges. Au-delà, la
+         * reconnaissance ne gagne rien et le téléversement du juge distant
+         * s'allonge sans contrepartie.
+         */
+        private const val COTE_MAX_PX = 1568
     }
 }
 
