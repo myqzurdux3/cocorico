@@ -58,6 +58,17 @@ class MathChallengeEngineTest {
     }
 
     @Test
+    fun `le probleme resolu reste affiche apres la resolution`() {
+        // Verrouille l'ordre dans submit() : sur la bonne réponse finale, l'état
+        // passe à résolu et la fonction sort AVANT de régénérer. Sans ça, l'écran
+        // de victoire afficherait brièvement un nouveau calcul.
+        val e = engine(total = 1)
+        val dernier = e.current.value
+        e.submit(dernier.answer)
+        assertEquals(dernier, e.current.value)
+    }
+
+    @Test
     fun `soumettre apres resolution ne change plus rien`() {
         val e = engine(total = 1)
         e.submit(e.current.value.answer)
@@ -65,5 +76,6 @@ class MathChallengeEngineTest {
         assertFalse(e.submit(fige.answer))
         assertEquals(ChallengeProgress(done = 1, total = 1), e.progress.value)
         assertEquals(0, e.erreurs.value)
+        assertEquals(fige, e.current.value)
     }
 }
