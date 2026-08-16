@@ -294,7 +294,14 @@ class AlarmActivity : ComponentActivity() {
         // Lu ici, pas au démarrage : c'est le défi qui vient effectivement de
         // se résoudre, celui d'après un éventuel renoncement.
         val challengeFinal = defi.value
-        val erreurs = (challengeFinal as? MathChallenge)?.erreurs?.value ?: 0
+        // Chaque défi compte ses ratés à sa façon : fautes de calcul d'un côté,
+        // photos refusées de l'autre. Les pompes n'ont rien à compter — une
+        // répétition mal faite n'est simplement pas comptée.
+        val erreurs = when (challengeFinal) {
+            is MathChallenge -> challengeFinal.erreurs.value
+            is PhotoChallenge -> challengeFinal.essaisTotal.value
+            else -> 0
+        }
         lifecycleScope.launch {
             withContext(NonCancellable) {
                 runCatching {

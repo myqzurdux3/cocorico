@@ -23,8 +23,19 @@ class PhotoChallengeEtat(private val objets: List<ObjetPhoto>) {
     private val _progression = MutableStateFlow(0 to objets.size)
     val progression: StateFlow<Pair<Int, Int>> = _progression.asStateFlow()
 
+    /** Essais ratés sur l'objet courant. Remis à zéro à chaque objet validé. */
     private val _essais = MutableStateFlow(0)
     val essais: StateFlow<Int> = _essais.asStateFlow()
+
+    /**
+     * Essais ratés depuis le début du réveil, tous objets confondus. Distinct
+     * d'[essais], qui décrit l'objet courant et redescend à chaque validation :
+     * l'historique a besoin du total de la session, et le lire sur [essais]
+     * donnerait toujours le compte du dernier objet — donc zéro sur un réveil
+     * réussi du premier coup.
+     */
+    private val _essaisTotal = MutableStateFlow(0)
+    val essaisTotal: StateFlow<Int> = _essaisTotal.asStateFlow()
 
     private val _isSolved = MutableStateFlow(objets.isEmpty())
     val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
@@ -41,6 +52,7 @@ class PhotoChallengeEtat(private val objets: List<ObjetPhoto>) {
 
         if (!accepte) {
             _essais.value += 1
+            _essaisTotal.value += 1
             return false
         }
 
