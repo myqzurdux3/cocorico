@@ -38,10 +38,12 @@ class RingtonePlayer(private val context: Context) {
         }
         appliquer(VolumeState.PLEIN)
 
-        val lecteur = creer(sonnerie.resId)
+        val lecteur = creerSource(sonnerie)
             // Ressource illisible : plutôt que de rester muet, on se rabat sur la
             // première sonnerie embarquée. Une alarme silencieuse est le seul
-            // échec que cette application n'a pas le droit de produire.
+            // échec que cette application n'a pas le droit de produire. Couvre
+            // aussi bien une ressource embarquée introuvable qu'une sonnerie
+            // personnalisée disparue, corrompue ou dont la permission a expiré.
             ?: creer(Sonneries.toutes.first().resId)
             // Dernier recours : si `generateAudioSessionId()` est lui-même en
             // échec, les deux tentatives précédentes, qui partagent le même
@@ -68,6 +70,42 @@ class RingtonePlayer(private val context: Context) {
     private fun creer(resId: Int): MediaPlayer? = MediaPlayer.create(
         context,
         Uri.parse("android.resource://${context.packageName}/$resId"),
+        null,
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+        audio.generateAudioSessionId(),
+    )
+
+    /**
+     * Choisit la source demandée — voir [SonneriePersonnaliseeLogique.sourceAJouer]
+     * pour la décision — et tente de créer le lecteur correspondant. `null`
+     * dans tous les cas d'échec, jamais d'exception : c'est [demarrer] qui
+     * enchaîne alors sur le repli embarqué.
+     */
+    private fun creerSource(sonnerie: Sonneries.Sonnerie): MediaPlayer? {
+        val source = SonneriePersonnaliseeLogique.sourceAJouer(
+            personnalisee = sonnerie.personnalisee,
+            uriPersistee = SonneriePersonnaliseeStore.lireUri(context),
+        )
+        return when (source) {
+            is SonneriePersonnaliseeLogique.SourceAJouer.Personnalisee ->
+                runCatching { creerDepuisUri(Uri.parse(source.uri)) }.getOrNull()
+            SonneriePersonnaliseeLogique.SourceAJouer.Embarquee -> creer(sonnerie.resId)
+        }
+    }
+
+    /**
+     * Mêmes attributs d'alarme que [creer], posés avant la préparation pour
+     * la même raison. `MediaPlayer.create` sur une URI de contenu peut lever
+     * une `SecurityException` (permission perdue, fournisseur disparu) là où
+     * la variante ressource ne le fait jamais : l'appelant l'encapsule dans
+     * `runCatching`.
+     */
+    private fun creerDepuisUri(uri: Uri): MediaPlayer? = MediaPlayer.create(
+        context,
+        uri,
         null,
         AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)

@@ -21,7 +21,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +37,6 @@ import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
-import com.cocorico.ring.ApercuSonnerie
 import com.cocorico.ring.CapteurPompes
 
 @Composable
@@ -318,54 +316,4 @@ private fun Option(
     }
 }
 
-
-@Composable
-fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
-    val config by viewModel.config.collectAsState()
-
-    // L'extrait est coupé à la sortie de l'écran : sans ça, il continuerait de
-    // jouer par-dessus l'accueil, sans plus personne pour l'arrêter.
-    val context = LocalContext.current
-    val apercu = remember { ApercuSonnerie(context) }
-    DisposableEffect(Unit) { onDispose { apercu.arreter() } }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .zoneSure()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
-        Text("Sonnerie", style = MaterialTheme.typography.titleLarge)
-        Text("De la moins violente à la pire.", fontSize = 15.sp)
-
-        com.cocorico.ring.Sonneries.toutes.forEach { sonnerie ->
-            val choisie = sonnerie.id == config.ringtoneId
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = if (choisie) 2.dp else 1.dp,
-                        color = if (choisie) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                    )
-                    .clickable {
-                        viewModel.majSonnerie(sonnerie.id)
-                        apercu.jouer(sonnerie)
-                    }
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(sonnerie.nom, fontSize = 17.sp)
-                Text("▶ aperçu", fontSize = 15.sp)
-            }
-        }
-    }
-}
+// RingtoneScreen a déménagé dans son propre fichier : ui/RingtoneScreen.kt.

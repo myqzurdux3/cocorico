@@ -40,6 +40,23 @@ class ApercuSonnerie(private val context: Context) {
         arreter()
 
         val nouveau = creer(sonnerie.resId) ?: return
+        demarrerExtrait(nouveau)
+    }
+
+    /**
+     * Même aperçu, pour un fichier importé plutôt qu'une ressource embarquée.
+     * Utilisé à la fois pour rejouer une sonnerie personnalisée déjà choisie
+     * et, à l'écran de sélection, pour donner à entendre un fichier tout
+     * juste importé — au-delà de la simple vérification qu'il est lisible.
+     */
+    fun jouer(uri: Uri) {
+        arreter()
+
+        val nouveau = runCatching { creerDepuisUri(uri) }.getOrNull() ?: return
+        demarrerExtrait(nouveau)
+    }
+
+    private fun demarrerExtrait(nouveau: MediaPlayer) {
         lecteur = nouveau.also {
             it.isLooping = false
             it.setVolume(ATTENUATION, ATTENUATION)
@@ -69,6 +86,22 @@ class ApercuSonnerie(private val context: Context) {
     private fun creer(resId: Int): MediaPlayer? = MediaPlayer.create(
         context,
         Uri.parse("android.resource://${context.packageName}/$resId"),
+        null,
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+        audio.generateAudioSessionId(),
+    )
+
+    /**
+     * Comme [creer], pour une URI de contenu plutôt qu'une ressource. Peut
+     * lever une `SecurityException` là où la variante ressource ne le fait
+     * jamais : c'est l'appelant qui l'encapsule dans `runCatching`.
+     */
+    private fun creerDepuisUri(uri: Uri): MediaPlayer? = MediaPlayer.create(
+        context,
+        uri,
         null,
         AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
