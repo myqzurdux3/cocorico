@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         victoire.value = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+
+        // Le `targetSdk 35` impose le bord-à-bord : autant le déclarer nous-mêmes
+        // pour obtenir des barres système transparentes et des icônes lisibles.
+        // Chaque écran range ensuite son contenu dans la zone sûre (`zoneSure`).
+        enableEdgeToEdge()
 
         setContent {
             CocoricoTheme {
@@ -151,6 +157,7 @@ private fun EcranReprise(onReprendre: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .zoneSure()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,

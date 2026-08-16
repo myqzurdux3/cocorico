@@ -1,12 +1,15 @@
 package com.cocorico.ui
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,6 +86,15 @@ class AlarmActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
+
+        // Bord-à-bord imposé par le `targetSdk 35`. On force le style « sombre »
+        // pour les deux barres : cet écran est toujours peint en rouge vif, quel
+        // que soit le thème du système, et il lui faut donc des icônes claires.
+        // Le contenu, lui, est rangé dans la zone sûre par `EcranAlarme`.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
 
         // `onBackPressed` n'est plus appelé quand l'application vise le SDK 35 :
         // le geste retour passe par l'OnBackPressedDispatcher. Sans ce rappel,
@@ -224,8 +236,14 @@ private fun EcranAlarme(challenge: MathChallenge, volume: VolumeState, secondes:
             // Énoncé, saisie et pavé numérique dépassent la hauteur d'un petit
             // écran dès que la police système est agrandie. Sans défilement, la
             // touche de validation devient inatteignable : alarme inarrêtable.
+            // La zone sûre est appliquée **avant** le défilement : la fenêtre de
+            // défilement s'arrête donc au-dessus de la barre de navigation au
+            // lieu de passer dessous. La dernière rangée du pavé (dont la touche
+            // de validation) reste atteignable, y compris avec la navigation
+            // gestuelle. La `Surface` rouge, elle, garde toute la surface.
             modifier = Modifier
                 .fillMaxSize()
+                .zoneSure()
                 .then(if (defiOuvert) Modifier.verticalScroll(defilement) else Modifier)
                 .padding(24.dp),
             verticalArrangement = if (defiOuvert) {

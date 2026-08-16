@@ -47,6 +47,7 @@ fun VictoryScreen(onFermer: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .zoneSure()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,

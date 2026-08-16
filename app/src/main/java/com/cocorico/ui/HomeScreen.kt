@@ -44,6 +44,7 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .zoneSure()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
