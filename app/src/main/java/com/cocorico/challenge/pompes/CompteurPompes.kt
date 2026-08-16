@@ -23,8 +23,18 @@ class CompteurPompes(private val total: Int) {
     private val _isSolved = MutableStateFlow(false)
     val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
 
-    /** Début du cycle courant, c'est-à-dire dernier passage en position haute. */
-    private var debutCycle = 0L
+    /**
+     * Instant du dernier échantillon reçu en position haute. Rafraîchi à
+     * chaque échantillon haut tant qu'on reste en [EtatPompes.PRET], pas
+     * seulement à l'entrée dans cet état — c'est ce rafraîchissement continu
+     * qui évite qu'une pause prolongée en haut (main immobile, avant de
+     * repartir) fasse dépasser [DUREE_DEPUIS_DERNIER_HAUT_MAX_MS] à la
+     * répétition suivante. Conséquence : cette référence est presque
+     * toujours prise juste avant la descente, donc la durée mesurée depuis
+     * elle est en pratique la tenue basse, pas la durée d'un cycle complet —
+     * voir [DUREE_DEPUIS_DERNIER_HAUT_MIN_MS]/[DUREE_DEPUIS_DERNIER_HAUT_MAX_MS].
+     */
+    private var debutTenueHaute = 0L
 
     /** Instant d'entrée en position basse. */
     private var debutBas = 0L
@@ -49,7 +59,7 @@ class CompteurPompes(private val total: Int) {
                 // répétition dont on a manqué la descente.
                 if (!e.procheDuCapteur) {
                     _etat.value = EtatPompes.PRET
-                    debutCycle = e.tMillis
+                    debutTenueHaute = e.tMillis
                 }
                 false
             }
@@ -59,7 +69,7 @@ class CompteurPompes(private val total: Int) {
                     _etat.value = EtatPompes.BAS
                     debutBas = e.tMillis
                 } else {
-                    debutCycle = e.tMillis
+                    debutTenueHaute = e.tMillis
                 }
                 false
             }
@@ -68,10 +78,10 @@ class CompteurPompes(private val total: Int) {
                 if (e.procheDuCapteur) return false
                 _etat.value = EtatPompes.PRET
                 val tenueBasse = e.tMillis - debutBas
-                val cycle = e.tMillis - debutCycle
-                debutCycle = e.tMillis
+                val depuisDernierHaut = e.tMillis - debutTenueHaute
+                debutTenueHaute = e.tMillis
                 val valide = tenueBasse >= TENUE_BASSE_MIN_MS &&
-                    cycle in CYCLE_MIN_MS..CYCLE_MAX_MS
+                    depuisDernierHaut in DUREE_DEPUIS_DERNIER_HAUT_MIN_MS..DUREE_DEPUIS_DERNIER_HAUT_MAX_MS
                 if (valide) compter() else false
             }
         }
@@ -95,11 +105,21 @@ class CompteurPompes(private val total: Int) {
         /** Au-delà, le téléphone bouge : on ne compte pas. */
         const val ECART_MAX = 1.5f
 
-        /** Plus court, c'est une main qui passe devant le capteur. */
-        const val CYCLE_MIN_MS = 600L
+        /**
+         * Bornes de la durée écoulée depuis le dernier échantillon haut
+         * jusqu'à la remontée. Comme [debutTenueHaute] est rafraîchi à chaque
+         * échantillon haut tant qu'on reste en position haute, cette
+         * référence est presque toujours prise juste avant la descente — ces
+         * bornes contraignent donc en pratique la tenue basse elle-même, pas
+         * la durée d'un cycle complet montée-descente-remontée. Le nom le dit
+         * maintenant explicitement.
+         *
+         * Plus court, c'est une main qui passe devant le capteur.
+         */
+        const val DUREE_DEPUIS_DERNIER_HAUT_MIN_MS = 600L
 
         /** Plus long, ce n'est plus une pompe. */
-        const val CYCLE_MAX_MS = 8_000L
+        const val DUREE_DEPUIS_DERNIER_HAUT_MAX_MS = 8_000L
 
         /** Temps minimum en position basse, contre l'effleurement. */
         const val TENUE_BASSE_MIN_MS = 150L
