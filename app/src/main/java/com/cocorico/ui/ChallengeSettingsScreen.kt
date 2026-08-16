@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 
@@ -46,7 +47,7 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
         )
         Option(
             titre = "Pompes",
-            detail = "10 répétitions comptées",
+            detail = "${PompesChallenge.nombrePour(config.difficulty)} répétitions comptées",
             selectionne = config.challengeId == ChallengeId.POMPES,
             onClick = { viewModel.majDefi(ChallengeId.POMPES) },
         )
