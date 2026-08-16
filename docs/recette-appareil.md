@@ -31,6 +31,8 @@ agressive de la batterie). L'émulateur ne reproduit pas le Doze mode réel.
 - [ ] Boutons de volume pendant l'alarme : aucun effet, aucune bulle système.
 - [ ] Balayer l'application depuis les applications récentes : elle revient
       en moins de 30 s.
+- [ ] Résoudre le défi à l'instant précis où le filet de secours se déclenche
+      (répéter une dizaine de fois) : l'alarme ne revient jamais après coup.
 - [ ] Redémarrer le téléphone pendant que l'alarme sonne : elle repart après
       le démarrage.
 - [ ] Redémarrer le téléphone alarme armée mais non déclenchée : la prochaine

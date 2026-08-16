@@ -29,7 +29,7 @@ class SecoursScheduler(private val context: Context) {
     private fun pending(): PendingIntent = PendingIntent.getBroadcast(
         context,
         REQUEST_SECOURS,
-        Intent(context, AlarmReceiver::class.java),
+        Intent(context, AlarmReceiver::class.java).setAction(AlarmReceiver.ACTION_SECOURS),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
