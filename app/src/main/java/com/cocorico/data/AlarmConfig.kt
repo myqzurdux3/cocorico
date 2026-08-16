@@ -18,6 +18,14 @@ data class AlarmConfig(
     val challengeId: ChallengeId,
     val difficulty: Difficulty,
     val armed: Boolean,
+    /**
+     * Juge distant du défi photo : envoie la photo à un serveur tiers quand la
+     * reconnaissance embarquée a refusé. Éteint par défaut, et rien ne doit
+     * l'activer sauf un geste explicite de l'utilisateur sur l'écran de réglages.
+     */
+    val iaDistanteActive: Boolean = false,
+    /** Clé d'API du juge distant, fournie par l'utilisateur. Jamais livrée avec l'application. */
+    val cleApi: String = "",
 ) {
     companion object {
         val DEFAULT = AlarmConfig(
@@ -34,6 +42,8 @@ data class AlarmConfig(
             challengeId = ChallengeId.MATHS,
             difficulty = Difficulty.MOYEN,
             armed = false,
+            iaDistanteActive = false,
+            cleApi = "",
         )
     }
 }

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -20,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.pompes.PompesChallenge
@@ -75,7 +78,20 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 null
             },
         )
-        Option(titre = "Photo", detail = "Un objet précis, validé par l'IA", bientot = true)
+        Option(
+            titre = "Photo",
+            detail = "Un objet précis, validé par l'IA",
+            selectionne = config.challengeId == ChallengeId.PHOTO,
+            onClick = { viewModel.majDefi(ChallengeId.PHOTO) },
+        )
+        if (config.challengeId == ChallengeId.PHOTO) {
+            ReglagesIaDistante(
+                active = config.iaDistanteActive,
+                cleApi = config.cleApi,
+                onActiveChange = viewModel::majIaDistante,
+                onCleApiChange = viewModel::majCleApi,
+            )
+        }
 
         Text("Difficulté", fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -133,6 +149,53 @@ private fun Option(
             fontSize = 17.sp,
         )
         Text(detail, fontSize = 15.sp)
+    }
+}
+
+/**
+ * Réglages du juge distant du défi photo : le texte de consentement doit être lu
+ * avant l'interrupteur, pas après, puisqu'activer ce mode fait sortir une photo
+ * du téléphone — la seule donnée que l'application envoie à qui que ce soit.
+ */
+@Composable
+private fun ReglagesIaDistante(
+    active: Boolean,
+    cleApi: String,
+    onActiveChange: (Boolean) -> Unit,
+    onCleApiChange: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "La photo prise dans la chambre au réveil est d'abord jugée sur le " +
+                "téléphone, sans rien envoyer nulle part. Si cette reconnaissance " +
+                "embarquée refuse la photo, celle-ci part vers un serveur tiers pour " +
+                "un second avis — seulement dans ce cas, et seulement vers ce " +
+                "serveur. Elle n'est jamais enregistrée : elle reste en mémoire le " +
+                "temps du verdict, puis disparaît.",
+            fontSize = 15.sp,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("Faire valider par une IA en ligne", fontSize = 15.sp)
+            Switch(checked = active, onCheckedChange = onActiveChange)
+        }
+        OutlinedTextField(
+            value = cleApi,
+            onValueChange = onCleApiChange,
+            label = { Text("Clé d'API", fontSize = 15.sp) },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

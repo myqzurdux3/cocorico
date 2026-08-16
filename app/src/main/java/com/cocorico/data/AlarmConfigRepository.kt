@@ -41,6 +41,8 @@ class AlarmConfigRepository(private val context: Context) {
         val CHALLENGE = stringPreferencesKey("challenge")
         val DIFFICULTY = stringPreferencesKey("difficulty")
         val ARMED = booleanPreferencesKey("armed")
+        val IA_DISTANTE_ACTIVE = booleanPreferencesKey("ia_distante_active")
+        val CLE_API = stringPreferencesKey("cle_api")
     }
 
     /** Lecture d'un instantané de préférences, partagée par le flux et l'écriture. */
@@ -58,6 +60,8 @@ class AlarmConfigRepository(private val context: Context) {
                 ?.let { runCatching { Difficulty.valueOf(it) }.getOrNull() }
                 ?: default.difficulty,
             armed = prefs[Keys.ARMED] ?: default.armed,
+            iaDistanteActive = prefs[Keys.IA_DISTANTE_ACTIVE] ?: default.iaDistanteActive,
+            cleApi = prefs[Keys.CLE_API] ?: default.cleApi,
         )
     }
 
@@ -79,6 +83,8 @@ class AlarmConfigRepository(private val context: Context) {
             prefs[Keys.CHALLENGE] = updated.challengeId.name
             prefs[Keys.DIFFICULTY] = updated.difficulty.name
             prefs[Keys.ARMED] = updated.armed
+            prefs[Keys.IA_DISTANTE_ACTIVE] = updated.iaDistanteActive
+            prefs[Keys.CLE_API] = updated.cleApi
         }
     }
 }
