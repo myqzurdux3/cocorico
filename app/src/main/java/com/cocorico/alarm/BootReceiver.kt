@@ -10,7 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Deux responsabilités après un redémarrage :
+ * Deux responsabilités après un redémarrage — ou après une mise à jour de
+ * l'application, qui efface elle aussi les alarmes programmées :
  * 1. relancer immédiatement l'alarme si elle sonnait au moment de l'extinction
  *    (contre-mesure au redémarrage comme technique de contournement),
  * 2. reprogrammer la prochaine occurrence, qu'Android a oubliée.
