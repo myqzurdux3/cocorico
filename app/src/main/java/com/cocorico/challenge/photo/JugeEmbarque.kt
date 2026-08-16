@@ -51,6 +51,20 @@ class JugeEmbarque : JugePhoto {
     }
 
     /**
+     * Les étiquettes brutes reconnues dans [image], avec leur confiance, sans
+     * jugement ni seuil. Sert à l'écran d'essai : un refus ne dit pas s'il
+     * vient d'un objet mal reconnu, d'un seuil trop haut, ou d'une étiquette
+     * absente du catalogue — ces trois causes appellent trois correctifs
+     * différents, et seule la liste brute permet de les distinguer.
+     *
+     * Liste vide en cas d'échec, comme partout ailleurs dans cette classe.
+     */
+    suspend fun etiquettes(image: Bitmap): List<EtiquetteReconnue> {
+        val client = etiqueteur ?: return emptyList()
+        return runCatching { etiqueter(client, image) }.getOrDefault(emptyList())
+    }
+
+    /**
      * Ferme le client ML Kit. À appeler quand l'écran du défi disparaît, qu'un
      * verdict soit en cours ou non — voir [JugePhoto.fermer].
      */

@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.photo.JugeEmbarque
@@ -39,7 +40,11 @@ import com.cocorico.ring.ApercuSonnerie
 import com.cocorico.ring.CapteurPompes
 
 @Composable
-fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
+fun ChallengeSettingsScreen(
+    viewModel: HomeViewModel,
+    onEssayerPhoto: () -> Unit,
+    onRetour: () -> Unit,
+) {
     val config by viewModel.config.collectAsState()
 
     // Même critère que celui qui fait basculer l'alarme sur les calculs au
@@ -137,6 +142,34 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 null
             },
         )
+        if (config.challengeId == ChallengeId.PHOTO && cameraDisponibleAppareil) {
+            // Éprouver la reconnaissance sans faire sonner le réveil. Sans cet
+            // accès, la seule façon de la tester était de déclencher une alarme
+            // à plein volume — et aucun de ses seuils n'a encore été confronté
+            // à un vrai objet dans une vraie pièce.
+            Text(
+                text = "Essayer la reconnaissance",
+                fontSize = 17.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable {
+                        if (!cameraAccordee) {
+                            demanderCamera.launch(Manifest.permission.CAMERA)
+                        } else {
+                            onEssayerPhoto()
+                        }
+                    }
+                    .padding(14.dp),
+            )
+            Text(
+                "Sans alarme et sans envoi : la caméra, le verdict, et ce que le " +
+                    "modèle a réellement reconnu.",
+                fontSize = 15.sp,
+            )
+        }
         if (config.challengeId == ChallengeId.PHOTO) {
             ReglagesIaDistante(
                 active = config.iaDistanteActive,

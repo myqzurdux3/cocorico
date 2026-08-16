@@ -35,7 +35,7 @@ import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import com.cocorico.ui.theme.CocoricoTheme
 
-private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, VICTOIRE }
+private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, ESSAI_PHOTO, VICTOIRE }
 
 class MainActivity : ComponentActivity() {
 
@@ -116,7 +116,12 @@ class MainActivity : ComponentActivity() {
                 onOuvrirStats = { ecran = Ecran.STATS },
                 onChoisirHeure = { ouvrirSelecteurHeure() },
             )
-            Ecran.DEFI -> ChallengeSettingsScreen(viewModel) { ecran = Ecran.ACCUEIL }
+            Ecran.DEFI -> ChallengeSettingsScreen(
+                viewModel = viewModel,
+                onEssayerPhoto = { ecran = Ecran.ESSAI_PHOTO },
+                onRetour = { ecran = Ecran.ACCUEIL },
+            )
+            Ecran.ESSAI_PHOTO -> EssaiPhotoScreen { ecran = Ecran.DEFI }
             Ecran.SONNERIE -> RingtoneScreen(viewModel) { ecran = Ecran.ACCUEIL }
             Ecran.STATS -> StatsScreen { ecran = Ecran.ACCUEIL }
             Ecran.VICTOIRE -> VictoryScreen {
