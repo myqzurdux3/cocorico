@@ -29,6 +29,8 @@ import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
 import com.cocorico.challenge.MathProblemGenerator
 import com.cocorico.data.AlarmConfigRepository
+import com.cocorico.data.CocoricoDatabase
+import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
 import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.InactivityTracker
@@ -50,6 +52,7 @@ class AlarmActivity : ComponentActivity() {
     private lateinit var machine: VolumeStateMachine
     private lateinit var detector: HandDetector
     private val inactivite = InactivityTracker()
+    private val alarmeAt: Long = System.currentTimeMillis()
 
     private var defi: MathChallenge? = null
 
@@ -108,12 +111,23 @@ class AlarmActivity : ComponentActivity() {
 
     private fun terminer() {
         detector.arreter()
-        AlarmService.arreter(this)
-        startActivity(
-            Intent(this, MainActivity::class.java)
-                .putExtra(MainActivity.EXTRA_VICTOIRE, true),
-        )
-        finish()
+        val erreurs = defi?.erreurs?.value ?: 0
+        lifecycleScope.launch {
+            CocoricoDatabase.get(applicationContext).wakeRecordDao().inserer(
+                WakeRecord(
+                    alarmeAt = alarmeAt,
+                    resoluAt = System.currentTimeMillis(),
+                    erreurs = erreurs,
+                    triches = 0,
+                ),
+            )
+            AlarmService.arreter(this@AlarmActivity)
+            startActivity(
+                Intent(this@AlarmActivity, MainActivity::class.java)
+                    .putExtra(MainActivity.EXTRA_VICTOIRE, true),
+            )
+            finish()
+        }
     }
 
     override fun onDestroy() {
