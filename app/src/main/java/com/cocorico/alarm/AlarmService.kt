@@ -20,6 +20,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -47,10 +49,12 @@ class AlarmService : Service() {
     /**
      * Le filet de secours retombe sur ce service toutes les 30 s tant que le défi
      * n'est pas résolu : `onStartCommand` est donc rappelé pendant que l'alarme
-     * sonne déjà. Ce chemin doit être idempotent. Relancer la lecture empilerait
-     * des MediaPlayer irrécupérables, remettrait le volume à fond alors que
-     * l'utilisateur a le téléphone en main, et écraserait le WakeLock précédent
-     * sans le relâcher — au bout de trois minutes, plus rien n'arrête l'alarme.
+     * sonne déjà. Ce chemin doit être idempotent tant que la sonnerie tourne
+     * réellement : la relancer empilerait des MediaPlayer irrécupérables,
+     * remettrait le volume à fond alors que l'utilisateur a le téléphone en main,
+     * et écraserait le WakeLock précédent sans le relâcher. La seule exception
+     * est la lecture : si elle s'est éteinte (échec de création au tout premier
+     * démarrage), on la relance seule, sans toucher au WakeLock ni au volume.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DEFI_RESOLU) {
@@ -69,6 +73,14 @@ class AlarmService : Service() {
             // sonnerie : s'il a été tué, il faut le ramener. En singleInstance,
             // l'instance vivante reçoit onNewIntent et ne perd pas sa progression.
             demarrerActivitePleinEcran()
+            // Le tout premier démarrage a pu échouer à créer un lecteur (sonnerie
+            // choisie ET repli embarqué introuvables) : sans nouvelle tentative
+            // ici, `alarmeActive` resterait vrai et l'alarme serait silencieuse
+            // pour le reste du passage du filet de secours. On ne relance que la
+            // lecture : ni le WakeLock ni le volume ne sont retouchés.
+            if (!player.estEnLecture()) {
+                demarrerLecture()
+            }
             return START_STICKY
         }
         alarmeActive = true
@@ -77,16 +89,28 @@ class AlarmService : Service() {
         acquerirWakeLock()
         secours.armer()
 
+        demarrerLecture()
+
+        demarrerActivitePleinEcran()
+        return START_STICKY
+    }
+
+    /** Lit la config puis lance la sonnerie. Utilisé au premier démarrage et en repli. */
+    private fun demarrerLecture() {
         scope.launch {
             // Une lecture de configuration qui échoue ne doit pas laisser le
             // réveil muet : on sonne avec la sonnerie par défaut.
             val config = runCatching { AlarmConfigRepository(applicationContext).current() }
                 .getOrDefault(AlarmConfig.DEFAULT)
+            // `runCatching` autour d'un appel suspendu avale aussi
+            // CancellationException : sans cette vérification, un scope.cancel()
+            // déclenché par onDestroy() pendant la lecture de la config serait
+            // ignoré, et player.demarrer (pas suspendu, donc jamais interrompu)
+            // démarrerait un MediaPlayer en boucle dont plus personne ne détient
+            // de référence pour l'arrêter.
+            currentCoroutineContext().ensureActive()
             player.demarrer(Sonneries.parId(config.ringtoneId))
         }
-
-        demarrerActivitePleinEcran()
-        return START_STICKY
     }
 
     /**

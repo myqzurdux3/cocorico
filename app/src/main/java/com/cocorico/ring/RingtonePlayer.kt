@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.PowerManager
 
 /**
  * Lecture en boucle sur STREAM_ALARM, qui ignore le mode silencieux.
@@ -42,11 +43,20 @@ class RingtonePlayer(private val context: Context) {
             // première sonnerie embarquée. Une alarme silencieuse est le seul
             // échec que cette application n'a pas le droit de produire.
             ?: creer(Sonneries.toutes.first().resId)
+            // Dernier recours : si `generateAudioSessionId()` est lui-même en
+            // échec, les deux tentatives précédentes, qui partagent le même
+            // overload de `MediaPlayer.create`, échouent à l'identique. La
+            // voie historique sans session explicite en est indépendante.
+            ?: creerDernierRecours(Sonneries.toutes.first().resId)
         player = lecteur?.also {
+            it.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
             it.isLooping = true
             it.start()
         }
     }
+
+    /** Vrai tant qu'une sonnerie tourne réellement. */
+    fun estEnLecture(): Boolean = runCatching { player?.isPlaying == true }.getOrDefault(false)
 
     /**
      * Les attributs d'alarme sont posés AVANT la préparation. `MediaPlayer.create`
@@ -65,6 +75,22 @@ class RingtonePlayer(private val context: Context) {
             .build(),
         audio.generateAudioSessionId(),
     )
+
+    /**
+     * Chemin de dernier recours, indépendant de [creer] : l'ancien overload
+     * `MediaPlayer.create(Context, Int)` ne dépend pas de
+     * `generateAudioSessionId()`. Les attributs d'alarme sont posés après coup,
+     * comme avant l'unification sur le nouvel overload.
+     */
+    private fun creerDernierRecours(resId: Int): MediaPlayer? =
+        MediaPlayer.create(context, resId)?.apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+        }
 
     private fun libererLecteur() {
         player?.run {
