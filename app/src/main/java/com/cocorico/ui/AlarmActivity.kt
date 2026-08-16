@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -86,6 +87,9 @@ class AlarmActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
+        // Le défi pompes ne touche pas l'écran pendant une minute entière :
+        // sans ce drapeau, l'affichage s'éteindrait en pleine série.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Bord-à-bord imposé par le `targetSdk 35`. On force le style « sombre »
         // pour les deux barres : cet écran est toujours peint en rouge vif, quel
