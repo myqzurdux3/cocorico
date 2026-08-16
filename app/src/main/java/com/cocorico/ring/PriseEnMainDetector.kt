@@ -128,13 +128,7 @@ class PriseEnMainDetector(
     }
 
     private fun majInclinaison(nowMillis: Long) {
-        val norme = sqrt(graviteX * graviteX + graviteY * graviteY + graviteZ * graviteZ)
-        if (norme < NORME_MINIMALE) return
-        // Angle par rapport au plan horizontal : la valeur absolue met le
-        // téléphone posé face contre table au même rang que face en l'air, tous
-        // deux « à plat ».
-        val cosinus = (abs(graviteZ) / norme).coerceIn(0f, 1f)
-        inclinaisonDeg = acos(cosinus) * DEGRES_PAR_RADIAN
+        inclinaisonDeg = inclinaisonDegres(graviteX, graviteY, graviteZ) ?: return
 
         if (inclinaisonDeg < seuilAngleDeg) {
             // Le réarmement demande un retour franchement à plat : sous le seul
@@ -202,5 +196,17 @@ class PriseEnMainDetector(
         private const val DT_MAX_MS = 200L
         private const val NORME_MINIMALE = 0.001f
         private const val DEGRES_PAR_RADIAN = 57.295776f
+
+        /**
+         * Angle entre l'axe Z de l'appareil et la verticale, en degrés : 0° à plat.
+         * La valeur absolue met « face contre table » et « face en l'air » au même
+         * rang. Renvoie null si le vecteur est trop court pour porter une direction.
+         */
+        fun inclinaisonDegres(x: Float, y: Float, z: Float): Float? {
+            val norme = sqrt(x * x + y * y + z * z)
+            if (norme < NORME_MINIMALE) return null
+            val cosinus = (abs(z) / norme).coerceIn(0f, 1f)
+            return acos(cosinus) * DEGRES_PAR_RADIAN
+        }
     }
 }
