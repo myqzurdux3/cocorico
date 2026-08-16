@@ -234,6 +234,14 @@ class AlarmActivity : ComponentActivity() {
                         context = this,
                         difficulty = config.difficulty,
                         cleApi = config.cleApi,
+                        // Sans ce passage, la sélection par pièce serait un
+                        // réglage décoratif : l'écran la montrerait, la
+                        // persistance la garderait, et le réveil piocherait
+                        // quand même dans tout le catalogue — donc dans des
+                        // objets que l'utilisateur a explicitement dit ne pas
+                        // posséder. C'est exactement le blocage que cette
+                        // fonctionnalité existe pour éviter.
+                        objetsSelectionnes = config.objetsSelectionnes,
                         onInteraction = { interaction() },
                         onRenoncer = onRenoncer,
                     )
