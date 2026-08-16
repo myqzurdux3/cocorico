@@ -2,8 +2,9 @@
 
 Réveil Android à alarme unique, sans snooze. La sonnerie part à plein volume sur
 `STREAM_ALARM` derrière un écran plein qui passe par-dessus le verrouillage, et
-ne s'arrête qu'une fois trois calculs résolus. Prendre le téléphone en main
-baisse le volume ; dix secondes sans toucher au défi le remontent.
+ne s'arrête qu'une fois le défi résolu — calcul mental, ou dix pompes comptées
+au capteur de proximité. Prendre le téléphone en main baisse le volume ; dix
+secondes sans rien faire le remontent.
 
 **Documents de référence**
 - Spec V1 : `superpowers/specs/2026-08-16-cocorico-design.md`
@@ -25,14 +26,15 @@ Trois briques indépendantes, plus la persistance et l'interface.
 | Paquet | Responsabilité |
 |---|---|
 | `alarm/` | Planification (`setAlarmClock`), déclenchement, service de premier plan, filet de secours, redémarrage |
-| `ring/` | Lecture de la sonnerie, volume système, détection de prise en main |
+| `ring/` | Lecture de la sonnerie, volume système, détection de prise en main, lecture des capteurs de pompes |
 | `challenge/` | Défis derrière l'interface `Challenge` — le service ne connaît que `isSolved` |
+| `challenge/pompes/` | Comptage des pompes : machine à états pure et règles anti-triche |
 | `data/` | Configuration unique (DataStore), historique des réveils (Room) |
 | `ui/` | Écrans Compose, onboarding des permissions |
 
 Toute logique décidable vit dans une classe sans import `android.*` et est
 couverte par des tests unitaires. Les composants Android ne font que du câblage.
-C'est ce découpage qui permet 45 tests sans téléphone.
+C'est ce découpage qui permet de tout tester sans téléphone.
 
 ---
 
@@ -57,6 +59,23 @@ C'est ce découpage qui permet 45 tests sans téléphone.
   et c'est un motif classique de refus sur le Play Store.
 - **Commentaires et KDoc en français.** Rien sous 15 sp sur les écrans d'alarme.
   Chiffres en monospace.
+- **Un seul calcul d'inclinaison**, dans `PriseEnMainDetector`, appelé aussi par
+  `CapteurPompes`. Deux estimations du même angle réglées différemment seraient
+  une source de bugs silencieux.
+- **Deux canaux de filtrage, jamais un seul.** Lent (350 ms) pour l'orientation,
+  rapide (100 ms) pour le mouvement. Un canal unique lent absorbe les
+  oscillations : la garde « téléphone immobile » devient inopérante et une
+  agitation à 2 Hz passe sous le seuil.
+- **Une seule horloge pour tous les capteurs** (`SystemClock.elapsedRealtime`).
+  Mélanger les horodatages matériels de deux capteurs dans une même soustraction
+  fait tomber toutes les répétitions hors bornes sur les téléphones dont les
+  bases diffèrent — plus rien n'est jamais compté.
+- **Le schéma Room est exporté et versionné**, et un test compare le SQL de
+  migration à ce schéma colonne par colonne. Room n'infère jamais un défaut SQL
+  depuis la valeur par défaut Kotlin ; l'écart fait planter l'application au
+  démarrage après mise à jour.
+- **Le défi se replie sur le calcul mental** quand les capteurs manquent, avant
+  tout affichage. Sans ce repli, l'alarme serait impossible à arrêter.
 
 ---
 
@@ -82,6 +101,20 @@ Pixel 9a, Android 17, le 16 août 2026 :
 - La détection de prise en main ne se déclenchait jamais : elle exigeait un
   dépassement de seuil continu pendant deux secondes, ce qu'un téléphone
   simplement tenu ne produit pas.
+
+**Ouverts — défi pompes**
+- **Aucun seuil n'a été mesuré sur un vrai geste.** Ceux de `CompteurPompes`,
+  d'`EstimateurGravite` et de `PriseEnMainDetector` viennent tous de
+  simulations. C'est le premier objet de la recette sur appareil.
+- **Le capteur de proximité ne distingue pas un torse d'une paume.** Tenir la
+  main au-dessus du capteur au bon rythme valide le défi en une dizaine de
+  secondes, téléphone posé. Limite acceptée pour l'instant ; la piste retenue
+  est d'exiger un choc au sol pendant la phase basse, à calibrer après la
+  recette. Détail dans `recette-appareil.md`.
+- La migration de la base n'est jamais jouée sur une base peuplée : ni
+  `room-testing` ni Robolectric ne sont configurés. Seule la recette la couvre.
+- `Challenge.progress` et `Challenge.onUserInteraction` ne sont lus nulle part —
+  deux membres morts de l'interface.
 
 **Ouverts**
 - `VolumeStateMachine` a deux paliers là où la spec en décrit trois avec rampe
