@@ -1,6 +1,7 @@
 package com.cocorico.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -25,6 +26,11 @@ object AlarmConfigCodec {
         .toSet()
 }
 
+/**
+ * Persists the unique alarm configuration to DataStore.
+ *
+ * @param context The application context (not an activity context).
+ */
 class AlarmConfigRepository(private val context: Context) {
 
     private object Keys {
@@ -37,9 +43,10 @@ class AlarmConfigRepository(private val context: Context) {
         val ARMED = booleanPreferencesKey("armed")
     }
 
-    val config: Flow<AlarmConfig> = context.dataStore.data.map { prefs ->
+    /** Lecture d'un instantané de préférences, partagée par le flux et l'écriture. */
+    private fun lire(prefs: Preferences): AlarmConfig {
         val default = AlarmConfig.DEFAULT
-        AlarmConfig(
+        return AlarmConfig(
             hour = prefs[Keys.HOUR] ?: default.hour,
             minute = prefs[Keys.MINUTE] ?: default.minute,
             days = prefs[Keys.DAYS]?.let(AlarmConfigCodec::decodeDays) ?: default.days,
@@ -54,11 +61,17 @@ class AlarmConfigRepository(private val context: Context) {
         )
     }
 
+    val config: Flow<AlarmConfig> = context.dataStore.data.map(::lire)
+
     suspend fun current(): AlarmConfig = config.first()
 
+    /**
+     * Lecture et écriture dans la même transaction `edit` : deux mises à jour
+     * concurrentes (deux jours cochés coup sur coup) ne doivent pas se perdre.
+     */
     suspend fun update(transform: (AlarmConfig) -> AlarmConfig) {
-        val updated = transform(current())
         context.dataStore.edit { prefs ->
+            val updated = transform(lire(prefs))
             prefs[Keys.HOUR] = updated.hour
             prefs[Keys.MINUTE] = updated.minute
             prefs[Keys.DAYS] = AlarmConfigCodec.encodeDays(updated.days)
