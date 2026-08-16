@@ -119,9 +119,29 @@ Chacune de ces manipulations doit échouer à faire compter une répétition.
 - [ ] Descendre sans remonter.
 - [ ] Rester en position basse plusieurs secondes puis remonter très lentement
       (cycle au-delà de huit secondes).
-- [ ] Poser un objet sur le capteur et le retirer au rythme d'une pompe.
-      Celle-ci passera peut-être : le téléphone est immobile et à plat, rien ne
-      la distingue d'une vraie. À constater, pas forcément à corriger.
+- [ ] **Triche connue, à mesurer.** Téléphone posé sur la table de nuit,
+      tenir la paume deux centimètres au-dessus du capteur environ six dixièmes
+      de seconde, retirer, recommencer dix fois. En simulation, le défi est
+      validé en neuf secondes sans se lever. Vérifier que c'est bien le cas sur
+      l'appareil, et noter combien de temps ça demande vraiment.
+
+### Ce que le capteur ne peut pas savoir
+
+Le capteur de proximité ne distingue pas un torse d'une paume : il ne voit
+qu'un obstacle proche. Les quatre règles anti-triche n'observent que le
+téléphone — inclinaison, immobilité, durées — et une main qui ne le touche pas
+ne le fait ni pencher ni bouger.
+
+Décision prise avec l'utilisateur le 16 août 2026 : **on accepte cette limite
+pour l'instant**, et on décide après la calibration sur appareil. Raison :
+aucun seuil du compteur n'a encore été mesuré sur un vrai geste, ils viennent
+tous de simulations. Ajouter une règle supplémentaire non mesurée par-dessus
+des seuils non mesurés risque surtout de faire échouer de vraies pompes.
+
+La piste retenue si la triche s'avère gênante : exiger que l'accéléromètre voie
+un choc au sol pendant la phase basse. Des mains et des pointes de pied en
+transmettent un, une paume en l'air non. À calibrer avec précaution — moquette,
+tapis épais et plancher souple amortissent le choc.
 
 ### Repli et renoncement
 
