@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,7 @@ import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -152,6 +154,19 @@ class PhotoChallenge(
         // attente : sans cette garde, deux verdicts pourraient se croiser et
         // fausser la progression.
         var enAttenteVerdict by remember { mutableStateOf(false) }
+
+        // Le compte à rebours d'inactivité fait remonter le volume au bout de
+        // dix secondes sans geste. Or l'attente d'un verdict peut durer jusqu'à
+        // huit secondes, capture comprise, pendant lesquelles le bouton est
+        // désactivé : l'utilisateur ne *peut* rien faire. Sans ce réarmement,
+        // la sirène repartait à fond au visage de quelqu'un qui venait
+        // précisément d'obéir, et la marge tenait à deux secondes près.
+        LaunchedEffect(enAttenteVerdict) {
+            while (enAttenteVerdict) {
+                onInteraction()
+                delay(RYTHME_REARMEMENT_MS)
+            }
+        }
 
         // Faux tant que la caméra n'a pas pu être liée. Sans cet état, un échec
         // de liaison laissait un bouton actif dont chaque appui échouait en
@@ -420,6 +435,12 @@ class PhotoChallenge(
          * s'allonge sans contrepartie.
          */
         private const val COTE_MAX_PX = 1568
+
+        /**
+         * Nettement plus court que les dix secondes du compte à rebours, pour
+         * qu'un réarmement manqué ne suffise jamais à faire remonter le son.
+         */
+        private const val RYTHME_REARMEMENT_MS = 2_000L
     }
 }
 
