@@ -31,6 +31,7 @@ class AlarmService : Service() {
 
     private lateinit var player: RingtonePlayer
     private var wakeLock: PowerManager.WakeLock? = null
+    private val secours by lazy { SecoursScheduler(this) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
@@ -48,6 +49,7 @@ class AlarmService : Service() {
         startForeground(NOTIF_ID, construireNotification())
         AlarmState.marquerDemarree(this)
         acquerirWakeLock()
+        secours.armer()
 
         scope.launch {
             val config = AlarmConfigRepository(applicationContext).current()
@@ -67,6 +69,7 @@ class AlarmService : Service() {
     private fun terminer() {
         AlarmState.marquerTerminee(this)
         player.arreter()
+        secours.annuler()
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
         scope.launch {
@@ -129,8 +132,10 @@ class AlarmService : Service() {
 
     override fun onDestroy() {
         // Filet : si le service meurt sans passer par terminer(), le volume
-        // système est quand même restauré. arreter() est idempotent.
+        // système est quand même restauré et l'alarme de secours désamorcée :
+        // elle ne doit pas ressusciter une alarme dont le défi a été résolu.
         player.arreter()
+        secours.annuler()
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
         scope.cancel()
