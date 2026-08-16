@@ -95,6 +95,30 @@ Le comptage repose sur le capteur de proximité et l'accéléromètre. Aucun de 
 seuils n'a été mesuré sur un vrai geste : ils viennent de simulations. Cette
 section sert autant à valider qu'à calibrer.
 
+### Mesures relevées le 16 août 2026 (Pixel 9a, téléphone au sol)
+
+Premières valeurs réelles, contre des seuils qui n'étaient jusque-là que
+simulés. Traces `CocoricoPompes` dans `logcat`, actives en version de débogage.
+
+| Signal | Mesuré | Seuil | Marge |
+|---|---|---|---|
+| Inclinaison, posé à plat | 0,3 à 0,4° | ≤ 15° | facteur 35 |
+| Écart de gravité, série en cours | 0,00 à 0,04 | ≤ 1,5 | facteur 35 |
+| Phase basse d'une répétition | 766 ms | ≥ 150 ms | facteur 5 |
+| Durée depuis la dernière position haute | 833 ms | 600 à 8 000 ms | dans la plage |
+
+Deux enseignements. D'abord la garde « immobile » ne gêne pas : la crainte que
+les chocs au sol d'une vraie série la fassent rejeter est démentie, l'écart
+reste cinquante fois sous le seuil. Ensuite la borne basse de 600 ms est la
+plus serrée des quatre : une répétition enchaînée vite passerait dessous.
+À surveiller si des répétitions manquent.
+
+**Ce qui reste incertain : le placement du téléphone.** Lors du premier essai
+sous alarme, aucune répétition n'a été comptée ; au second, tout a fonctionné.
+Le capteur de proximité est en haut de l'appareil et ne voit qu'à quelques
+centimètres. Le téléphone doit être sous le sternum, pas sous le visage ni
+sous le ventre. À confirmer, et à dire dans l'interface si ça se répète.
+
 ### Comptage
 
 - [ ] Dix pompes réelles, téléphone au sol écran vers le haut : le compteur

@@ -31,6 +31,9 @@ android {
     }
     buildFeatures {
         compose = true
+        // Sert à `BuildConfig.DEBUG` : les traces de calibration des capteurs
+        // ne doivent exister que dans les versions de débogage.
+        buildConfig = true
     }
 }
 

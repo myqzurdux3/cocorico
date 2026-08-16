@@ -6,6 +6,8 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.SystemClock
+import android.util.Log
+import com.cocorico.BuildConfig
 import com.cocorico.challenge.pompes.EchantillonPompe
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -30,6 +32,9 @@ class CapteurPompes(
 
     private val estimateurGravite = EstimateurGravite()
     private var proche = false
+
+    private var dernierProcheTrace = false
+    private var compteurTrace = 0
 
     /**
      * Les deux capteurs sont exigés, pas seulement la proximité : sans
@@ -93,6 +98,8 @@ class CapteurPompes(
         // d'émettre un angle arbitraire.
         val inclinaison = estimateurGravite.inclinaisonDegres ?: return
 
+        tracer(inclinaison)
+
         onEchantillon(
             EchantillonPompe(
                 procheDuCapteur = proche,
@@ -100,6 +107,28 @@ class CapteurPompes(
                 ecartGravite = estimateurGravite.ecartGravite,
                 tMillis = tMillis,
             ),
+        )
+    }
+
+    /**
+     * Trace de calibration, uniquement en version de débogage. Aucun seuil de
+     * ce fichier n'a été mesuré sur un vrai geste : sans ces chiffres, un
+     * comptage à zéro ne dit pas lequel des trois signaux est en cause.
+     *
+     * Émise à cadence réduite, et à chaque basculement de la proximité — c'est
+     * l'événement rare et décisif, il ne doit jamais être noyé.
+     */
+    private fun tracer(inclinaison: Float) {
+        if (!BuildConfig.DEBUG) return
+        val basculement = proche != dernierProcheTrace
+        dernierProcheTrace = proche
+        compteurTrace++
+        if (!basculement && compteurTrace % 10 != 0) return
+        Log.d(
+            "CocoricoPompes",
+            "proche=$proche inclinaison=${"%.1f".format(inclinaison)}" +
+                " ecart=${"%.2f".format(estimateurGravite.ecartGravite)}" +
+                if (basculement) " BASCULEMENT" else "",
         )
     }
 
