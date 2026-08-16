@@ -14,6 +14,15 @@ data class EtatPermissions(
     val notifications: Boolean,
     val pleinEcran: Boolean,
     val batterieExemptee: Boolean,
+    /**
+     * Volontairement absente de [toutesAccordees] : elle n'est utile qu'au
+     * défi photo, jamais aux calculs ni aux pompes, et un refus n'est pas
+     * bloquant — le défi photo retombe alors sur les calculs (voir
+     * `AlarmActivity.construireDefi`). L'inclure ici bloquerait l'accueil de
+     * quiconque n'a jamais choisi la photo, pour une permission qu'il n'a
+     * jamais eu de raison qu'on lui demande.
+     */
+    val camera: Boolean,
 ) {
     val toutesAccordees: Boolean
         get() = alarmesExactes && notifications && pleinEcran && batterieExemptee
@@ -27,7 +36,15 @@ object PermissionChecker {
         pleinEcran = pleinEcranAccorde(context),
         batterieExemptee = context.getSystemService(PowerManager::class.java)
             .isIgnoringBatteryOptimizations(context.packageName),
+        camera = cameraAccordee(context),
     )
+
+    /** Permission caméra du défi photo. Voir la KDoc de [EtatPermissions.camera]. */
+    private fun cameraAccordee(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA,
+        ) == PackageManager.PERMISSION_GRANTED
 
     /**
      * Depuis Android 14, USE_FULL_SCREEN_INTENT n'est plus accordée à

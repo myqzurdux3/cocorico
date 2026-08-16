@@ -188,6 +188,16 @@ private fun ReglagesIaDistante(
             Text("Faire valider par une IA en ligne", fontSize = 15.sp)
             Switch(checked = active, onCheckedChange = onActiveChange)
         }
+        // Un interrupteur allumé sans clé ne fait rien du tout : `PhotoChallenge`
+        // n'interroge jamais le juge distant si la clé est vide (voir
+        // `PhotoChallenge.fautInterrogerJugeDistant`). Le dire explicitement
+        // évite de laisser croire que ce mode agit déjà.
+        if (active && cleApi.isBlank()) {
+            Text(
+                text = "Sans clé, ce mode reste inactif : seul le juge embarqué décide.",
+                fontSize = 15.sp,
+            )
+        }
         OutlinedTextField(
             value = cleApi,
             onValueChange = onCleApiChange,

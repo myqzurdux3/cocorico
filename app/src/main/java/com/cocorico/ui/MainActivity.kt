@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.alarm.AlarmState
+import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
@@ -79,11 +80,15 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun Contenu() {
+        // Lu une seule fois ici, pas dans chaque branche qui en a besoin :
+        // la reprise en a besoin pour annoncer le bon défi, et l'accueil des
+        // permissions pour ne réclamer la caméra que si la photo est choisie.
+        val config by viewModel.config.collectAsState()
+
         if (alarmeEnCours.value) {
             // Le défi effectivement en train de sonner dépend du réglage :
             // sans lire `config`, cet écran promettrait toujours des calculs,
-            // même quand c'est le défi pompes qui attend en dessous.
-            val config by viewModel.config.collectAsState()
+            // même quand c'est le défi pompes ou photo qui attend en dessous.
             EcranReprise(
                 challengeId = config.challengeId,
                 difficulty = config.difficulty,
@@ -94,7 +99,7 @@ class MainActivity : ComponentActivity() {
 
         var etat by remember { mutableStateOf(PermissionChecker.etat(this)) }
         if (!etat.toutesAccordees) {
-            OnboardingScreen(etat) { etat = PermissionChecker.etat(this) }
+            OnboardingScreen(etat, config.challengeId) { etat = PermissionChecker.etat(this) }
             return
         }
         var ecran by remember {
@@ -191,13 +196,15 @@ private fun EcranReprise(challengeId: ChallengeId, difficulty: Difficulty, onRep
 
 /**
  * Cet écran ne connaît pas le repli silencieux vers les calculs quand les
- * capteurs manquent (voir [PompesChallenge.capteurDisponible], testé côté
- * `AlarmActivity`) : il ne fait qu'annoncer le défi réglé, pas celui qui
- * sonne effectivement. Rester juste dans le cas courant — capteurs présents —
- * vaut mieux que mentir sur les deux.
+ * capteurs ou la caméra manquent (voir [PompesChallenge.capteurDisponible] et
+ * `PhotoChallenge.camerasDisponibles`, testés côté `AlarmActivity`) : il ne
+ * fait qu'annoncer le défi réglé, pas celui qui sonne effectivement. Rester
+ * juste dans le cas courant — capteurs et caméra présents — vaut mieux que
+ * mentir sur les trois.
  */
 private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): String =
     when (challengeId) {
         ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
-        ChallengeId.MATHS, ChallengeId.PHOTO -> "Trois calculs et elle se tait."
+        ChallengeId.PHOTO -> "${PhotoChallenge.nombrePour(difficulty)} photos et elle se tait."
+        ChallengeId.MATHS -> "Trois calculs et elle se tait."
     }

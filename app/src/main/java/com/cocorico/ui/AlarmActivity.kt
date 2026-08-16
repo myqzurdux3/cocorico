@@ -1,6 +1,8 @@
 package com.cocorico.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
@@ -38,12 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.cocorico.alarm.AlarmService
 import com.cocorico.challenge.Challenge
 import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
 import com.cocorico.challenge.MathProblemGenerator
+import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
@@ -173,8 +177,10 @@ class AlarmActivity : ComponentActivity() {
 
     /**
      * Construit le défi demandé par la configuration, avec repli sur les
-     * calculs si le capteur de proximité manque : sans lui, le défi pompes ne
-     * peut jamais se valider et l'alarme deviendrait inarrêtable.
+     * calculs si l'appareil ne peut pas le valider : sans capteur de
+     * proximité, le défi pompes ne peut jamais se valider ; sans caméra, sans
+     * permission caméra ou sans juge embarqué disponible, le défi photo non
+     * plus. Le repli est décidé ici, avant tout affichage — jamais après.
      */
     private fun construireDefi(config: AlarmConfig): Challenge {
         val maths = {
@@ -182,23 +188,70 @@ class AlarmActivity : ComponentActivity() {
                 MathChallengeEngine(MathProblemGenerator(), config.difficulty),
             ) { interaction() }
         }
-        if (config.challengeId != ChallengeId.POMPES) return maths()
+        // Renoncement commun aux deux défis actifs : le nouvel écran remplace
+        // l'ancien dans la composition, et ses capteurs (pompes) ou sa caméra
+        // (photo) sont libérés par le `DisposableEffect` du `Content` sortant
+        // quand celui-ci quitte la composition.
+        val onRenoncer = {
+            abandon = true
+            defi.value = maths()
+        }
 
-        val pompes = PompesChallenge(
-            context = this,
-            difficulty = config.difficulty,
-            onInteraction = { interaction() },
-            onRenoncer = {
-                abandon = true
-                // Le nouvel écran remplace l'ancien dans la composition : ses
-                // capteurs sont libérés par le `DisposableEffect` de
-                // `PompesChallenge.Content` quand celui-ci quitte la
-                // composition, et ses répétitions ne réarment plus rien.
-                defi.value = maths()
-            },
-        )
-        // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
-        return if (pompes.capteurDisponible) pompes else maths()
+        return when (config.challengeId) {
+            ChallengeId.MATHS -> maths()
+
+            ChallengeId.POMPES -> {
+                val pompes = PompesChallenge(
+                    context = this,
+                    difficulty = config.difficulty,
+                    onInteraction = { interaction() },
+                    onRenoncer = onRenoncer,
+                )
+                // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
+                if (challengeEffectif(ChallengeId.POMPES, capteurPompesDisponible = pompes.capteurDisponible) ==
+                    ChallengeId.POMPES
+                ) {
+                    pompes
+                } else {
+                    maths()
+                }
+            }
+
+            ChallengeId.PHOTO -> {
+                // La permission n'est vérifiée qu'ici, jamais réclamée par cette
+                // activité : la demande vit dans l'onboarding, et seulement
+                // quand la photo est le défi choisi (voir `OnboardingScreen`).
+                // Un refus n'est pas bloquant : il vaut simple repli, comme un
+                // capteur de proximité absent.
+                val permissionCameraAccordee = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.CAMERA,
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!permissionCameraAccordee) {
+                    maths()
+                } else {
+                    val photo = PhotoChallenge(
+                        context = this,
+                        difficulty = config.difficulty,
+                        iaDistanteActive = config.iaDistanteActive,
+                        cleApi = config.cleApi,
+                        onInteraction = { interaction() },
+                        onRenoncer = onRenoncer,
+                    )
+                    // Caméra absente ou juge embarqué indisponible : même repli.
+                    if (challengeEffectif(
+                            ChallengeId.PHOTO,
+                            permissionCameraAccordee = true,
+                            camerasDisponibles = photo.camerasDisponibles,
+                        ) == ChallengeId.PHOTO
+                    ) {
+                        photo
+                    } else {
+                        maths()
+                    }
+                }
+            }
+        }
     }
 
     /** Regroupe les deux appels que chaque geste de l'utilisateur doit déclencher. */
@@ -275,6 +328,31 @@ class AlarmActivity : ComponentActivity() {
         /** Doit refléter le délai d'[InactivityTracker] : c'est la valeur affichée. */
         const val SECONDES_INACTIVITE = 10
     }
+}
+
+/**
+ * Décide quel défi sonnera effectivement, à partir du défi réglé et des
+ * capacités déjà constatées de l'appareil — capteur, permission, caméra.
+ * Aucun import `android.*` ici : c'est exactement cette décision qui garantit
+ * qu'aucun réveil ne laisse l'utilisateur devant une alarme qu'il ne peut pas
+ * arrêter, elle mérite donc d'être testable sans capteur ni caméra réels.
+ *
+ * Les calculs n'ont aucune capacité à vérifier : ils sonnent toujours tels
+ * quels. Les pompes retombent sur les calculs sans capteur de proximité, la
+ * photo sans permission caméra ou sans caméra/juge embarqué disponible —
+ * [permissionCameraAccordee] et [camerasDisponibles] gardent leur valeur par
+ * défaut quand l'appelant n'a pas besoin de les fournir.
+ */
+internal fun challengeEffectif(
+    challengeId: ChallengeId,
+    capteurPompesDisponible: Boolean = false,
+    permissionCameraAccordee: Boolean = false,
+    camerasDisponibles: Boolean = false,
+): ChallengeId = when (challengeId) {
+    ChallengeId.MATHS -> ChallengeId.MATHS
+    ChallengeId.POMPES -> if (capteurPompesDisponible) ChallengeId.POMPES else ChallengeId.MATHS
+    ChallengeId.PHOTO ->
+        if (permissionCameraAccordee && camerasDisponibles) ChallengeId.PHOTO else ChallengeId.MATHS
 }
 
 /**

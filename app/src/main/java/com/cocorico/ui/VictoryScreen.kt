@@ -49,6 +49,7 @@ fun VictoryScreen(onFermer: () -> Unit) {
             when {
                 dernier.abandon -> "Calculs (renoncé)"
                 dernier.defi == ChallengeId.POMPES.name -> "Pompes"
+                dernier.defi == ChallengeId.PHOTO.name -> "Photo"
                 else -> "Calculs"
             }
         }

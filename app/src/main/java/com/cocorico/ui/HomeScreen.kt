@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
@@ -117,14 +118,17 @@ fun HomeScreen(
         )
         Ligne(
             titre = "Défi",
-            // Même gabarit pour les deux variantes : le nom du défi, puis sa
-            // difficulté. Les pompes ajoutent le nombre de répétitions, avec
-            // son unité — un chiffre nu ne dit pas ce qu'il compte.
-            valeur = if (config.challengeId == ChallengeId.POMPES) {
-                "Pompes — ${PompesChallenge.nombrePour(config.difficulty)} répétitions, " +
-                    config.difficulty.name.lowercase()
-            } else {
-                "Maths — ${config.difficulty.name.lowercase()}"
+            // Même gabarit pour les trois variantes : le nom du défi, puis sa
+            // difficulté. Pompes et photo ajoutent leur quantité, avec son
+            // unité — un chiffre nu ne dit pas ce qu'il compte.
+            valeur = when (config.challengeId) {
+                ChallengeId.POMPES ->
+                    "Pompes — ${PompesChallenge.nombrePour(config.difficulty)} répétitions, " +
+                        config.difficulty.name.lowercase()
+                ChallengeId.PHOTO ->
+                    "Photo — ${PhotoChallenge.nombrePour(config.difficulty)} objets, " +
+                        config.difficulty.name.lowercase()
+                ChallengeId.MATHS -> "Maths — ${config.difficulty.name.lowercase()}"
             },
             onClick = onOuvrirDefi,
         )

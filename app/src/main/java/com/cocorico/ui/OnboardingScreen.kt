@@ -1,10 +1,13 @@
 package com.cocorico.ui
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,10 +24,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.data.ChallengeId
 
+/**
+ * [challengeId] ne sert qu'à décider si la carte caméra doit apparaître :
+ * elle ne concerne que le défi photo, jamais les calculs ni les pompes (voir
+ * la KDoc d'[EtatPermissions.camera]).
+ */
 @Composable
-fun OnboardingScreen(etat: EtatPermissions, onRafraichir: () -> Unit) {
+fun OnboardingScreen(etat: EtatPermissions, challengeId: ChallengeId, onRafraichir: () -> Unit) {
     val context = LocalContext.current
+    val demanderCamera = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { onRafraichir() }
 
     Column(
         modifier = Modifier
@@ -111,6 +123,22 @@ fun OnboardingScreen(etat: EtatPermissions, onRafraichir: () -> Unit) {
                         ficheApplication(context),
                     )
                 },
+            )
+        }
+
+        // Uniquement quand la photo est le défi choisi : la réclamer à
+        // quelqu'un qui a choisi le calcul mental serait injustifiable. Un
+        // refus n'est pas bloquant — le défi retombe sur les calculs, voir
+        // `AlarmActivity.construireDefi` — donc cette carte ne fait jamais
+        // partie d'[EtatPermissions.toutesAccordees] et ne peut pas bloquer
+        // cet écran.
+        if (challengeId == ChallengeId.PHOTO && !etat.camera) {
+            Exigence(
+                titre = "Appareil photo",
+                detail = "Nécessaire pour valider le défi photo. Sans elle, " +
+                    "l'alarme retombe sur les calculs.",
+                action = "Autoriser",
+                onClick = { demanderCamera.launch(Manifest.permission.CAMERA) },
             )
         }
 
