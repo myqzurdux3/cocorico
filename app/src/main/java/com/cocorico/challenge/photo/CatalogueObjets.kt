@@ -79,18 +79,32 @@ object CatalogueObjets {
      * Tire [nombre] objets distincts, sans remise, en excluant les
      * identifiants d'[exclus] tant que le catalogue le permet.
      *
-     * Deux garde-fous, pour qu'un écran de défi ne reste jamais vide devant
-     * une alarme qui sonne :
-     * - le nombre rendu est toujours borné à la taille du catalogue, jamais
-     *   de boucle sans fin à chercher un objet de plus qui n'existe pas ;
-     * - si l'exclusion ne laisse aucun objet disponible, on retombe sur le
-     *   catalogue entier plutôt que de rendre une liste vide — répéter un
-     *   objet déjà vu vaut mieux qu'un défi impossible à afficher.
+     * Le nombre d'objets rendu est la promesse de la difficulté : l'écran de
+     * défi affiche ce nombre-là, et l'utilisateur doit pouvoir tous les
+     * valider. La fonction ne doit donc jamais rendre moins que ce qui est
+     * demandé tant que le catalogue entier en contient assez — sans quoi le
+     * défi serait plus facile que sa difficulté ne le promet, sans que rien
+     * ne le signale.
+     *
+     * Les objets non exclus sont prioritaires : on ne pioche dans les objets
+     * exclus que pour combler ce que le pool non exclu ne suffit pas à
+     * fournir, qu'il soit trop petit ou totalement vide.
+     *
+     * Garde-fou : le nombre rendu est toujours borné à la taille du
+     * catalogue, jamais de boucle sans fin à chercher un objet de plus qui
+     * n'existe pas.
      */
     fun tirer(nombre: Int, exclus: Set<String>, alea: Random): List<ObjetPhoto> {
         val nombreBorne = nombre.coerceIn(0, tous.size)
         if (nombreBorne == 0) return emptyList()
-        val pool = tous.filter { it.id !in exclus }.ifEmpty { tous }
-        return pool.shuffled(alea).take(nombreBorne.coerceAtMost(pool.size))
+        val nonExclus = tous.filter { it.id !in exclus }
+        if (nonExclus.size >= nombreBorne) {
+            return nonExclus.shuffled(alea).take(nombreBorne)
+        }
+        // Le pool non exclu ne suffit pas : on le rend en entier et on
+        // complète avec des objets exclus, tirés au hasard parmi eux.
+        val manquant = nombreBorne - nonExclus.size
+        val complement = tous.filter { it.id in exclus }.shuffled(alea).take(manquant)
+        return nonExclus.shuffled(alea) + complement
     }
 }
