@@ -90,8 +90,12 @@ fun HomeScreen(
         )
         Ligne(
             titre = "Défi",
+            // Même gabarit pour les deux variantes : le nom du défi, puis sa
+            // difficulté. Les pompes ajoutent le nombre de répétitions, avec
+            // son unité — un chiffre nu ne dit pas ce qu'il compte.
             valeur = if (config.challengeId == ChallengeId.POMPES) {
-                "Pompes — ${PompesChallenge.nombrePour(config.difficulty)}"
+                "Pompes — ${PompesChallenge.nombrePour(config.difficulty)} répétitions, " +
+                    config.difficulty.name.lowercase()
             } else {
                 "Maths — ${config.difficulty.name.lowercase()}"
             },
