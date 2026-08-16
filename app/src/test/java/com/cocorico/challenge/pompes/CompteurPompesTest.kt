@@ -120,4 +120,62 @@ class CompteurPompesTest {
         assertEquals(2, c.comptees.value)
         assertTrue(c.isSolved.value)
     }
+
+    @Test
+    fun `un cycle trop lent ne compte pas`() {
+        val c = CompteurPompes(total = 10)
+        // tenue basse suffisante (200 ms) mais cycle total de 8700 ms, au dela
+        // de CYCLE_MAX_MS (8000 ms) : ce n'est plus une pompe
+        c.onEchantillon(echantillon(proche = false, t = 1_000))
+        c.onEchantillon(echantillon(proche = true, t = 9_500))
+        assertFalse(c.onEchantillon(echantillon(proche = false, t = 9_700)))
+        assertEquals(0, c.comptees.value)
+    }
+
+    @Test
+    fun `une position invalide depuis pret ramene a attente position`() {
+        val c = CompteurPompes(total = 10)
+        c.onEchantillon(echantillon(proche = false, t = 1_000))
+        assertEquals(EtatPompes.PRET, c.etat.value)
+
+        // le telephone est ramasse en position haute : incline et agite
+        assertFalse(
+            c.onEchantillon(
+                echantillon(proche = false, t = 1_400, inclinaison = 40f, ecart = 4f),
+            ),
+        )
+        assertEquals(EtatPompes.ATTENTE_POSITION, c.etat.value)
+    }
+
+    @Test
+    fun `une position invalide pendant la descente ramene a attente position et exige une nouvelle position haute`() {
+        val c = CompteurPompes(total = 10)
+        c.onEchantillon(echantillon(proche = false, t = 1_000)) // PRET
+        c.onEchantillon(echantillon(proche = true, t = 1_400)) // BAS, debutBas = 1400
+        assertEquals(EtatPompes.BAS, c.etat.value)
+
+        // le telephone est ramasse en pleine descente : tenue basse (200 ms) et
+        // cycle (600 ms) seraient valides si on ignorait la position, la garde
+        // doit quand meme s'appliquer
+        assertFalse(c.onEchantillon(echantillon(proche = false, t = 1_600, ecart = 4f)))
+        assertEquals(EtatPompes.ATTENTE_POSITION, c.etat.value)
+        assertEquals(0, c.comptees.value)
+
+        // la remontee ne compte pas tant qu'on n'est pas repasse par une
+        // position haute valide
+        assertFalse(c.onEchantillon(echantillon(proche = false, t = 2_000)))
+        assertEquals(EtatPompes.PRET, c.etat.value)
+        assertEquals(0, c.comptees.value)
+    }
+
+    @Test
+    fun `une tenue basse exactement a la limite basse compte`() {
+        val c = CompteurPompes(total = 10)
+        c.onEchantillon(echantillon(proche = false, t = 800)) // PRET, debutCycle = 800
+        c.onEchantillon(echantillon(proche = true, t = 1_400)) // BAS, debutBas = 1400
+        // tenue basse exactement 150 ms (TENUE_BASSE_MIN_MS) et cycle de 750 ms,
+        // dans la plage acceptee
+        assertTrue(c.onEchantillon(echantillon(proche = false, t = 1_550)))
+        assertEquals(1, c.comptees.value)
+    }
 }
