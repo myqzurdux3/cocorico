@@ -2,7 +2,9 @@ package com.cocorico.data
 
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.abs
 
 /**
  * Bloc de statistiques affiché sur l'écran de statistiques. Pur, comme
@@ -18,8 +20,11 @@ data class Statistiques(
     val nombreTotal: Int,
     /** Temps du dernier réveil, brut — y compris s'il est aberrant : c'est une donnée individuelle, pas un agrégat. */
     val dureeCeMatinSecondes: Long?,
-    /** Les sept derniers réveils, du plus ancien au plus récent, temps bruts. */
-    val dureesRecentesSecondes: List<Long>,
+    /**
+     * Les sept derniers réveils *valides*, du plus ancien au plus récent —
+     * voir [ReveilRecent] et la note d'exclusion dans [StatsCalculator.calculer].
+     */
+    val reveilsRecents: List<ReveilRecent>,
     /** Moyenne des temps valides (voir [StatsCalculator.dureeValideMillis]). */
     val dureeMoyenneSecondes: Long?,
     val meilleureDureeSecondes: Long?,
@@ -39,6 +44,23 @@ data class Statistiques(
      * réveils valides et distincts à comparer.
      */
     val progressionSecondes: Long?,
+)
+
+/**
+ * Détail d'un réveil affiché comme barre dans le graphique des derniers
+ * réveils de l'écran de statistiques. Porte tout ce qu'il faut pour remplir la
+ * fiche de détail au clic (date, temps, défi, renoncement) : cette résolution
+ * (fuseau compris) se fait ici, dans la classe pure, pas dans le composable.
+ */
+data class ReveilRecent(
+    /** Jour civil de l'alarme, dans le fuseau de l'utilisateur. */
+    val date: LocalDate,
+    /** Temps mis pour faire taire l'alarme, en secondes. Toujours dans les bornes valides : voir [StatsCalculator.calculer]. */
+    val dureeSecondes: Long,
+    /** Identifiant du défi effectivement accompli, au format [ChallengeId]. */
+    val defi: String,
+    /** Vrai si l'utilisateur a renoncé au défi initial pour se rabattre sur les calculs. */
+    val abandon: Boolean,
 )
 
 /**
@@ -71,7 +93,7 @@ object StatsCalculator {
             return Statistiques(
                 nombreTotal = 0,
                 dureeCeMatinSecondes = null,
-                dureesRecentesSecondes = emptyList(),
+                reveilsRecents = emptyList(),
                 dureeMoyenneSecondes = null,
                 meilleureDureeSecondes = null,
                 pireDureeSecondes = null,
@@ -88,7 +110,22 @@ object StatsCalculator {
         val validesMillis = dureesMillis.filter { it in DUREE_MIN_VALIDE_MS..DUREE_MAX_VALIDE_MS }
         val validesSecondes = validesMillis.map { it / 1000L }
 
-        val recentesSecondes = dureesMillis.takeLast(NOMBRE_RECENTS).map { it / 1000L }
+        // Le graphique compare des matins entre eux, tout comme la moyenne, le
+        // meilleur, le pire ou le cumul : une durée aberrante y fausserait la
+        // lecture exactement comme dans un agrégat (une seule barre écraserait
+        // l'échelle des six autres), donc elle en est exclue au même titre. Seul
+        // « ce matin », donnée individuelle et non comparative, reste brut.
+        val reveilsRecents = records.indices
+            .filter { dureesMillis[it] in DUREE_MIN_VALIDE_MS..DUREE_MAX_VALIDE_MS }
+            .takeLast(NOMBRE_RECENTS)
+            .map { i ->
+                ReveilRecent(
+                    date = Instant.ofEpochMilli(records[i].alarmeAt).atZone(zone).toLocalDate(),
+                    dureeSecondes = dureesMillis[i] / 1000L,
+                    defi = records[i].defi,
+                    abandon = records[i].abandon,
+                )
+            }
 
         val pompesTentees = records.filter { it.defi == ChallengeId.POMPES.name || it.abandon }
         val tauxAbandon = if (pompesTentees.isEmpty()) {
@@ -100,7 +137,7 @@ object StatsCalculator {
         return Statistiques(
             nombreTotal = records.size,
             dureeCeMatinSecondes = dureesMillis.last() / 1000L,
-            dureesRecentesSecondes = recentesSecondes,
+            reveilsRecents = reveilsRecents,
             dureeMoyenneSecondes = validesSecondes.moyenneOuNull(),
             meilleureDureeSecondes = validesSecondes.minOrNull(),
             pireDureeSecondes = validesSecondes.maxOrNull(),
@@ -148,4 +185,69 @@ object StatsCalculator {
         val moyenneDerniers = derniers.sum() / TAILLE_GROUPE_PROGRESSION
         return moyenneDerniers - moyennePremiers
     }
+
+    /**
+     * Formate une durée en unités humaines : heures, minutes ou secondes selon
+     * l'ordre de grandeur. Sur ce format `Xh`, `Xmin` ou `Xs`, le plus grand cas
+     * d'usage — le temps cumulé, potentiellement des milliers de secondes —
+     * reste lisible, quand personne ne songerait à afficher un temps de
+     * résolution du matin autrement qu'en secondes. Une seule fonction couvre
+     * tous les cas, sans jamais perdre le signe pour les écarts négatifs de
+     * progression.
+     */
+    fun formatDuree(secondes: Long): String {
+        val signe = if (secondes < 0) "-" else ""
+        val valeurAbsolue = abs(secondes)
+        val heures = valeurAbsolue / 3600
+        val minutes = (valeurAbsolue % 3600) / 60
+        val restantSecondes = valeurAbsolue % 60
+        return when {
+            heures > 0 -> "$signe${heures}h${"%02d".format(minutes)}"
+            minutes > 0 -> "$signe${minutes}min${"%02d".format(restantSecondes)}"
+            else -> "$signe${valeurAbsolue}s"
+        }
+    }
+
+    /**
+     * Repères de lecture du graphique des derniers réveils : la valeur au
+     * sommet (la plus longue durée affichée) et la position, en proportion de
+     * la hauteur du graphique (0 = base, 1 = sommet), de la ligne de moyenne.
+     *
+     * Une rangée de sept barres à peine plus large qu'un écran de téléphone n'a
+     * pas la place pour un axe gradué à intervalles réguliers sans casser la
+     * règle des 15 sp du projet (il faudrait une étiquette par graduation).
+     * Deux repères suffisent en revanche à situer n'importe quelle barre : le
+     * sommet, étiqueté avec sa valeur, et la moyenne — déjà mise en avant
+     * ailleurs sur l'écran sous « Temps moyen », donc immédiatement
+     * réutilisable comme point de comparaison — la base à zéro restant
+     * implicite et évidente sur un graphique qui part toujours du bas.
+     */
+    data class EchelleGraphique(
+        /** Valeur, en secondes, représentée par une barre à 100 % de la hauteur. Jamais nulle : sans plancher, une liste vide ou nulle rendrait toute barre infinie ou indéfinie. */
+        val maxSecondes: Long,
+        /** Position 0..1 de la ligne de moyenne dans la hauteur du graphique ; `null` si aucune moyenne n'est disponible. */
+        val positionMoyenne: Float?,
+    )
+
+    /**
+     * Calcule [EchelleGraphique] à partir des durées affichées et de la
+     * moyenne de référence. `dureesSecondes` est supposée déjà expurgée des
+     * durées aberrantes par l'appelant (voir [calculer]) ; cette fonction se
+     * contente de poser les repères, elle ne filtre rien.
+     */
+    fun echelle(dureesSecondes: List<Long>, moyenneSecondes: Long?): EchelleGraphique {
+        val max = (dureesSecondes.maxOrNull() ?: 1L).coerceAtLeast(1L)
+        val position = moyenneSecondes?.let { moyenne -> (moyenne.toFloat() / max.toFloat()).coerceIn(0f, 1f) }
+        return EchelleGraphique(maxSecondes = max, positionMoyenne = position)
+    }
+
+    /**
+     * Bascule la sélection d'une barre du graphique par son rang dans la liste
+     * affichée : un appui sur la barre déjà sélectionnée la désélectionne
+     * (second appui), un appui sur une autre bascule directement dessus — la
+     * sélection se déplace en un seul geste, sans repasser par « aucune
+     * sélection ».
+     */
+    fun basculerSelection(rangSelectionne: Int?, rangClique: Int): Int? =
+        if (rangSelectionne == rangClique) null else rangClique
 }

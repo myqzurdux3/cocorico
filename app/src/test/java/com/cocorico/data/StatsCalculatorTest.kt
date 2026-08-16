@@ -37,7 +37,7 @@ class StatsCalculatorTest {
         val stats = StatsCalculator.calculer(emptyList(), zone)
         assertEquals(0, stats.nombreTotal)
         assertNull(stats.dureeCeMatinSecondes)
-        assertEquals(emptyList<Long>(), stats.dureesRecentesSecondes)
+        assertEquals(emptyList<Any>(), stats.reveilsRecents)
         assertNull(stats.dureeMoyenneSecondes)
         assertNull(stats.meilleureDureeSecondes)
         assertNull(stats.pireDureeSecondes)
@@ -50,11 +50,17 @@ class StatsCalculatorTest {
 
     @Test
     fun `un seul reveil valide alimente ce matin le meilleur et le pire`() {
-        val alarme = instant(LocalDate.of(2026, 8, 10))
+        val jour = LocalDate.of(2026, 8, 10)
+        val alarme = instant(jour)
         val stats = StatsCalculator.calculer(listOf(record(alarme, 120_000L)), zone)
         assertEquals(1, stats.nombreTotal)
         assertEquals(120L, stats.dureeCeMatinSecondes)
-        assertEquals(listOf(120L), stats.dureesRecentesSecondes)
+        assertEquals(1, stats.reveilsRecents.size)
+        val reveil = stats.reveilsRecents.single()
+        assertEquals(120L, reveil.dureeSecondes)
+        assertEquals(jour, reveil.date)
+        assertEquals(ChallengeId.MATHS.name, reveil.defi)
+        assertEquals(false, reveil.abandon)
         assertEquals(120L, stats.dureeMoyenneSecondes)
         assertEquals(120L, stats.meilleureDureeSecondes)
         assertEquals(120L, stats.pireDureeSecondes)
@@ -158,7 +164,38 @@ class StatsCalculatorTest {
             record(base + i * 3_600_000L, (i + 1) * 10_000L)
         }
         val stats = StatsCalculator.calculer(records, zone)
-        assertEquals(listOf(30L, 40L, 50L, 60L, 70L, 80L, 90L), stats.dureesRecentesSecondes)
+        assertEquals(listOf(30L, 40L, 50L, 60L, 70L, 80L, 90L), stats.reveilsRecents.map { it.dureeSecondes })
+    }
+
+    @Test
+    fun `les reveils recents excluent les durees aberrantes comme les autres agregats`() {
+        val base = instant(LocalDate.of(2026, 8, 10))
+        val records = listOf(
+            record(base, 90_000L),
+            // Sous la seconde : exclue du graphique, comme des autres agrégats.
+            record(base + 60_000L, 500L),
+            record(base + 120_000L, 60_000L),
+            // Plus d'une heure : idem.
+            record(base + 180_000L, 4_000_000L),
+        )
+        val stats = StatsCalculator.calculer(records, zone)
+        assertEquals(4, stats.nombreTotal)
+        assertEquals(listOf(90L, 60L), stats.reveilsRecents.map { it.dureeSecondes })
+    }
+
+    @Test
+    fun `le detail d un reveil recent porte son defi et son renoncement`() {
+        val base = instant(LocalDate.of(2026, 8, 10))
+        val records = listOf(
+            record(base, 60_000L, defi = ChallengeId.POMPES.name, abandon = false),
+            record(base + 60_000L, 60_000L, defi = ChallengeId.MATHS.name, abandon = true),
+        )
+        val stats = StatsCalculator.calculer(records, zone)
+        assertEquals(
+            listOf(ChallengeId.POMPES.name, ChallengeId.MATHS.name),
+            stats.reveilsRecents.map { it.defi },
+        )
+        assertEquals(listOf(false, true), stats.reveilsRecents.map { it.abandon })
     }
 
     @Test
@@ -190,5 +227,74 @@ class StatsCalculatorTest {
         val records = (0 until 9).map { i -> record(base + i * 3_600_000L, 100_000L) }
         val stats = StatsCalculator.calculer(records, zone)
         assertNull(stats.progressionSecondes)
+    }
+
+    // --- formatDuree : formatage des durées en unités humaines ---
+
+    @Test
+    fun `formatDuree choisit l unite selon la grandeur et garde les bornes exactes`() {
+        assertEquals("0s", StatsCalculator.formatDuree(0L))
+        assertEquals("59s", StatsCalculator.formatDuree(59L))
+        // Bornes exactes des transitions d'unité : c'est là qu'un test complaisant
+        // laisserait passer un décalage d'une seconde ou d'une minute.
+        assertEquals("1min00", StatsCalculator.formatDuree(60L))
+        assertEquals("1min01", StatsCalculator.formatDuree(61L))
+        assertEquals("59min59", StatsCalculator.formatDuree(3599L))
+        assertEquals("1h00", StatsCalculator.formatDuree(3600L))
+        assertEquals("1h01", StatsCalculator.formatDuree(3661L))
+        // Un écart négatif (progression) garde son signe.
+        assertEquals("-1min30", StatsCalculator.formatDuree(-90L))
+    }
+
+    // --- echelle : repères de lecture du graphique ---
+
+    @Test
+    fun `l echelle place le sommet sur la plus longue duree affichee`() {
+        val echelle = StatsCalculator.echelle(listOf(30L, 90L, 60L), moyenneSecondes = 50L)
+        assertEquals(90L, echelle.maxSecondes)
+        assertEquals(50f / 90f, echelle.positionMoyenne!!, 0.0001f)
+    }
+
+    @Test
+    fun `l echelle plafonne la moyenne au sommet quand elle le depasse`() {
+        val echelle = StatsCalculator.echelle(listOf(30L, 40L), moyenneSecondes = 100L)
+        assertEquals(1f, echelle.positionMoyenne)
+    }
+
+    @Test
+    fun `l echelle sans moyenne ne pose aucun repere`() {
+        val echelle = StatsCalculator.echelle(listOf(30L, 40L), moyenneSecondes = null)
+        assertNull(echelle.positionMoyenne)
+    }
+
+    @Test
+    fun `l echelle sur une liste vide ne divise jamais par zero`() {
+        val echelle = StatsCalculator.echelle(emptyList(), moyenneSecondes = 10L)
+        assertEquals(1L, echelle.maxSecondes)
+        assertEquals(1f, echelle.positionMoyenne)
+    }
+
+    @Test
+    fun `l echelle sur un seul reveil place le sommet et la moyenne ensemble`() {
+        val echelle = StatsCalculator.echelle(listOf(120L), moyenneSecondes = 120L)
+        assertEquals(120L, echelle.maxSecondes)
+        assertEquals(1f, echelle.positionMoyenne)
+    }
+
+    // --- basculerSelection : sélection d'un réveil par son rang ---
+
+    @Test
+    fun `basculerSelection selectionne une barre non selectionnee`() {
+        assertEquals(2, StatsCalculator.basculerSelection(null, 2))
+    }
+
+    @Test
+    fun `basculerSelection desselectionne au second appui sur la meme barre`() {
+        assertEquals(null, StatsCalculator.basculerSelection(2, 2))
+    }
+
+    @Test
+    fun `basculerSelection bascule directement d une barre a l autre sans desselection intermediaire`() {
+        assertEquals(5, StatsCalculator.basculerSelection(2, 5))
     }
 }
