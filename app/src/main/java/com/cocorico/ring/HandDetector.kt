@@ -8,15 +8,28 @@ import android.hardware.SensorManager
 import android.os.SystemClock
 
 /**
- * Enveloppe Android autour de [PriseEnMainDetector] : elle branche
- * l'accéléromètre, lui passe les échantillons horodatés, et prévient une seule
- * fois quand le téléphone a été pris en main. Toute la décision — donc tout ce
- * qui peut se tromper — vit dans la classe pure, testée sans appareil.
+ * Enveloppe Android autour de [PriseEnMainDetector] et de [MouvementDetector] :
+ * elle branche l'accéléromètre, lui passe les échantillons horodatés, et
+ * prévient l'appelant de deux choses distinctes. Toute la décision — donc tout
+ * ce qui peut se tromper — vit dans les deux classes pures, testées sans
+ * appareil.
+ *
+ * Un seul [SensorEventListener] pour les deux détecteurs : ils consomment le
+ * même flux d'échantillons dans le même [onSensorChanged], pas deux
+ * enregistrements concurrents auprès du [SensorManager].
  */
 class HandDetector(
     context: Context,
     private val decision: PriseEnMainDetector = PriseEnMainDetector(),
+    private val mouvement: MouvementDetector = MouvementDetector(),
     private val onPrisEnMain: () -> Unit,
+    /**
+     * Appelé à chaque échantillon tant que [MouvementDetector.enMouvement] est
+     * vrai — pas seulement au passage à vrai — pour que l'appelant puisse
+     * réarmer un compte à rebours en continu pendant tout le geste, pas
+     * uniquement à son début.
+     */
+    private val onMouvement: () -> Unit = {},
 ) : SensorEventListener {
 
     private val manager = context.getSystemService(SensorManager::class.java)
@@ -44,7 +57,6 @@ class HandDetector(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        if (notifie) return
         // `event.timestamp` est en nanosecondes depuis le démarrage, monotone —
         // à l'inverse de l'horloge murale, qui peut sauter en pleine alarme.
         // Certains capteurs l'horodatent mal : on retombe alors sur l'horloge
@@ -54,9 +66,19 @@ class HandDetector(
         } else {
             SystemClock.elapsedRealtime()
         }
-        if (decision.onEchantillon(event.values[0], event.values[1], event.values[2], instantMs)) {
+        val x = event.values[0]
+        val y = event.values[1]
+        val z = event.values[2]
+
+        // Le mouvement continue d'être suivi même après la prise en main
+        // verrouillée : c'est lui qui réarme le compte à rebours ensuite, la
+        // prise en main ne notifie qu'une fois.
+        if (!notifie && decision.onEchantillon(x, y, z, instantMs)) {
             notifie = true
             onPrisEnMain()
+        }
+        if (mouvement.onEchantillon(x, y, z, instantMs)) {
+            onMouvement()
         }
     }
 

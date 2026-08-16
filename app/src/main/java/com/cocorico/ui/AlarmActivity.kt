@@ -123,7 +123,14 @@ class AlarmActivity : ComponentActivity() {
             player.appliquer(it)
             volumeAffiche.value = it
         }
-        detector = HandDetector(this) { machine.onPhonePrisEnMain() }
+        detector = HandDetector(
+            context = this,
+            onPrisEnMain = { machine.onPhonePrisEnMain() },
+            // Bouger le téléphone doit réarmer le compte à rebours comme une
+            // interaction avec le défi : même méthode, même chemin, pas de
+            // second système de réarmement à maintenir en parallèle.
+            onMouvement = { interaction() },
+        )
         detector.demarrer()
 
         lifecycleScope.launch {
