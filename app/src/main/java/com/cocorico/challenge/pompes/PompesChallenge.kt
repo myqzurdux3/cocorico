@@ -149,11 +149,13 @@ class PompesChallenge(
         }
     }
 
-    private fun consigne(etat: EtatPompes, comptees: Int, total: Int): String = when {
-        comptees == total - 1 && etat != EtatPompes.ATTENTE_POSITION -> "Encore une"
-        etat == EtatPompes.ATTENTE_POSITION -> "Pose le téléphone au sol, écran vers le haut"
-        etat == EtatPompes.PRET -> "Descends"
-        else -> "Remonte"
+    private fun consigne(etat: EtatPompes, comptees: Int, total: Int): String = when (etat) {
+        EtatPompes.ATTENTE_POSITION -> "Pose le téléphone au sol, écran vers le haut"
+        // « Encore une » n'a de sens qu'en position haute, juste avant la
+        // dernière descente : en position basse, la consigne utile est de
+        // remonter, pas de recompter ce qui reste.
+        EtatPompes.PRET -> if (comptees == total - 1) "Encore une" else "Descends"
+        EtatPompes.BAS -> "Remonte"
     }
 
     companion object {
