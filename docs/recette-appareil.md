@@ -89,6 +89,64 @@ agressive de la batterie). L'émulateur ne reproduit pas le Doze mode réel.
 - [ ] La statistique s'appelle « Réveils d'affilée » : aucune triche n'est
       comptée, le libellé ne doit pas prétendre le contraire.
 
+## Défi pompes
+
+Le comptage repose sur le capteur de proximité et l'accéléromètre. Aucun de ces
+seuils n'a été mesuré sur un vrai geste : ils viennent de simulations. Cette
+section sert autant à valider qu'à calibrer.
+
+### Comptage
+
+- [ ] Dix pompes réelles, téléphone au sol écran vers le haut : le compteur
+      suit sans rater de répétition et sans en inventer.
+- [ ] Sur vingt pompes réelles, noter combien de répétitions sont ratées.
+      Au-delà de deux, ajuster les seuils de `CompteurPompes` — les valeurs
+      viennent de simulations, pas de mesures.
+- [ ] L'écran reste allumé pendant toute la série, sans y toucher.
+- [ ] S'arrêter dix secondes en milieu de série : le volume remonte à fond, et
+      les répétitions déjà acquises sont conservées.
+
+### Anti-triche
+
+Chacune de ces manipulations doit échouer à faire compter une répétition.
+
+- [ ] Passer la main rapidement devant le capteur, téléphone posé.
+- [ ] Passer la main devant le capteur en tenant le téléphone en main.
+      C'est la triche que le canal rapide corrige : à valider en priorité.
+- [ ] Agiter le téléphone à environ deux allers-retours par seconde tout en
+      masquant le capteur. Si ça compte, `ECART_MAX` est trop haut face au
+      bruit réel de l'accéléromètre.
+- [ ] Descendre sans remonter.
+- [ ] Rester en position basse plusieurs secondes puis remonter très lentement
+      (cycle au-delà de huit secondes).
+- [ ] Poser un objet sur le capteur et le retirer au rythme d'une pompe.
+      Celle-ci passera peut-être : le téléphone est immobile et à plat, rien ne
+      la distingue d'une vraie. À constater, pas forcément à corriger.
+
+### Repli et renoncement
+
+- [ ] Bouton « Je ne peux pas » : bascule immédiate sur les calculs, l'alarme
+      continue de sonner, et le calcul se résout normalement.
+- [ ] Après renoncement, faire des pompes ne compte plus rien et ne fait plus
+      remonter le compte à rebours d'inactivité — les capteurs de l'ancien défi
+      doivent être libérés.
+- [ ] L'écran de victoire affiche « Calculs (renoncé) ».
+- [ ] Coque épaisse ou étui posé sur le capteur : le comptage ne part pas en
+      boucle, et le repli reste atteignable.
+
+### Mise à jour depuis la version précédente
+
+Le seul chemin irréversible de cette version : la base de données change de
+schéma. Une migration ratée efface l'historique ou fait planter l'application
+au démarrage. Ce scénario n'est couvert par aucun test automatique.
+
+- [ ] Installer la version précédente, faire au moins un réveil complet pour
+      remplir l'historique, puis installer par-dessus la nouvelle version sans
+      désinstaller.
+- [ ] L'application démarre, l'écran de victoire retrouve les anciens réveils,
+      et la série n'est pas repartie de zéro.
+- [ ] Les réveils antérieurs à cette version s'affichent comme « Calculs ».
+
 ## Limites connues
 
 Ce ne sont pas des bugs à corriger dans cette version, mais des comportements
