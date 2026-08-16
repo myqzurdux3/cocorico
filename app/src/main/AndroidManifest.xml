@@ -60,6 +60,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
+            <!-- Une mise à jour de l'application annule ses alarmes
+                 programmées. Sans cette action, chaque nouvelle version
+                 désarmerait le réveil du lendemain en silence. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
     </application>
 </manifest>

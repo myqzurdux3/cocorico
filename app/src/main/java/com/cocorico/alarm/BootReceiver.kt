@@ -29,7 +29,15 @@ import kotlinx.coroutines.launch
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        // `MY_PACKAGE_REPLACED` compte autant que le démarrage : Android annule
+        // toutes les alarmes d'une application quand on la met à jour. Sans ce
+        // filet, installer une nouvelle version désarme le réveil du lendemain
+        // sans rien dire, pendant que l'accueil continue d'annoncer l'heure.
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
+            intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+        ) {
+            return
+        }
 
         if (AlarmState.estEnCours(context)) {
             ContextCompat.startForegroundService(
