@@ -38,8 +38,10 @@ import com.cocorico.ring.VolumeStateMachine
 import com.cocorico.ui.theme.CocoricoTheme
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * L'écran plein sur lequel l'utilisateur se réveille. Il pilote le volume mais
@@ -109,19 +111,30 @@ class AlarmActivity : ComponentActivity() {
         if (defi?.isSolved?.value == true) super.onBackPressed()
     }
 
+    /**
+     * L'enregistrement du réveil et l'arrêt du service sont `NonCancellable` :
+     * cette activité est en train de se terminer, et une annulation en vol
+     * laisserait la sonnerie hurler alors que le défi est résolu. Un échec
+     * d'écriture en base ne doit jamais empêcher l'arrêt de l'alarme, d'où le
+     * `runCatching` autour de la seule insertion.
+     */
     private fun terminer() {
         detector.arreter()
         val erreurs = defi?.erreurs?.value ?: 0
         lifecycleScope.launch {
-            CocoricoDatabase.get(applicationContext).wakeRecordDao().inserer(
-                WakeRecord(
-                    alarmeAt = alarmeAt,
-                    resoluAt = System.currentTimeMillis(),
-                    erreurs = erreurs,
-                    triches = 0,
-                ),
-            )
-            AlarmService.arreter(this@AlarmActivity)
+            withContext(NonCancellable) {
+                runCatching {
+                    CocoricoDatabase.get(applicationContext).wakeRecordDao().inserer(
+                        WakeRecord(
+                            alarmeAt = alarmeAt,
+                            resoluAt = System.currentTimeMillis(),
+                            erreurs = erreurs,
+                            triches = 0,
+                        ),
+                    )
+                }
+                AlarmService.arreter(applicationContext)
+            }
             startActivity(
                 Intent(this@AlarmActivity, MainActivity::class.java)
                     .putExtra(MainActivity.EXTRA_VICTOIRE, true),
