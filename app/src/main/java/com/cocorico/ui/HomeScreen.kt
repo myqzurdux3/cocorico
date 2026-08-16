@@ -48,6 +48,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onOuvrirDefi: () -> Unit,
     onOuvrirSonnerie: () -> Unit,
+    onOuvrirStats: () -> Unit,
     onChoisirHeure: () -> Unit,
 ) {
     val config by viewModel.config.collectAsState()
@@ -126,6 +127,11 @@ fun HomeScreen(
                 "Maths — ${config.difficulty.name.lowercase()}"
             },
             onClick = onOuvrirDefi,
+        )
+        Ligne(
+            titre = "Statistiques",
+            valeur = "Le temps mis à faire taire le coq",
+            onClick = onOuvrirStats,
         )
 
         Button(

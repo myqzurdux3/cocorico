@@ -85,8 +85,12 @@ fun VictoryScreen(onFermer: () -> Unit) {
     }
 }
 
+/**
+ * Une ligne « libellé / valeur » dans la charte des cartes de statistiques.
+ * Réutilisée par [StatsScreen] plutôt que clonée : même forme, même charte.
+ */
 @Composable
-private fun Statistique(libelle: String, valeur: String) {
+fun Statistique(libelle: String, valeur: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
