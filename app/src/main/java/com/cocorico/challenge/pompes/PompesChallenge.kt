@@ -1,8 +1,9 @@
 package com.cocorico.challenge.pompes
 
 import android.content.Context
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,11 +13,14 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,8 +38,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * Défi pompes. Le compteur décide, cette classe ne fait que relier les capteurs
  * à l'écran et signaler les répétitions à l'activité.
  *
- * [onRenoncer] bascule sur le défi maths. Le bouton est immédiat et sans délai,
- * mais le renoncement est enregistré dans l'historique.
+ * [onRenoncer] bascule sur le défi maths. Le bouton est immédiat et sans délai
+ * d'attente avant de devenir disponible — mais il exige un appui long plutôt
+ * qu'un simple appui : le torse frôle l'écran à chaque descente, à quelques
+ * centimètres du capteur de proximité, et un appui simple s'y déclencherait
+ * par accident. Le renoncement est enregistré dans l'historique.
  */
 class PompesChallenge(
     context: Context,
@@ -68,6 +75,7 @@ class PompesChallenge(
      */
     val capteurDisponible: Boolean get() = capteur.capteurDisponible()
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     override fun Content(modifier: Modifier) {
         val comptees by compteur.comptees.collectAsState()
@@ -107,21 +115,37 @@ class PompesChallenge(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
             )
-            Text(
-                text = "Je ne peux pas",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable {
-                        onInteraction()
-                        onRenoncer()
-                    }
-                    .padding(vertical = 14.dp),
-            )
+            // Seuil relevé à 600 ms (contre ~500 ms par défaut) : un appui
+            // délibéré, pas un effleurement du torse pendant la descente. Le
+            // bouton reste disponible sans délai — seul le geste change, pas
+            // le moment où il devient possible.
+            CompositionLocalProvider(
+                LocalViewConfiguration provides object : ViewConfiguration by LocalViewConfiguration.current {
+                    override val longPressTimeoutMillis: Long = SEUIL_APPUI_LONG_MS
+                },
+            ) {
+                Text(
+                    text = "Je ne peux pas — appui long",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .combinedClickable(
+                            // Un appui simple ne doit rien faire : c'est lui,
+                            // pas l'appui long, que le torse déclenche par
+                            // accident à chaque descente.
+                            onClick = {},
+                            onLongClick = {
+                                onInteraction()
+                                onRenoncer()
+                            },
+                        )
+                        .padding(vertical = 14.dp),
+                )
+            }
         }
     }
 
@@ -138,5 +162,8 @@ class PompesChallenge(
             Difficulty.MOYEN -> 10
             Difficulty.DIFFICILE -> 20
         }
+
+        /** Durée d'appui exigée par le bouton de renoncement. Voir sa KDoc. */
+        private const val SEUIL_APPUI_LONG_MS = 600L
     }
 }
