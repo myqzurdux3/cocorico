@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +34,7 @@ import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
+import com.cocorico.ring.SonneriePersonnaliseeStore
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDateTime
@@ -60,6 +62,13 @@ fun HomeScreen(
     // On rebat l'instant courant régulièrement, et on redemande l'occurrence
     // dès qu'elle est périmée — c'est la replanification qui a la vérité, pas
     // cet écran.
+    // Relu à chaque retour sur l'accueil : l'utilisateur peut venir d'importer
+    // un fichier depuis l'écran des sonneries.
+    val contexte = LocalContext.current
+    val nomSonneriePersonnalisee = remember(config.ringtoneId) {
+        SonneriePersonnaliseeStore.lireNom(contexte)
+    }
+
     var maintenant by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -113,7 +122,14 @@ fun HomeScreen(
 
         Ligne(
             titre = "Sonnerie",
-            valeur = Sonneries.parId(config.ringtoneId).nom,
+            // Une sonnerie importée porte le nom de son fichier, pas un
+            // libellé générique : c'est la seule façon de savoir, depuis
+            // l'accueil, laquelle est réellement armée pour demain matin.
+            valeur = if (config.ringtoneId == Sonneries.ID_PERSONNALISEE) {
+                nomSonneriePersonnalisee ?: Sonneries.parId(config.ringtoneId).nom
+            } else {
+                Sonneries.parId(config.ringtoneId).nom
+            },
             onClick = onOuvrirSonnerie,
         )
         Ligne(
