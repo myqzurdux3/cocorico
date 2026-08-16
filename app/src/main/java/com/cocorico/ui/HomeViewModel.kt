@@ -1,0 +1,61 @@
+package com.cocorico.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.cocorico.alarm.AlarmScheduler
+import com.cocorico.data.AlarmConfig
+import com.cocorico.data.AlarmConfigRepository
+import com.cocorico.data.Difficulty
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class HomeViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val repo = AlarmConfigRepository(app)
+    private val scheduler = AlarmScheduler(app)
+
+    val config: StateFlow<AlarmConfig> = repo.config.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = AlarmConfig.DEFAULT,
+    )
+
+    private val _prochaine = MutableStateFlow<LocalDateTime?>(null)
+    val prochaine: StateFlow<LocalDateTime?> = _prochaine.asStateFlow()
+
+    init {
+        // Sans ça, l'accueil afficherait « Aucun jour actif » au lancement, même
+        // alarme armée : `prochaine` ne serait renseignée qu'au premier réglage.
+        viewModelScope.launch {
+            _prochaine.value = scheduler.schedule(repo.current())
+        }
+    }
+
+    fun majHeure(heure: Int, minute: Int) = modifier { it.copy(hour = heure, minute = minute) }
+
+    fun basculerJour(jour: DayOfWeek) = modifier { courant ->
+        val jours = courant.days.toMutableSet()
+        if (!jours.remove(jour)) jours.add(jour)
+        courant.copy(days = jours)
+    }
+
+    fun majSonnerie(id: String) = modifier { it.copy(ringtoneId = id) }
+
+    fun majDifficulte(difficulte: Difficulty) = modifier { it.copy(difficulty = difficulte) }
+
+    fun armer(arme: Boolean) = modifier { it.copy(armed = arme) }
+
+    private fun modifier(transform: (AlarmConfig) -> AlarmConfig) {
+        viewModelScope.launch {
+            repo.update(transform)
+            _prochaine.value = scheduler.schedule(repo.current())
+        }
+    }
+}
