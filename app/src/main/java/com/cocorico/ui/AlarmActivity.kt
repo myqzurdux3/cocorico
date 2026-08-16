@@ -31,9 +31,7 @@ import com.cocorico.challenge.MathProblemGenerator
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.ring.HandDetector
 import com.cocorico.ring.RingtonePlayer
-import com.cocorico.ui.AlarmActivity
 import com.cocorico.ring.InactivityTracker
-import com.cocorico.ring.VolumeState
 import com.cocorico.ring.VolumeStateMachine
 import com.cocorico.ui.theme.CocoricoTheme
 import java.time.LocalTime
