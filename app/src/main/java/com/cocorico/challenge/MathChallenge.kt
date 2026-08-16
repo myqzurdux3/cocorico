@@ -1,0 +1,159 @@
+package com.cocorico.challenge
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.cocorico.data.ChallengeId
+import kotlinx.coroutines.flow.StateFlow
+
+class MathChallenge(
+    private val engine: MathChallengeEngine,
+    private val onInteraction: () -> Unit,
+) : Challenge {
+
+    override val id = ChallengeId.MATHS
+    override val progress: StateFlow<ChallengeProgress> = engine.progress
+    override val isSolved: StateFlow<Boolean> = engine.isSolved
+
+    /** Exposé pour l'enregistrement du réveil (tâche 10). */
+    val erreurs: StateFlow<Int> = engine.erreurs
+
+    override fun onUserInteraction() = onInteraction()
+
+    @Composable
+    override fun Content(modifier: Modifier) {
+        val probleme by engine.current.collectAsState()
+        val avancement by engine.progress.collectAsState()
+        var saisie by remember { mutableStateOf("") }
+        var faux by remember { mutableStateOf(false) }
+
+        Column(
+            modifier = modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = "Calcul ${avancement.done + 1} / ${avancement.total}",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            LinearProgressIndicator(
+                progress = { avancement.done.toFloat() / avancement.total },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = "${probleme.prompt} = ?",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 40.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = saisie.ifEmpty { "—" },
+                fontFamily = FontFamily.Monospace,
+                fontSize = 34.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+            if (faux) {
+                Text(
+                    text = "Non. Et le coq a entendu.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 16.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Pave(
+                onChiffre = { chiffre ->
+                    onInteraction()
+                    faux = false
+                    if (saisie.length < 6) saisie += chiffre
+                },
+                onEffacer = {
+                    onInteraction()
+                    faux = false
+                    saisie = saisie.dropLast(1)
+                },
+                onValider = {
+                    onInteraction()
+                    val valeur = saisie.toIntOrNull()
+                    if (valeur != null) {
+                        faux = !engine.submit(valeur)
+                        saisie = ""
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun Pave(
+    onChiffre: (String) -> Unit,
+    onEffacer: () -> Unit,
+    onValider: () -> Unit,
+) {
+    val lignes = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf("⌫", "0", "✓"),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        lignes.forEach { ligne ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ligne.forEach { touche ->
+                    Touche(
+                        libelle = touche,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            when (touche) {
+                                "⌫" -> onEffacer()
+                                "✓" -> onValider()
+                                else -> onChiffre(touche)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Touche(libelle: String, modifier: Modifier, onClick: () -> Unit) {
+    Text(
+        text = libelle,
+        fontFamily = FontFamily.Monospace,
+        fontSize = 26.sp,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+    )
+}
