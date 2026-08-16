@@ -39,6 +39,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Recalcule l'occurrence affichée. L'accueil l'appelle quand celle qu'il
+     * montre est dépassée : sans ça, le libellé restait figé sur une heure
+     * révolue et le délai devenait négatif.
+     */
+    fun rafraichirProchaine() {
+        viewModelScope.launch {
+            _prochaine.value = planifier()
+        }
+    }
+
     fun majHeure(heure: Int, minute: Int) = modifier { it.copy(hour = heure, minute = minute) }
 
     fun basculerJour(jour: DayOfWeek) = modifier { courant ->

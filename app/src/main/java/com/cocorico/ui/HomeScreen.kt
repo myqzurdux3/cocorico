@@ -16,8 +16,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,9 +32,16 @@ import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
+import kotlinx.coroutines.delay
 import java.time.DayOfWeek
-import java.time.Duration
 import java.time.LocalDateTime
+
+/**
+ * Le libellé s'exprime en minutes : le rebattre plus souvent ne changerait rien
+ * à l'affichage et réveillerait le processeur pour rien. Assez court, en
+ * revanche, pour que le passage à « Réveil imminent » suive la sonnerie de près.
+ */
+private const val INTERVALLE_RAFRAICHISSEMENT_MS = 20_000L
 
 @Composable
 fun HomeScreen(
@@ -41,6 +52,22 @@ fun HomeScreen(
 ) {
     val config by viewModel.config.collectAsState()
     val prochaine by viewModel.prochaine.collectAsState()
+
+    // Le délai était calculé une seule fois, à la composition. Passé l'heure
+    // prévue il devenait négatif et l'accueil annonçait « Réveil dans -2 min ».
+    // On rebat l'instant courant régulièrement, et on redemande l'occurrence
+    // dès qu'elle est périmée — c'est la replanification qui a la vérité, pas
+    // cet écran.
+    var maintenant by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            maintenant = LocalDateTime.now()
+            delay(INTERVALLE_RAFRAICHISSEMENT_MS)
+        }
+    }
+    LaunchedEffect(maintenant, prochaine) {
+        if (CompteARebours.estPerimee(maintenant, prochaine)) viewModel.rafraichirProchaine()
+    }
 
     Column(
         modifier = Modifier
@@ -53,8 +80,7 @@ fun HomeScreen(
         Text("Cocorico", style = MaterialTheme.typography.titleLarge)
 
         Text(
-            text = prochaine?.let { "Réveil dans ${delaiLisible(it)}" }
-                ?: "Aucun jour actif. Le coq dort.",
+            text = CompteARebours.libelle(maintenant, prochaine),
             fontSize = 15.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
@@ -160,9 +186,3 @@ private fun Ligne(titre: String, valeur: String, onClick: () -> Unit) {
     }
 }
 
-private fun delaiLisible(cible: LocalDateTime): String {
-    val duree = Duration.between(LocalDateTime.now(), cible)
-    val heures = duree.toHours()
-    val minutes = duree.toMinutes() % 60
-    return if (heures > 0) "$heures h $minutes min" else "$minutes min"
-}
