@@ -191,6 +191,62 @@ au démarrage. Ce scénario n'est couvert par aucun test automatique.
       et la série n'est pas repartie de zéro.
 - [ ] Les réveils antérieurs à cette version s'affichent comme « Calculs ».
 
+## Défi photo
+
+Le défi le plus fragile des trois : il dépend d'une caméra, d'une permission,
+d'un modèle de reconnaissance et parfois d'un réseau. Aucun de ses réglages n'a
+été mesuré. Cette section sert d'abord à trouver ce qui casse.
+
+### Reconnaissance
+
+- [ ] Photographier l'objet demandé, bien cadré, en pleine lumière : accepté du
+      premier coup.
+- [ ] **Compter les essais nécessaires** sur dix objets réellement présents,
+      dans la lumière d'une chambre au réveil, pas en plein jour. Au-delà de
+      deux essais en moyenne, le seuil de confiance de `JugementPhoto` est trop
+      haut — c'est le réglage le plus dangereux du défi, celui qui peut laisser
+      quelqu'un bloqué devant une sirène.
+- [ ] **Noter les objets du catalogue jamais reconnus** et les retirer. Un objet
+      que le modèle ne sait pas nommer rend le défi impossible ce matin-là.
+- [ ] Photographier un objet quelconque, différent de celui demandé : refusé.
+- [ ] Mesurer le délai entre le déclenchement et le verdict.
+
+### Replis, à vérifier avant tout le reste
+
+- [ ] Refuser la permission caméra, puis déclencher l'alarme : le défi doit
+      basculer sur le calcul mental **avant tout affichage**, sans écran vide ni
+      plantage.
+- [ ] Bouton « Je ne peux pas », appui long : bascule sur le calcul mental,
+      renoncement enregistré dans l'historique.
+- [ ] Mode avion, mode en ligne activé : le juge embarqué décide seul, sans
+      attente perceptible. Le défi ne doit jamais rester suspendu au réseau.
+
+### Mode en ligne
+
+- [ ] À l'installation, l'interrupteur est **éteint**. Personne ne l'a allumé.
+- [ ] Le texte de consentement est lisible **avant** l'interrupteur, et dit ce
+      qui part, dans quel cas, et que rien n'est conservé.
+- [ ] Interrupteur allumé sans clé : l'écran dit que le mode reste inactif.
+- [ ] Avec clé valide, sur une photo que l'embarqué refuse : le second avis
+      arrive, ou le délai de huit secondes expire proprement en refus.
+- [ ] Vérifier sur un réseau lent que huit secondes suffisent.
+
+### Anti-triche
+
+- [ ] Impossible de choisir une photo de la galerie : la capture est en direct.
+- [ ] La caméra reste **dans l'écran d'alarme**. Aucune manipulation ne doit
+      ouvrir l'application appareil photo du système, ce qui offrirait un chemin
+      vers les réglages du téléphone pendant que l'alarme sonne.
+- [ ] **Triche connue, à constater.** Photographier l'objet affiché sur un écran
+      d'ordinateur : ce sera accepté. Aucun des deux juges ne distingue de façon
+      fiable un objet de son image. Décision assumée, au même titre que la
+      triche à la paume des pompes : trouver l'image suppose d'être réveillé.
+
+### Vie privée
+
+- [ ] Après plusieurs réveils en photo, vérifier qu'**aucune image** ne traîne
+      dans le stockage de l'application ni dans la galerie du téléphone.
+
 ## Limites connues
 
 Ce ne sont pas des bugs à corriger dans cette version, mais des comportements
