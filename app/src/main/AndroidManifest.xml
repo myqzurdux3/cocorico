@@ -13,6 +13,11 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Uniquement pour le défi photo, qui fait juger l'image par un modèle de
+         vision distant. C'est la seule fonction de l'application qui sorte une
+         donnée du téléphone ; tout le reste — alarme, sonneries, défis,
+         historique — fonctionne sans réseau. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
