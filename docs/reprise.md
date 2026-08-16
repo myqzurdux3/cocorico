@@ -25,12 +25,26 @@ de `d101d68`, 75 tests verts.
 - Journal des décisions : `.superpowers/sdd/2026-08-17-pompes/progress.md`
   (non versionné — l'essentiel a été recopié dans `cocorico.md`)
 
-**Suite immédiate :**
+**Le défi photo est terminé** : 8 tâches, revue d'ensemble, et une vague de
+correction qui a traité deux défauts bloquants. 154 tests verts.
 
-1. Pousser sur la PR #1 — pas encore fait, à confirmer avec l'utilisateur.
-2. Recette sur appareil, section « Défi pompes » de `recette-appareil.md`.
-   **Demander son accord avant toute sonnerie.**
-3. Calibrer les seuils avec ce que la recette révèle. Aucun n'a été mesuré.
+- Plan : `superpowers/plans/2026-08-17-photo.md`
+- Spec : `superpowers/specs/2026-08-17-photo-design.md`
+
+Trois autres demandes livrées depuis : aperçu des sonneries, compte à rebours
+qui ne passe plus en négatif, écran de statistiques, et le mouvement du
+téléphone qui réarme le compte à rebours du volume.
+
+**Suite immédiate : la recette sur appareil.** Rien du défi photo n'a été
+essayé sur un téléphone — ni la caméra, ni la reconnaissance, ni le juge
+distant. **Demander l'accord de l'utilisateur avant toute sonnerie.**
+
+Ordre conseillé, du moins bruyant au plus bruyant :
+
+1. Les replis de `recette-appareil.md` — ce sont eux qui décident si
+   l'utilisateur peut rester bloqué devant une sirène.
+2. La reconnaissance et son seuil, dans la lumière d'une chambre au réveil.
+3. Le mode en ligne, seulement si l'utilisateur fournit sa clé.
 
 ---
 
@@ -109,6 +123,25 @@ C'est le téléphone personnel de l'utilisateur.
   précédente, faire un vrai réveil, installer la nouvelle par-dessus sans
   désinstaller. Seul chemin irréversible du lot, couvert par aucun test.
 - Les écarts ouverts sont listés dans `cocorico.md`.
+
+### Ce que la revue du défi photo a appris
+
+Deux défauts bloquants qu'aucun test n'aurait pu attraper, et qui valent comme
+mise en garde générale :
+
+- **La permission caméra n'était jamais demandée** dans le parcours réel. Le
+  repli sur les calculs faisait son travail — donc le défi photo ne marchait
+  jamais, en silence, et l'accueil promettait pourtant « Photo ». Un filet de
+  sécurité devenu le comportement normal ne se voit pas : le vérifier fait
+  désormais partie de la recette.
+- **Le budget de jetons du juge distant** était un pari serré qui, s'il était
+  faux, faisait refuser toutes les photos. Corrigé par un budget large, pas par
+  le champ `thinking` que la revue suggérait : cette requête n'a jamais été
+  confrontée à l'API réelle, et un champ mal formé produirait exactement le
+  défaut qu'on corrige.
+
+Ces deux-là étaient passés parce que **les tests de la requête vérifiaient des
+sous-chaînes** au lieu de la structure. Ils l'analysent maintenant.
 
 ### La triche connue
 
