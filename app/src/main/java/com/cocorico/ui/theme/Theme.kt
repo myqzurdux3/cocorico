@@ -1,11 +1,13 @@
 package com.cocorico.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -58,14 +60,28 @@ private val CocoricoTypography = Typography(
     bodyMedium = TextStyle(fontSize = 15.sp),
 )
 
+/**
+ * `MaterialTheme` ne fournit pas `LocalContentColor` — seul `Surface` le fait — et
+ * sa valeur par défaut est le noir. Sans cette fourniture centrale, tout `Text`
+ * sans couleur explicite s'affiche en noir : les touches du pavé numérique
+ * devenaient illisibles sur le nuit haute, et l'accueil comme la victoire
+ * écrivaient noir sur nuit. On la pose une fois pour toutes ici, pour qu'aucun
+ * écran futur ne puisse régresser ; un écran peint dans une autre couleur
+ * redéclare la sienne (l'écran d'alarme fournit `onError`).
+ */
 @Composable
 fun CocoricoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    val scheme = if (darkTheme) DarkScheme else LightScheme
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
+        colorScheme = scheme,
         typography = CocoricoTypography,
-        content = content,
-    )
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides scheme.onBackground,
+            content = content,
+        )
+    }
 }

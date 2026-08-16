@@ -61,7 +61,10 @@ fun VictoryScreen(onFermer: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
-        Statistique(libelle = "Réveils sans triche", valeur = "$serie")
+        // SerieCalculator.serie compte des jours consécutifs avec un réveil
+        // abouti, rien d'autre : aucune triche n'est comptabilisée à ce jour.
+        // Le libellé dit donc ce qui est réellement calculé.
+        Statistique(libelle = "Réveils d'affilée", valeur = "$serie")
         Statistique(libelle = "Retard moyen", valeur = "$retard s")
         Button(onClick = onFermer, modifier = Modifier.fillMaxWidth()) {
             Text("Fermer", fontSize = 17.sp)

@@ -6,8 +6,9 @@ import kotlin.random.Random
 data class MathProblem(val prompt: String, val answer: Int)
 
 /**
- * Génère les calculs du défi. Le séparateur est l'espace insécable normal et le
- * signe moins est U+2212 : les tests réévaluent l'énoncé, donc le format compte.
+ * Génère les calculs du défi. Le séparateur est l'espace ordinaire (U+0020) et le
+ * signe moins est U+2212 : les tests réévaluent l'énoncé en découpant sur cet
+ * espace, donc le format compte. Ne pas y glisser d'espace insécable.
  */
 class MathProblemGenerator(private val random: Random = Random.Default) {
 

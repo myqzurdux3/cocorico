@@ -72,6 +72,27 @@ fun OnboardingScreen(etat: EtatPermissions, onRafraichir: () -> Unit) {
             )
         }
 
+        if (!etat.pleinEcran) {
+            Exigence(
+                titre = "Alarme en plein écran",
+                detail = "Sans ça, le réveil se contente d'une notification " +
+                    "derrière l'écran verrouillé. Tu dormirais encore.",
+                action = "Autoriser",
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        ouvrirPremierDisponible(
+                            context,
+                            Intent(
+                                Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                            ficheApplication(context),
+                        )
+                    }
+                },
+            )
+        }
+
         if (!etat.batterieExemptee) {
             Exigence(
                 titre = "Optimisation de la batterie",

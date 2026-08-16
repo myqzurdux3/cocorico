@@ -75,11 +75,18 @@ class MathChallenge(
                 textAlign = TextAlign.Center,
             )
             if (faux) {
+                // Le défi s'affiche par-dessus l'écran d'alarme, qui est peint en
+                // `error`. Un message en `error` y serait rouge sur rouge : on le
+                // pose sur une pastille sombre, en couleur d'accent.
                 Text(
                     text = "Non. Et le coq a entendu.",
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 16.sp,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(vertical = 10.dp),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -149,6 +156,9 @@ private fun Touche(libelle: String, modifier: Modifier, onClick: () -> Unit) {
         text = libelle,
         fontFamily = FontFamily.Monospace,
         fontSize = 26.sp,
+        // Touche posée sur `surface` : sans couleur explicite, elle hériterait de
+        // celle calibrée pour le fond de l'écran.
+        color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))

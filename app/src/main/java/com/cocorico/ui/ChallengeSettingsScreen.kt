@@ -46,6 +46,11 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 Text(
                     text = niveau.name.lowercase().replaceFirstChar { it.uppercase() },
                     fontSize = 15.sp,
+                    // Pastille sélectionnée : fond primaire, donc couleur de
+                    // texte primaire. La couleur de contenu par défaut est
+                    // calibrée pour le fond de l'écran, pas pour cette pastille.
+                    color = if (niveau == config.difficulty) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(
