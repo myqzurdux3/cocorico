@@ -16,12 +16,21 @@ La V1 est terminée, revue et testée sur appareil. Deux correctifs issus du tes
 sur téléphone sont livrés : marges système (bord-à-bord) et détection de prise
 en main réécrite.
 
-**Suite immédiate : exécuter le plan des pompes**, par sous-agents, selon
-`superpowers:subagent-driven-development`. L'utilisateur a explicitement choisi
-ce mode.
+**Le défi pompes est terminé** : 7 tâches, relecture par tâche, revue
+d'ensemble des douze commits, et trois vagues de correction. 23 commits au-delà
+de `d101d68`, 75 tests verts.
 
-- Plan : `superpowers/plans/2026-08-17-pompes.md` (7 tâches)
+- Plan : `superpowers/plans/2026-08-17-pompes.md` (7 tâches, toutes exécutées)
 - Spec : `superpowers/specs/2026-08-17-pompes-design.md`
+- Journal des décisions : `.superpowers/sdd/2026-08-17-pompes/progress.md`
+  (non versionné — l'essentiel a été recopié dans `cocorico.md`)
+
+**Suite immédiate :**
+
+1. Pousser sur la PR #1 — pas encore fait, à confirmer avec l'utilisateur.
+2. Recette sur appareil, section « Défi pompes » de `recette-appareil.md`.
+   **Demander son accord avant toute sonnerie.**
+3. Calibrer les seuils avec ce que la recette révèle. Aucun n'a été mesuré.
 
 ---
 
@@ -87,15 +96,29 @@ C'est le téléphone personnel de l'utilisateur.
 
 ---
 
-## Reste à faire après les pompes
+## Reste à faire
 
 - **Calibrer les seuils de prise en main sur appareil.** `PriseEnMainDetector`
   expose `BUDGET_ENERGIE` (0,25), `PLANCHER_ENERGIE` (0,30) et
   `DUREE_INCLINAISON_MS` (400) — simulés, jamais mesurés. `SEUIL_ANGLE_DEG` (27°)
-  est le plus sûr. L'utilisateur testera la prise en main une fois les pompes
-  finies.
-- **Calibrer les seuils du compteur de pompes**, prévu en tâche 7 du plan.
-- Les écarts ouverts de la V1 sont listés dans `cocorico.md`.
+  est le plus sûr. L'utilisateur testera la prise en main maintenant que les
+  pompes sont finies.
+- **Calibrer les seuils du compteur de pompes et d'`EstimateurGravite`.** Même
+  situation : tout vient de simulations.
+- **Rejouer la migration de base sur une base peuplée.** Installer la version
+  précédente, faire un vrai réveil, installer la nouvelle par-dessus sans
+  désinstaller. Seul chemin irréversible du lot, couvert par aucun test.
+- Les écarts ouverts sont listés dans `cocorico.md`.
+
+### La triche connue
+
+Le capteur de proximité ne distingue pas un torse d'une paume : tenir la main
+au-dessus du capteur au bon rythme valide les dix pompes en une dizaine de
+secondes, téléphone posé. L'utilisateur a choisi le 16 août 2026 de l'accepter
+pour l'instant et de décider après la calibration, parce qu'empiler une règle
+non mesurée sur des seuils non mesurés risque surtout de faire échouer de
+vraies pompes. Piste retenue si ça le gêne : exiger un choc au sol pendant la
+phase basse. Détail dans `recette-appareil.md`.
 
 ---
 
