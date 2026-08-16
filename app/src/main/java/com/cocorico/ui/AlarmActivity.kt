@@ -143,6 +143,11 @@ class AlarmActivity : ComponentActivity() {
             // sonnerie à fond et aucun moyen de l'arrêter.
             val config = runCatching { AlarmConfigRepository(applicationContext).current() }
                 .getOrDefault(AlarmConfig.DEFAULT)
+            // Ce lecteur ne joue rien : il ne sert qu'à piloter le volume
+            // depuis la machine à états. Il lui faut le même plafond que celui
+            // du service, sans quoi la remontée après inactivité repousserait
+            // le son au maximum de l'appareil.
+            player.volumeMaxPourcent = config.volumeMaxPourcent
             defi.value = construireDefi(config)
 
             setContent {

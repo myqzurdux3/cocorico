@@ -10,6 +10,7 @@ import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
+import com.cocorico.ring.NiveauxVolume
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +68,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun majDefi(defi: ChallengeId) = modifier { it.copy(challengeId = defi) }
 
     fun armer(arme: Boolean) = modifier { it.copy(armed = arme) }
+
+    /**
+     * Le plancher est réappliqué à l'écriture, en plus du curseur : la valeur
+     * finit sur le disque, et rien ne doit pouvoir y déposer un plafond qui
+     * rendrait l'alarme inaudible.
+     */
+    fun majVolumeMax(pourcent: Int) =
+        modifier { it.copy(volumeMaxPourcent = NiveauxVolume.normaliser(pourcent)) }
 
 
     fun majCleApi(cle: String) = modifier { it.copy(cleApi = cle) }

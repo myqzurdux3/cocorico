@@ -139,11 +139,20 @@ class RingtonePlayer(private val context: Context) {
     }
 
     /** PLEIN = maximum du flux alarme ; BAISSE = 30 % de ce maximum. */
+    /**
+     * Plafond sonore choisi par l'utilisateur, en pourcentage du maximum de
+     * l'appareil. Réglé par l'appelant dès qu'il a lu la configuration ;
+     * jusque-là, le maximum, qui est le comportement historique — mieux vaut
+     * une alarme trop forte pendant une fraction de seconde qu'une alarme trop
+     * faible.
+     */
+    var volumeMaxPourcent: Int = NiveauxVolume.POURCENT_MAXIMAL
+
     fun appliquer(state: VolumeState) {
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val cible = when (state) {
-            VolumeState.PLEIN -> max
-            VolumeState.BAISSE -> (max * 0.3f).toInt().coerceAtLeast(1)
+            VolumeState.PLEIN -> NiveauxVolume.plein(max, volumeMaxPourcent)
+            VolumeState.BAISSE -> NiveauxVolume.baisse(max, volumeMaxPourcent)
         }
         audio.setStreamVolume(AudioManager.STREAM_ALARM, cible, 0)
     }

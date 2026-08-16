@@ -19,6 +19,12 @@ data class AlarmConfig(
     val challengeId: ChallengeId,
     val difficulty: Difficulty,
     val armed: Boolean,
+    /**
+     * Plafond sonore, en pourcentage du maximum de l'appareil. Borné par le
+     * bas dans [com.cocorico.ring.NiveauxVolume] : un réveil doit rester un
+     * réveil.
+     */
+    val volumeMaxPourcent: Int = 100,
     /** Clé d'API du juge distant, fournie par l'utilisateur. Jamais livrée avec l'application. */
     val cleApi: String = "",
     /**

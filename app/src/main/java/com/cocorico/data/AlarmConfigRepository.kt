@@ -43,6 +43,7 @@ class AlarmConfigRepository(private val context: Context) {
         val CHALLENGE = stringPreferencesKey("challenge")
         val DIFFICULTY = stringPreferencesKey("difficulty")
         val ARMED = booleanPreferencesKey("armed")
+        val VOLUME_MAX = intPreferencesKey("volume_max_pourcent")
         val CLE_API = stringPreferencesKey("cle_api")
         val OBJETS_SELECTIONNES = stringSetPreferencesKey("objets_selectionnes")
     }
@@ -62,6 +63,7 @@ class AlarmConfigRepository(private val context: Context) {
                 ?.let { runCatching { Difficulty.valueOf(it) }.getOrNull() }
                 ?: default.difficulty,
             armed = prefs[Keys.ARMED] ?: default.armed,
+            volumeMaxPourcent = prefs[Keys.VOLUME_MAX] ?: default.volumeMaxPourcent,
             cleApi = prefs[Keys.CLE_API] ?: default.cleApi,
             // Un identifiant persisté qui n'existe plus dans le catalogue —
             // objet retiré depuis une mise à jour — est ignoré par
@@ -91,6 +93,7 @@ class AlarmConfigRepository(private val context: Context) {
             prefs[Keys.CHALLENGE] = updated.challengeId.name
             prefs[Keys.DIFFICULTY] = updated.difficulty.name
             prefs[Keys.ARMED] = updated.armed
+            prefs[Keys.VOLUME_MAX] = updated.volumeMaxPourcent
             prefs[Keys.CLE_API] = updated.cleApi
             prefs[Keys.OBJETS_SELECTIONNES] = updated.objetsSelectionnes
         }

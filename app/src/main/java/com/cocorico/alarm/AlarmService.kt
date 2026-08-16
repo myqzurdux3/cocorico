@@ -109,6 +109,11 @@ class AlarmService : Service() {
             // démarrerait un MediaPlayer en boucle dont plus personne ne détient
             // de référence pour l'arrêter.
             currentCoroutineContext().ensureActive()
+            // Posé avant de démarrer : c'est `demarrer` qui applique le volume
+            // plein, et le poser après laisserait la première seconde de
+            // sonnerie sortir au maximum de l'appareil — précisément ce que ce
+            // réglage existe pour éviter.
+            player.volumeMaxPourcent = config.volumeMaxPourcent
             player.demarrer(Sonneries.parId(config.ringtoneId))
         }
     }
