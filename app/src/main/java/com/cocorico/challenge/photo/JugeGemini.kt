@@ -10,39 +10,71 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
+ * Ce que le juge a réellement obtenu, au-delà du verdict.
+ *
+ * [accepte] est tout ce dont le défi a besoin. [resume] et [reponseBrute]
+ * n'existent que pour le banc d'essai : un refus peut venir d'une clé
+ * invalide, d'un réseau absent, d'un délai dépassé, d'une réponse illisible ou
+ * d'un vrai « non » du modèle. Ces cinq causes appellent cinq corrections
+ * différentes, et le booléen seul ne permet pas de les distinguer — c'est
+ * précisément ce qui rendait un échec impossible à diagnostiquer.
+ */
+data class DiagnosticJuge(
+    val accepte: Boolean,
+    val resume: String,
+    val reponseBrute: String? = null,
+)
+
+/**
  * Le juge du défi photo : un modèle de vision distant, interrogé avec la clé
  * d'API de l'utilisateur.
  *
- * C'est désormais le **seul** juge. La reconnaissance embarquée qui le
- * précédait a été retirée : à l'essai sur appareil, elle nommait mal les
- * objets ordinaires d'un logement, et un défi qui refuse une photo correcte
- * laisse quelqu'un devant une sirène qu'il ne peut pas éteindre. Mieux vaut un
- * juge qui exige du réseau qu'un juge qui se trompe.
+ * C'est le seul juge. La reconnaissance embarquée qui le précédait a été
+ * retirée : à l'essai sur appareil, elle nommait mal les objets ordinaires
+ * d'un logement, et un défi qui refuse une photo correcte laisse quelqu'un
+ * devant une sirène qu'il ne peut pas éteindre.
  *
  * Conséquence assumée : **sans réseau ni clé, le défi photo n'est pas
  * disponible**, et l'alarme se rabat sur le calcul mental avant tout
  * affichage. C'est ce repli qui garantit qu'aucune alarme ne devient
  * impossible à arrêter.
  *
- * Contrat de [JugePhoto] : aucune exception ne sort d'[accepte]. Délai
- * dépassé, code HTTP inattendu, réseau coupé, réponse illisible, clé vide —
- * tout vaut refus. Cette classe s'exécute pendant que l'alarme hurle.
+ * Contrat de [JugePhoto] : aucune exception ne sort d'[accepte].
  */
 class JugeGemini(
     private val cle: String,
     private val timeoutMs: Long = DELAI_MAX_MS,
 ) : JugePhoto {
 
-    override suspend fun accepte(image: Bitmap, objet: ObjetPhoto): Boolean {
-        if (cle.isBlank()) return false
+    override suspend fun accepte(image: Bitmap, objet: ObjetPhoto): Boolean =
+        diagnostiquer(image, objet).accepte
+
+    /**
+     * Même chemin exact qu'[accepte], mais en rapportant ce qui s'est passé.
+     * Le banc d'essai s'en sert ; le défi, lui, n'a que faire du détail.
+     * Emprunter un autre chemin pour diagnostiquer ne prouverait rien sur le
+     * chemin réel.
+     */
+    suspend fun diagnostiquer(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge {
+        if (cle.isBlank()) {
+            return DiagnosticJuge(false, "Aucune clé d'API enregistrée.")
+        }
         return withContext(Dispatchers.IO) {
             withTimeoutOrNull(timeoutMs) {
-                runCatching { interroger(image, objet) }.getOrDefault(false)
-            } ?: false
+                runCatching { interroger(image, objet) }.getOrElse { erreur ->
+                    DiagnosticJuge(
+                        accepte = false,
+                        resume = "Échec réseau : ${masquer(erreur.toString())}",
+                    )
+                }
+            } ?: DiagnosticJuge(
+                accepte = false,
+                resume = "Pas de réponse en ${timeoutMs / 1000} s. Au réveil, ce délai vaut refus.",
+            )
         }
     }
 
-    private fun interroger(image: Bitmap, objet: ObjetPhoto): Boolean {
+    private fun interroger(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge {
         val connexion = (URL(RequeteVision.url()).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             // Bornés aussi côté connexion : `withTimeoutOrNull` ne peut pas
@@ -59,13 +91,44 @@ class JugeGemini(
             connexion.outputStream.use { flux ->
                 flux.write(RequeteVision.corps(objet.nom, encoder(image)).toByteArray())
             }
-            if (connexion.responseCode != HttpURLConnection.HTTP_OK) return false
+            val code = connexion.responseCode
+            if (code != HttpURLConnection.HTTP_OK) {
+                // Le corps d'erreur porte la vraie cause — clé invalide,
+                // quota dépassé, modèle inconnu. Sans le lire, tout échec se
+                // ressemble et rien n'est diagnosticable.
+                val erreur = runCatching {
+                    connexion.errorStream?.bufferedReader()?.use { it.readText() }
+                }.getOrNull().orEmpty()
+                return DiagnosticJuge(
+                    accepte = false,
+                    resume = "Refus du serveur (HTTP $code).",
+                    reponseBrute = masquer(erreur).ifBlank { null },
+                )
+            }
             val reponse = connexion.inputStream.bufferedReader().use { it.readText() }
-            RequeteVision.lireVerdict(reponse)
+            val accepte = RequeteVision.lireVerdict(reponse)
+            DiagnosticJuge(
+                accepte = accepte,
+                resume = if (accepte) {
+                    "Le modèle a reconnu l'objet."
+                } else {
+                    "Le modèle a répondu, mais pas « oui »."
+                },
+                reponseBrute = masquer(reponse),
+            )
         } finally {
             runCatching { connexion.disconnect() }
         }
     }
+
+    /**
+     * Retire la clé de tout texte destiné à l'écran. Elle ne devrait jamais
+     * s'y trouver — elle n'est ni dans l'URL ni dans le corps — mais un
+     * message d'erreur n'est pas sous notre contrôle, et une clé affichée est
+     * une clé qui fuite.
+     */
+    private fun masquer(texte: String): String =
+        if (cle.isBlank()) texte else texte.replace(cle, "«clé masquée»")
 
     /** Encodage en mémoire : aucune image n'atteint le disque. */
     private fun encoder(image: Bitmap): String {

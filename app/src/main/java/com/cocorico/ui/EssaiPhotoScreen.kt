@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.cocorico.challenge.photo.CatalogueObjets
+import com.cocorico.challenge.photo.DiagnosticJuge
 import com.cocorico.challenge.photo.JugeGemini
 import com.cocorico.challenge.photo.ObjetPhoto
 import java.util.concurrent.atomic.AtomicBoolean
@@ -74,7 +75,7 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
     val libere = remember { AtomicBoolean(false) }
 
     var objet by remember { mutableStateOf(CatalogueObjets.tous.first()) }
-    var verdict by remember { mutableStateOf<Boolean?>(null) }
+    var diagnostic by remember { mutableStateOf<DiagnosticJuge?>(null) }
     var enCours by remember { mutableStateOf(false) }
     var cameraPrete by remember { mutableStateOf(false) }
     var echecCamera by remember { mutableStateOf(false) }
@@ -127,7 +128,7 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
                     // faudra retirer.
                     val suivant = (CatalogueObjets.tous.indexOf(objet) + 1) % CatalogueObjets.tous.size
                     objet = CatalogueObjets.tous[suivant]
-                    verdict = null
+                    diagnostic = null
                 }
                 .padding(14.dp),
             textAlign = TextAlign.Center,
@@ -193,18 +194,24 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
                             val bitmap = runCatching { image.versBitmapEssai() }.getOrNull()
                             runCatching { image.close() }
                             if (bitmap == null) {
-                                verdict = false
+                                diagnostic = DiagnosticJuge(
+                                    accepte = false,
+                                    resume = "La photo n'a pas pu être décodée.",
+                                )
                                 enCours = false
                                 return
                             }
                             scope.launch {
-                                verdict = juge.accepte(bitmap, objet)
+                                diagnostic = juge.diagnostiquer(bitmap, objet)
                                 enCours = false
                             }
                         }
 
                         override fun onError(exception: ImageCaptureException) {
-                            verdict = false
+                            diagnostic = DiagnosticJuge(
+                                accepte = false,
+                                resume = "La capture a échoué : ${exception.message}",
+                            )
                             enCours = false
                         }
                     },
@@ -216,24 +223,29 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
             Text(if (enCours) "Analyse…" else "Analyser", fontSize = 18.sp)
         }
 
-        verdict?.let { accepte ->
+        diagnostic?.let { d ->
             Text(
-                text = if (accepte) "ACCEPTÉ" else "REFUSÉ",
+                text = if (d.accepte) "ACCEPTÉ" else "REFUSÉ",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 26.sp,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
             )
-            Text(
-                text = if (accepte) {
-                    "Le modèle a reconnu « ${objet.nom} » sur cette photo."
-                } else {
-                    "Le modèle n'a pas reconnu « ${objet.nom} ». Un refus peut aussi " +
-                        "venir du réseau : sans connexion, ou au-delà de huit secondes, " +
-                        "le verdict est négatif par sécurité."
-                },
-                fontSize = 15.sp,
-            )
+            Text(d.resume, fontSize = 15.sp)
+
+            d.reponseBrute?.let { brute ->
+                Text("Réponse du serveur", fontSize = 15.sp)
+                Text(
+                    text = brute.take(1200),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 15.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(12.dp),
+                )
+            }
         }
     }
 }

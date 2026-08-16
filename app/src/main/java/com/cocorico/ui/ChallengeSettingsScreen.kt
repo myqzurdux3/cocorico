@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -78,6 +80,11 @@ fun ChallengeSettingsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .zoneSure()
+            // Défilement obligatoire : le bloc du juge photo, avec son texte
+            // d'information et son champ de clé, pousse le sélecteur de
+            // difficulté hors de l'écran. Sans lui, ce sélecteur disparaît
+            // purement et simplement dès que le défi photo est choisi.
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
