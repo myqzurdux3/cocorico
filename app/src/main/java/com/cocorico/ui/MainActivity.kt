@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.alarm.AlarmState
+import com.cocorico.challenge.pompes.PompesChallenge
+import com.cocorico.data.ChallengeId
+import com.cocorico.data.Difficulty
 import com.cocorico.ui.theme.CocoricoTheme
 
 private enum class Ecran { ACCUEIL, DEFI, SONNERIE, VICTOIRE }
@@ -76,7 +80,15 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun Contenu() {
         if (alarmeEnCours.value) {
-            EcranReprise { demarrerAlarme() }
+            // Le défi effectivement en train de sonner dépend du réglage :
+            // sans lire `config`, cet écran promettrait toujours des calculs,
+            // même quand c'est le défi pompes qui attend en dessous.
+            val config by viewModel.config.collectAsState()
+            EcranReprise(
+                challengeId = config.challengeId,
+                difficulty = config.difficulty,
+                onReprendre = { demarrerAlarme() },
+            )
             return
         }
 
@@ -153,7 +165,7 @@ class MainActivity : ComponentActivity() {
  * la seule chose qui compte est de pouvoir revenir au défi.
  */
 @Composable
-private fun EcranReprise(onReprendre: () -> Unit) {
+private fun EcranReprise(challengeId: ChallengeId, difficulty: Difficulty, onReprendre: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -164,7 +176,7 @@ private fun EcranReprise(onReprendre: () -> Unit) {
     ) {
         Text("Le coq n'a pas fini.", style = MaterialTheme.typography.titleLarge)
         Text(
-            text = "Ton alarme sonne toujours. Trois calculs et elle se tait.",
+            text = "Ton alarme sonne toujours. " + texteDefiRestant(challengeId, difficulty),
             fontSize = 17.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
@@ -174,3 +186,16 @@ private fun EcranReprise(onReprendre: () -> Unit) {
         }
     }
 }
+
+/**
+ * Cet écran ne connaît pas le repli silencieux vers les calculs quand les
+ * capteurs manquent (voir [PompesChallenge.capteurDisponible], testé côté
+ * `AlarmActivity`) : il ne fait qu'annoncer le défi réglé, pas celui qui
+ * sonne effectivement. Rester juste dans le cas courant — capteurs présents —
+ * vaut mieux que mentir sur les deux.
+ */
+private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): String =
+    when (challengeId) {
+        ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
+        ChallengeId.MATHS, ChallengeId.PHOTO -> "Trois calculs et elle se tait."
+    }
