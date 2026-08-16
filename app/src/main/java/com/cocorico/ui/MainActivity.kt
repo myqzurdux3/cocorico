@@ -33,6 +33,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CocoricoTheme {
+                var etat by remember { mutableStateOf(PermissionChecker.etat(this)) }
+                if (!etat.toutesAccordees) {
+                    OnboardingScreen(etat) { etat = PermissionChecker.etat(this) }
+                    return@CocoricoTheme
+                }
                 var ecran by remember {
                     mutableStateOf(if (victoire.value) Ecran.VICTOIRE else Ecran.ACCUEIL)
                 }
