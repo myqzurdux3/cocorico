@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.PowerManager
 import com.cocorico.R
+import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.Sonneries
@@ -34,25 +35,53 @@ class AlarmService : Service() {
     private val secours by lazy { SecoursScheduler(this) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    /** Vrai entre le premier démarrage effectif et [terminer]. Voir [onStartCommand]. */
+    private var alarmeActive = false
+
     override fun onCreate() {
         super.onCreate()
         player = RingtonePlayer(this)
         creerCanal()
     }
 
+    /**
+     * Le filet de secours retombe sur ce service toutes les 30 s tant que le défi
+     * n'est pas résolu : `onStartCommand` est donc rappelé pendant que l'alarme
+     * sonne déjà. Ce chemin doit être idempotent. Relancer la lecture empilerait
+     * des MediaPlayer irrécupérables, remettrait le volume à fond alors que
+     * l'utilisateur a le téléphone en main, et écraserait le WakeLock précédent
+     * sans le relâcher — au bout de trois minutes, plus rien n'arrête l'alarme.
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DEFI_RESOLU) {
             terminer()
             return START_NOT_STICKY
         }
 
+        // Chaque startForegroundService exige un startForeground, y compris quand
+        // le service est déjà au premier plan : la notification est simplement
+        // republiée à l'identique.
         startForeground(NOTIF_ID, construireNotification())
+
+        if (alarmeActive) {
+            secours.armer()
+            // L'écran d'alarme est le seul composant capable d'arrêter la
+            // sonnerie : s'il a été tué, il faut le ramener. En singleInstance,
+            // l'instance vivante reçoit onNewIntent et ne perd pas sa progression.
+            demarrerActivitePleinEcran()
+            return START_STICKY
+        }
+        alarmeActive = true
+
         AlarmState.marquerDemarree(this)
         acquerirWakeLock()
         secours.armer()
 
         scope.launch {
-            val config = AlarmConfigRepository(applicationContext).current()
+            // Une lecture de configuration qui échoue ne doit pas laisser le
+            // réveil muet : on sonne avec la sonnerie par défaut.
+            val config = runCatching { AlarmConfigRepository(applicationContext).current() }
+                .getOrDefault(AlarmConfig.DEFAULT)
             player.demarrer(Sonneries.parId(config.ringtoneId))
         }
 
@@ -65,8 +94,14 @@ class AlarmService : Service() {
      * `NonCancellable` : `stopSelf()` déclenche `onDestroy`, qui annule le scope.
      * Lancer la replanification puis s'arrêter aussitôt la ferait perdre une fois
      * sur deux, et l'alarme ne sonnerait plus jamais après le premier réveil.
+     *
+     * Le `runCatching` est indispensable : sur Android 12, SCHEDULE_EXACT_ALARM
+     * est révocable à tout moment et `schedule()` peut lever une SecurityException.
+     * Sans lui, l'exception sortirait du bloc et `stopForeground` / `stopSelf` ne
+     * s'exécuteraient jamais — notification d'alarme orpheline et service zombie.
      */
     private fun terminer() {
+        alarmeActive = false
         AlarmState.marquerTerminee(this)
         player.arreter()
         secours.annuler()
@@ -74,8 +109,10 @@ class AlarmService : Service() {
         wakeLock = null
         scope.launch {
             withContext(NonCancellable) {
-                val repo = AlarmConfigRepository(applicationContext)
-                AlarmScheduler(applicationContext).schedule(repo.current())
+                runCatching {
+                    val repo = AlarmConfigRepository(applicationContext)
+                    AlarmScheduler(applicationContext).schedule(repo.current())
+                }
             }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -127,15 +164,23 @@ class AlarmService : Service() {
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_ALARM)
             .setFullScreenIntent(plein, true)
+            // Sans contentIntent, une notification ne fait rien quand on la
+            // touche : Android ne se rabat pas sur le FullScreenIntent. Dès que
+            // celui-ci est dégradé en bandeau (Android 14 sans l'autorisation,
+            // surcouche constructeur, application immersive au premier plan),
+            // c'est le seul chemin qui reste vers l'écran de défi.
+            .setContentIntent(plein)
             .build()
     }
 
     override fun onDestroy() {
         // Filet : si le service meurt sans passer par terminer(), le volume
-        // système est quand même restauré et l'alarme de secours désamorcée :
-        // elle ne doit pas ressusciter une alarme dont le défi a été résolu.
+        // système est quand même restauré. Le secours n'est PAS annulé ici :
+        // c'est exactement le cas pour lequel il existe — service arrêté par le
+        // système sous pression mémoire, défi non résolu. Après terminer(),
+        // AlarmState.estEnCours est faux et AlarmReceiver refuse déjà le secours.
+        alarmeActive = false
         player.arreter()
-        secours.annuler()
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
         scope.cancel()

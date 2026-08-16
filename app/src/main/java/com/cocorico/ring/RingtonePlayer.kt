@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.net.Uri
 
 /**
  * Lecture en boucle sur STREAM_ALARM, qui ignore le mode silencieux.
@@ -23,6 +24,11 @@ class RingtonePlayer(private val context: Context) {
      * prendre le maximum en cours pour l'état normal du téléphone.
      */
     fun demarrer(sonnerie: Sonneries.Sonnerie) {
+        // Défense en profondeur : un second démarrage ne doit jamais abandonner
+        // un lecteur en cours. Il continuerait de tourner en boucle sans que
+        // personne ne détienne plus de référence pour l'arrêter.
+        libererLecteur()
+
         if (volumeOrigine == null) {
             volumeOrigine = VolumeOrigine.lire(context)
                 ?: audio.getStreamVolume(AudioManager.STREAM_ALARM).also {
@@ -31,27 +37,41 @@ class RingtonePlayer(private val context: Context) {
         }
         appliquer(VolumeState.PLEIN)
 
-        val lecteur = MediaPlayer.create(context, sonnerie.resId)
-        if (lecteur == null) {
+        val lecteur = creer(sonnerie.resId)
             // Ressource illisible : plutôt que de rester muet, on se rabat sur la
-            // sonnerie par défaut du système. Une alarme silencieuse est le seul
+            // première sonnerie embarquée. Une alarme silencieuse est le seul
             // échec que cette application n'a pas le droit de produire.
-            player = MediaPlayer.create(context, Sonneries.toutes.first().resId)
-            player?.configurerEtLancer()
-            return
+            ?: creer(Sonneries.toutes.first().resId)
+        player = lecteur?.also {
+            it.isLooping = true
+            it.start()
         }
-        player = lecteur.also { it.configurerEtLancer() }
     }
 
-    private fun MediaPlayer.configurerEtLancer() {
-        setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build(),
-        )
-        isLooping = true
-        start()
+    /**
+     * Les attributs d'alarme sont posés AVANT la préparation. `MediaPlayer.create`
+     * sans attributs prépare le lecteur avec les attributs média par défaut, et
+     * les poser après coup n'est pas garanti : la sonnerie partirait alors sur
+     * STREAM_MUSIC, que le mode silencieux coupe et que tout le pilotage de
+     * volume sur STREAM_ALARM ignore.
+     */
+    private fun creer(resId: Int): MediaPlayer? = MediaPlayer.create(
+        context,
+        Uri.parse("android.resource://${context.packageName}/$resId"),
+        null,
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+        audio.generateAudioSessionId(),
+    )
+
+    private fun libererLecteur() {
+        player?.run {
+            runCatching { if (isPlaying) stop() }
+            release()
+        }
+        player = null
     }
 
     /** PLEIN = maximum du flux alarme ; BAISSE = 30 % de ce maximum. */
@@ -66,11 +86,7 @@ class RingtonePlayer(private val context: Context) {
 
     /** Idempotent : appelable depuis la résolution du défi comme depuis `onDestroy`. */
     fun arreter() {
-        player?.run {
-            if (isPlaying) stop()
-            release()
-        }
-        player = null
+        libererLecteur()
         val origine = volumeOrigine ?: VolumeOrigine.lire(context)
         origine?.let { audio.setStreamVolume(AudioManager.STREAM_ALARM, it, 0) }
         volumeOrigine = null

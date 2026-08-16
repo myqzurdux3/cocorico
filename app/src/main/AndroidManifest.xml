@@ -52,9 +52,13 @@
         <receiver
             android:name=".alarm.BootReceiver"
             android:exported="true">
+            <!-- Pas de LOCKED_BOOT_COMPLETED : le récepteur n'est pas
+                 directBootAware, cette action ne lui serait jamais délivrée.
+                 Le vrai support du démarrage direct exigerait de basculer
+                 AlarmState et le DataStore sur le stockage protégé par
+                 l'appareil. Limite consignée dans docs/recette-appareil.md. -->
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>

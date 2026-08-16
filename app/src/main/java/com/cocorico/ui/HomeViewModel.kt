@@ -34,7 +34,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // Sans ça, l'accueil afficherait « Aucun jour actif » au lancement, même
         // alarme armée : `prochaine` ne serait renseignée qu'au premier réglage.
         viewModelScope.launch {
-            _prochaine.value = scheduler.schedule(repo.current())
+            _prochaine.value = planifier()
         }
     }
 
@@ -55,7 +55,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun modifier(transform: (AlarmConfig) -> AlarmConfig) {
         viewModelScope.launch {
             repo.update(transform)
-            _prochaine.value = scheduler.schedule(repo.current())
+            _prochaine.value = planifier()
         }
     }
+
+    /**
+     * Une autorisation d'alarme exacte révoquée en cours de route fait lever une
+     * SecurityException : elle ferait planter l'accueil au lancement. On retombe
+     * sur « aucune occurrence », et l'onboarding reprend la main puisqu'il teste
+     * la même autorisation.
+     */
+    private suspend fun planifier(): LocalDateTime? =
+        runCatching { scheduler.schedule(repo.current()) }.getOrNull()
 }
