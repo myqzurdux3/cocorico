@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Cocorico">
+  <title>Cocorico — marque</title>
+  <!-- crête -->
+  <g fill="#E3372B">
+    <circle cx="42" cy="40" r="11"/>
+    <circle cx="58" cy="32" r="12"/>
+    <circle cx="74" cy="38" r="10"/>
+    <rect x="38" y="40" width="42" height="18"/>
+    <!-- barbillon -->
+    <circle cx="76" cy="96" r="10"/>
+    <rect x="66" y="82" width="20" height="14"/>
+  </g>
+  <!-- tête -->
+  <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+  <!-- bec ouvert -->
+  <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+  <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+  <!-- œil -->
+  <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+</svg>

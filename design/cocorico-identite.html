@@ -1,0 +1,733 @@
+<title>Cocorico</title>
+
+<style>
+  :root {
+    --nuit:      #101638;
+    --nuit-haut: #1B2154;
+    --crete:     #E3372B;
+    --bec:       #F7B32B;
+    --craie:     #FAF7F2;
+
+    --ground:  #FAF7F2;
+    --surface: #FFFFFF;
+    --ink:     #14122A;
+    --muted:   #6B6579;
+    --line:    #E2DDD4;
+    --accent:  var(--crete);
+    --on-accent: #FFF6F3;
+
+    --sp-1: .375rem; --sp-2: .75rem; --sp-3: 1.25rem;
+    --sp-4: 2rem;    --sp-5: 3.25rem; --sp-6: 5rem;
+
+    --display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #0C1030;
+      --surface: #171C46;
+      --ink:     #F3F0EA;
+      --muted:   #A3A5CC;
+      --line:    #2A3068;
+      --accent:  #FF5347;
+      --on-accent: #200806;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #0C1030;
+    --surface: #171C46;
+    --ink:     #F3F0EA;
+    --muted:   #A3A5CC;
+    --line:    #2A3068;
+    --accent:  #FF5347;
+    --on-accent: #200806;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 var(--sp-3);
+  }
+
+  section { padding-block: var(--sp-6); }
+  section + section { border-top: 1px solid var(--line); }
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(3rem, 11vw, 6.5rem); font-weight: 800; letter-spacing: -.045em; line-height: .92; text-transform: uppercase; }
+  h2 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; }
+  h3 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+  p  { margin: 0; max-width: 62ch; }
+
+  .eyebrow {
+    font-family: var(--display);
+    font-size: .74rem; font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 var(--sp-2);
+  }
+  .lede { font-size: 1.2rem; color: var(--muted); }
+  .stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .stack-tight { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: var(--nuit);
+    color: var(--craie);
+    padding-block: var(--sp-6);
+    border-top: none;
+  }
+  .hero .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-5); }
+  .hero-copy { flex: 1 1 320px; display: flex; flex-direction: column; gap: var(--sp-3); }
+  .hero h1 { color: var(--craie); }
+  .hero h1 em { font-style: normal; color: var(--crete); }
+  .hero p { color: #C8CAE8; font-size: 1.15rem; }
+  .hero-mark { flex: 0 0 auto; }
+  .badge-row { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  .badge {
+    font-family: var(--mono); font-size: .76rem;
+    padding: .3rem .6rem; border-radius: 999px;
+    border: 1px solid #3A4180; color: #C8CAE8;
+  }
+
+  /* ---------- grilles ---------- */
+  .grid-3 { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: var(--sp-3);
+    display: flex; flex-direction: column; gap: var(--sp-2);
+  }
+  .step-num {
+    font-family: var(--mono); font-size: .8rem; font-weight: 700;
+    color: var(--accent); letter-spacing: .08em;
+  }
+  .card p { font-size: .95rem; color: var(--muted); }
+
+  /* ---------- logo ---------- */
+  .logo-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+  .logo-tile {
+    flex: 1 1 200px;
+    background: var(--nuit);
+    border: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-3) var(--sp-3);
+  }
+  .logo-tile.pale { background: var(--craie); }
+  .tile-label {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .06em;
+    color: #9AA0D2; text-transform: uppercase;
+  }
+  .logo-tile.pale .tile-label { color: #8A8478; }
+
+  .lockup { display: flex; align-items: center; gap: .7rem; }
+  .lockup-word {
+    font-family: var(--display); font-weight: 800;
+    letter-spacing: -.045em; text-transform: uppercase;
+    font-size: 2.1rem; color: var(--craie);
+  }
+  .pale .lockup-word { color: var(--nuit); }
+
+  .waves { opacity: 0; transform-origin: 60px 70px; }
+  .ringing .waves { opacity: 1; animation: shout .7s ease-in-out infinite alternate; }
+  @keyframes shout { from { transform: translateX(0); opacity: .45; } to { transform: translateX(4px); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ringing .waves { animation: none; opacity: 1; }
+  }
+
+  .sizes { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+  .size-item { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
+  .size-item .tile-label { color: var(--muted); }
+
+  /* ---------- palette ---------- */
+  .swatches { display: grid; gap: var(--sp-2); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .swatch { border: 1px solid var(--line); }
+  .swatch .chip { height: 84px; }
+  .swatch .meta { padding: .6rem .7rem; background: var(--surface); }
+  .swatch .name { font-weight: 700; font-size: .9rem; }
+  .swatch .hex { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .swatch .use { font-size: .78rem; color: var(--muted); }
+
+  /* ---------- téléphones ---------- */
+  .phones {
+    display: grid; gap: var(--sp-4);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+  .phone-block { display: flex; flex-direction: column; gap: var(--sp-2); align-items: center; }
+  .phone-caption { text-align: center; max-width: 30ch; }
+  .phone-caption .name { font-family: var(--display); font-weight: 700; font-size: .95rem; }
+  .phone-caption .why { font-size: .84rem; color: var(--muted); }
+
+  .phone {
+    width: 268px; height: 560px;
+    border-radius: 34px;
+    border: 9px solid #0A0C24;
+    background: var(--nuit);
+    color: var(--craie);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    font-size: 14px;
+    box-shadow: 0 18px 40px -24px rgba(10,12,36,.9);
+  }
+  .phone.jour { background: var(--craie); color: var(--nuit); }
+  .phone.alarme { background: var(--crete); color: #FFF3F1; }
+
+  .statusbar {
+    display: flex; justify-content: space-between;
+    padding: .5rem .9rem .2rem;
+    font-family: var(--mono); font-size: .68rem; opacity: .65;
+  }
+  .screen { flex: 1; display: flex; flex-direction: column; padding: .9rem 1.05rem 1.1rem; gap: .8rem; }
+  .screen-head { display: flex; align-items: center; justify-content: space-between; }
+  .screen-title { font-family: var(--display); font-weight: 800; letter-spacing: -.02em; font-size: 1rem; text-transform: uppercase; }
+  .screen-sub { font-size: .76rem; opacity: .7; }
+
+  .clock {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 4.1rem; font-weight: 700; letter-spacing: -.05em;
+    line-height: 1; text-align: center;
+  }
+  .clock.sm { font-size: 2.6rem; }
+  .center { text-align: center; }
+
+  .days { display: flex; gap: .28rem; justify-content: center; }
+  .day {
+    width: 27px; height: 27px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: .72rem; font-weight: 700;
+    border: 1px solid rgba(255,255,255,.22); opacity: .5;
+  }
+  .jour .day { border-color: rgba(16,22,56,.2); }
+  .day.on { background: var(--bec); color: var(--nuit); border-color: var(--bec); opacity: 1; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .6rem; padding: .6rem .75rem;
+    background: rgba(255,255,255,.07); border-radius: 12px;
+  }
+  .jour .row { background: rgba(16,22,56,.055); }
+  .row .k { font-size: .74rem; opacity: .65; }
+  .row .v { font-size: .86rem; font-weight: 600; }
+  .row .chev { opacity: .45; font-size: .8rem; }
+
+  .cta {
+    margin-top: auto;
+    text-align: center; font-family: var(--display);
+    font-weight: 800; text-transform: uppercase; letter-spacing: .02em;
+    padding: .85rem; border-radius: 14px;
+    background: var(--crete); color: #FFF3F1;
+  }
+  .cta.jaune { background: var(--bec); color: var(--nuit); }
+  .cta.ghost { background: transparent; border: 1px solid rgba(255,255,255,.3); }
+
+  .opt {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .6rem .7rem; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.16);
+  }
+  .jour .opt { border-color: rgba(16,22,56,.14); }
+  .opt.sel { border-color: var(--bec); background: rgba(247,179,43,.14); }
+  .opt .ic { font-size: 1.1rem; }
+  .opt .t { font-size: .84rem; font-weight: 600; }
+  .opt .d { font-size: .7rem; opacity: .62; }
+  .opt .soon {
+    margin-left: auto; font-family: var(--mono); font-size: .6rem;
+    padding: .12rem .38rem; border-radius: 5px;
+    background: rgba(255,255,255,.14); opacity: .8;
+  }
+  .jour .opt .soon { background: rgba(16,22,56,.1); }
+
+  .prob {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 2.4rem; font-weight: 700; text-align: center; letter-spacing: -.03em;
+  }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+  .key {
+    padding: .55rem 0; text-align: center; border-radius: 10px;
+    font-family: var(--mono); font-size: 1.05rem; font-weight: 600;
+    background: rgba(255,255,255,.08);
+  }
+  .jour .key { background: rgba(16,22,56,.06); }
+  .key.act { background: var(--crete); color: #FFF3F1; }
+
+  .meter { height: 6px; border-radius: 3px; background: rgba(255,255,255,.16); overflow: hidden; }
+  .jour .meter { background: rgba(16,22,56,.12); }
+  .meter > span { display: block; height: 100%; background: var(--bec); }
+  .warn {
+    font-size: .72rem; padding: .45rem .6rem; border-radius: 9px;
+    background: rgba(227,55,43,.18); border: 1px solid rgba(227,55,43,.5);
+  }
+  .alarme .warn { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.35); }
+
+  .streak {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: .7rem .8rem; border-radius: 12px; background: rgba(16,22,56,.06);
+  }
+  .streak .n { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; }
+  .streak .l { font-size: .7rem; opacity: .65; }
+
+  /* ---------- micro-copie ---------- */
+  .copy-list { display: grid; gap: var(--sp-2); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .copy-item { border-left: 3px solid var(--accent); padding-left: var(--sp-2); }
+  .copy-item .ctx { font-family: var(--mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .copy-item .txt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; }
+
+  /* ---------- scope ---------- */
+  .scope { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .scope ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .35rem; }
+  .scope li { font-size: .92rem; color: var(--muted); }
+  .scope li strong { color: var(--ink); font-weight: 600; }
+
+  footer { padding-block: var(--sp-4); color: var(--muted); font-size: .85rem; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--bec); outline-offset: 2px; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <p class="eyebrow">Réveil Android — direction de marque</p>
+      <h1>Coco<em>rico</em></h1>
+      <p>Une seule alarme. Pas de snooze, pas de deuxième chance : elle ne se tait que quand ton cerveau redémarre.</p>
+      <div class="badge-row">
+        <span class="badge">Kotlin + Compose</span>
+        <span class="badge">Alarme exacte</span>
+        <span class="badge">Anti-triche fort</span>
+        <span class="badge">V1 : défi maths</span>
+      </div>
+    </div>
+    <div class="hero-mark">
+      <svg viewBox="0 0 128 128" width="200" height="200" role="img" aria-label="Marque Cocorico">
+        <g fill="#E3372B">
+          <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+          <rect x="38" y="40" width="42" height="18"/>
+          <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+        </g>
+        <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+        <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+        <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+        <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Le principe</p>
+    <h2>Trois moments, un seul chemin de sortie</h2>
+    <div class="grid-3">
+      <div class="card">
+        <span class="step-num">01 — ÇA HURLE</span>
+        <h3>La sonnerie insupportable</h3>
+        <p>Volume forcé au maximum, écran plein par-dessus le verrouillage. Les boutons de volume ne répondent plus, tuer l'app la relance, redémarrer le téléphone la relance aussi.</p>
+      </div>
+      <div class="card">
+        <span class="step-num">02 — TU L'ATTRAPES</span>
+        <h3>Le téléphone en main</h3>
+        <p>Accéléromètre plus écran allumé : Cocorico voit que tu l'as pris et baisse le volume à un niveau vivable. Récompense immédiate du bon geste.</p>
+      </div>
+      <div class="card">
+        <span class="step-num">03 — TU RÉSOUS</span>
+        <h3>Le défi, ou le retour du bruit</h3>
+        <p>Trois calculs à faire. Dix secondes sans toucher l'écran et le volume remonte à fond. Se rendormir le téléphone à la main devient impossible.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Marque</p>
+    <h2>Un coq qui a trois humeurs</h2>
+    <p class="lede">La marque bouge avec l'état de l'app. Même géométrie, trois lectures : le bec et l'œil font tout le travail.</p>
+
+    <div class="logo-row">
+      <div class="logo-tile">
+        <svg viewBox="0 0 128 128" width="120" height="120" role="img" aria-label="État dormant : bec fermé, œil clos">
+          <g fill="#E3372B">
+            <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+            <rect x="38" y="40" width="42" height="18"/>
+            <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+          </g>
+          <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+          <polygon points="86,68 118,66 88,76" fill="#F7B32B"/>
+          <rect x="66" y="60" width="13" height="4" rx="2" fill="#101638"/>
+        </svg>
+        <span class="tile-label">Armé — bec fermé</span>
+      </div>
+
+      <div class="logo-tile ringing">
+        <svg viewBox="0 0 128 128" width="120" height="120" role="img" aria-label="État sonnerie : bec grand ouvert">
+          <g class="waves" fill="none" stroke="#F7B32B" stroke-width="5" stroke-linecap="round">
+            <path d="M104 96 q14 -10 14 -26"/>
+            <path d="M114 104 q22 -14 22 -34"/>
+          </g>
+          <g fill="#E3372B">
+            <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+            <rect x="38" y="40" width="42" height="18"/>
+            <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+          </g>
+          <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+          <polygon points="86,62 122,50 88,74" fill="#F7B32B"/>
+          <polygon points="86,78 120,94 88,86" fill="#E09A16"/>
+          <circle cx="72" cy="60" r="6.5" fill="#101638"/>
+        </svg>
+        <span class="tile-label">Sonnerie — bec ouvert</span>
+      </div>
+
+      <div class="logo-tile pale">
+        <svg viewBox="0 0 128 128" width="120" height="120" role="img" aria-label="État défi réussi : clin d'œil">
+          <g fill="#E3372B">
+            <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+            <rect x="38" y="40" width="42" height="18"/>
+            <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+          </g>
+          <ellipse cx="58" cy="70" rx="32" ry="30" fill="#101638"/>
+          <polygon points="86,64 118,58 88,76" fill="#F7B32B"/>
+          <path d="M66 64 q7 -8 14 0" fill="none" stroke="#FAF7F2" stroke-width="4.5" stroke-linecap="round"/>
+        </svg>
+        <span class="tile-label">Réussi — clin d'œil</span>
+      </div>
+    </div>
+
+    <div class="logo-row">
+      <div class="logo-tile">
+        <div class="lockup">
+          <svg viewBox="0 0 128 128" width="46" height="46" aria-hidden="true">
+            <g fill="#E3372B">
+              <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+              <rect x="38" y="40" width="42" height="18"/>
+              <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+            </g>
+            <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+            <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+            <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+            <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+          </svg>
+          <span class="lockup-word">Cocorico</span>
+        </div>
+        <span class="tile-label">Verrouillage horizontal</span>
+      </div>
+      <div class="logo-tile pale">
+        <div class="sizes">
+          <div class="size-item">
+            <svg viewBox="0 0 108 108" width="72" height="72" role="img" aria-label="Icône Android 108dp">
+              <rect width="108" height="108" rx="24" fill="#101638"/>
+              <g transform="translate(24 24) scale(0.47)">
+                <g fill="#E3372B">
+                  <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+                  <rect x="38" y="40" width="42" height="18"/>
+                  <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+                </g>
+                <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+                <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+                <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+                <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+              </g>
+            </svg>
+            <span class="tile-label">72 px</span>
+          </div>
+          <div class="size-item">
+            <svg viewBox="0 0 108 108" width="44" height="44" role="img" aria-label="Icône 44 px">
+              <rect width="108" height="108" rx="24" fill="#101638"/>
+              <g transform="translate(24 24) scale(0.47)">
+                <g fill="#E3372B">
+                  <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+                  <rect x="38" y="40" width="42" height="18"/>
+                  <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+                </g>
+                <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+                <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+                <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+                <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+              </g>
+            </svg>
+            <span class="tile-label">44 px</span>
+          </div>
+          <div class="size-item">
+            <svg viewBox="0 0 108 108" width="26" height="26" role="img" aria-label="Icône 26 px, taille notification">
+              <rect width="108" height="108" rx="24" fill="#101638"/>
+              <g transform="translate(24 24) scale(0.47)">
+                <g fill="#E3372B">
+                  <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+                  <rect x="38" y="40" width="42" height="18"/>
+                  <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+                </g>
+                <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FAF7F2"/>
+                <polygon points="86,62 122,52 88,74" fill="#F7B32B"/>
+                <polygon points="86,78 118,92 88,86" fill="#E09A16"/>
+                <circle cx="72" cy="62" r="5.5" fill="#101638"/>
+              </g>
+            </svg>
+            <span class="tile-label">26 px</span>
+          </div>
+        </div>
+        <span class="tile-label">Icône adaptative — zone sûre respectée</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Couleurs et type</p>
+    <h2>Bleu nuit, crête rouge, bec jaune</h2>
+    <p class="lede">Le bleu nuit est la chambre avant l'aube ; le rouge et le jaune sont le coq. Le rouge ne sert qu'à ce qui exige une action — jamais en décoration.</p>
+
+    <div class="swatches">
+      <div class="swatch">
+        <div class="chip" style="background:#101638"></div>
+        <div class="meta"><div class="name">Nuit</div><div class="hex">#101638</div><div class="use">Fond de l'app, icône, écran de coucher</div></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#E3372B"></div>
+        <div class="meta"><div class="name">Crête</div><div class="hex">#E3372B</div><div class="use">Alarme active, action principale, alerte</div></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#F7B32B"></div>
+        <div class="meta"><div class="name">Bec</div><div class="hex">#F7B32B</div><div class="use">État armé, progression, jours actifs</div></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#FAF7F2"></div>
+        <div class="meta"><div class="name">Craie</div><div class="hex">#FAF7F2</div><div class="use">Texte sur nuit, fond du mode jour</div></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#1B2154"></div>
+        <div class="meta"><div class="name">Nuit haute</div><div class="hex">#1B2154</div><div class="use">Cartes et lignes sur fond nuit</div></div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>Titres</h3>
+        <p>Sans-serif très gras, capitales, interlettrage négatif. Court, frontal, un peu affiche. Jamais plus de cinq mots.</p>
+      </div>
+      <div class="card">
+        <h3>Chiffres</h3>
+        <p>Monospace à chasse fixe pour l'heure, le compte à rebours et les calculs — les chiffres ne doivent jamais sauter quand ils changent.</p>
+      </div>
+      <div class="card">
+        <h3>Corps</h3>
+        <p>Sans-serif neutre, taille généreuse. À 6 h du matin, les yeux ne s'accommodent pas : rien sous 15 sp dans les écrans d'alarme.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Écrans</p>
+    <h2>Cinq écrans, c'est toute l'app</h2>
+    <p class="lede">Une seule alarme veut dire zéro liste, zéro navigation. L'écran d'accueil est l'alarme.</p>
+
+    <div class="phones">
+
+      <div class="phone-block">
+        <div class="phone jour">
+          <div class="statusbar"><span>22:18</span><span>▮▮▮ 84 %</span></div>
+          <div class="screen">
+            <div class="screen-head">
+              <span class="screen-title">Cocorico</span>
+              <span class="screen-sub">Réglages</span>
+            </div>
+            <div class="center screen-sub">Réveil dans 8 h 12</div>
+            <div class="clock">06:30</div>
+            <div class="days">
+              <span class="day on">L</span><span class="day on">M</span><span class="day on">M</span>
+              <span class="day on">J</span><span class="day on">V</span><span class="day">S</span><span class="day">D</span>
+            </div>
+            <div class="row"><span><span class="k">Sonnerie</span><br><span class="v">Klaxon d'enfer</span></span><span class="chev">›</span></div>
+            <div class="row"><span><span class="k">Défi</span><br><span class="v">Maths — moyen</span></span><span class="chev">›</span></div>
+            <div class="cta jaune">Armer le coq</div>
+          </div>
+        </div>
+        <div class="phone-caption">
+          <div class="name">Accueil</div>
+          <div class="why">Le cadran est l'écran. Deux réglages visibles, un bouton, rien d'autre à décider le soir.</div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="phone jour">
+          <div class="statusbar"><span>22:19</span><span>▮▮▮ 84 %</span></div>
+          <div class="screen">
+            <div class="screen-head">
+              <span class="screen-title">Défi</span>
+              <span class="screen-sub">‹ Retour</span>
+            </div>
+            <div class="screen-sub">Ce que tu devras faire pour la faire taire.</div>
+            <div class="opt sel"><span class="ic">✕</span><span><span class="t">Calculs</span><br><span class="d">3 opérations à résoudre</span></span></div>
+            <div class="opt"><span class="ic">↑</span><span><span class="t">Pompes</span><br><span class="d">10 répétitions comptées</span></span><span class="soon">BIENTÔT</span></div>
+            <div class="opt"><span class="ic">▣</span><span><span class="t">Photo</span><br><span class="d">Un objet précis, validé par l'IA</span></span><span class="soon">BIENTÔT</span></div>
+            <div class="row"><span><span class="k">Difficulté</span><br><span class="v">Moyen — 17 × 8</span></span><span class="chev">›</span></div>
+            <div class="cta jaune">Enregistrer</div>
+          </div>
+        </div>
+        <div class="phone-caption">
+          <div class="name">Choix du défi</div>
+          <div class="why">Les défis à venir sont visibles mais marqués. L'architecture les accueille sans refonte.</div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="phone alarme">
+          <div class="statusbar"><span>06:30</span><span>▮▮▮ 71 %</span></div>
+          <div class="screen">
+            <div class="center" style="margin-top:1.2rem">
+              <svg viewBox="0 0 128 128" width="112" height="112" role="img" aria-label="Coq en train de crier">
+                <g fill="#8E1810">
+                  <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+                  <rect x="38" y="40" width="42" height="18"/>
+                  <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+                </g>
+                <ellipse cx="58" cy="70" rx="32" ry="30" fill="#FFF3F1"/>
+                <polygon points="86,62 122,50 88,74" fill="#F7B32B"/>
+                <polygon points="86,78 120,94 88,86" fill="#E09A16"/>
+                <circle cx="72" cy="60" r="6.5" fill="#101638"/>
+              </svg>
+            </div>
+            <div class="clock">06:30</div>
+            <div class="center screen-sub" style="opacity:.9">Debout. Y'a pas de bouton.</div>
+            <div class="cta" style="background:#FFF3F1;color:#B4231A">Faire taire ce coq</div>
+            <div class="center screen-sub" style="opacity:.8">Prends le téléphone en main : le volume baisse tout seul.</div>
+          </div>
+        </div>
+        <div class="phone-caption">
+          <div class="name">Alarme</div>
+          <div class="why">Rouge plein écran par-dessus le verrouillage. Un seul bouton, et il ne coupe rien : il ouvre le défi.</div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="phone">
+          <div class="statusbar"><span>06:30</span><span>▮▮▮ 71 %</span></div>
+          <div class="screen">
+            <div class="screen-head">
+              <span class="screen-title">Calcul 2 / 3</span>
+              <span class="screen-sub">Volume — 30 %</span>
+            </div>
+            <div class="meter"><span style="width:60%"></span></div>
+            <div class="prob">17 × 8 = ?</div>
+            <div class="clock sm center" style="opacity:.9">136</div>
+            <div class="keypad">
+              <span class="key">1</span><span class="key">2</span><span class="key">3</span>
+              <span class="key">4</span><span class="key">5</span><span class="key">6</span>
+              <span class="key">7</span><span class="key">8</span><span class="key">9</span>
+              <span class="key">⌫</span><span class="key">0</span><span class="key act">✓</span>
+            </div>
+            <div class="warn">Sans réponse pendant 10 s, ça repart à fond.</div>
+          </div>
+        </div>
+        <div class="phone-caption">
+          <div class="name">Défi maths</div>
+          <div class="why">Le niveau de volume reste affiché : l'utilisateur voit le marché qu'il est en train de tenir.</div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="phone jour">
+          <div class="statusbar"><span>06:31</span><span>▮▮▮ 71 %</span></div>
+          <div class="screen">
+            <div class="center" style="margin-top:1.4rem">
+              <svg viewBox="0 0 128 128" width="104" height="104" role="img" aria-label="Coq faisant un clin d'œil">
+                <g fill="#E3372B">
+                  <circle cx="42" cy="40" r="11"/><circle cx="58" cy="32" r="12"/><circle cx="74" cy="38" r="10"/>
+                  <rect x="38" y="40" width="42" height="18"/>
+                  <circle cx="76" cy="96" r="10"/><rect x="66" y="82" width="20" height="14"/>
+                </g>
+                <ellipse cx="58" cy="70" rx="32" ry="30" fill="#101638"/>
+                <polygon points="86,64 118,58 88,76" fill="#F7B32B"/>
+                <path d="M66 64 q7 -8 14 0" fill="none" stroke="#FAF7F2" stroke-width="4.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="screen-title center">Debout à 06:31</div>
+            <div class="center screen-sub">Une minute de négociation. C'est correct.</div>
+            <div class="streak"><span class="l">Réveils sans triche</span><span class="n">5</span></div>
+            <div class="streak"><span class="l">Retard moyen</span><span class="n">72 s</span></div>
+            <div class="cta ghost" style="border-color:rgba(16,22,56,.25);color:#101638">Fermer</div>
+          </div>
+        </div>
+        <div class="phone-caption">
+          <div class="name">Victoire</div>
+          <div class="why">Deux chiffres, pas un tableau de bord. La série donne envie de ne pas la casser demain.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Voix</p>
+    <h2>Complice, jamais donneur de leçons</h2>
+    <p class="lede">Cocorico se moque de la situation, pas de l'utilisateur. Il tutoie, il est bref, il ne culpabilise jamais.</p>
+    <div class="copy-list">
+      <div class="copy-item"><div class="ctx">Alarme armée</div><div class="txt">« Le coq dort. Il se lève à 6 h 30. »</div></div>
+      <div class="copy-item"><div class="ctx">Alarme en cours</div><div class="txt">« Debout. Y'a pas de bouton. »</div></div>
+      <div class="copy-item"><div class="ctx">Mauvaise réponse</div><div class="txt">« Non. Et le coq a entendu. »</div></div>
+      <div class="copy-item"><div class="ctx">Volume qui remonte</div><div class="txt">« Tu ralentis. Ça se paie. »</div></div>
+      <div class="copy-item"><div class="ctx">Défi réussi</div><div class="txt">« Debout à 6 h 31. Bien joué. »</div></div>
+      <div class="copy-item"><div class="ctx">Permission refusée</div><div class="txt">« Sans ça, l'alarme peut rater. Autorise les alarmes exactes. »</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <p class="eyebrow">Périmètre</p>
+    <h2>Ce qui part en V1</h2>
+    <div class="scope">
+      <div class="stack-tight">
+        <h3>Dans la V1</h3>
+        <ul>
+          <li><strong>Une alarme</strong> — heure libre, jours de la semaine</li>
+          <li><strong>Sonneries embarquées</strong> — quatre niveaux d'agression, plus import d'un fichier</li>
+          <li><strong>Défi maths</strong> — trois difficultés</li>
+          <li><strong>Baisse de volume</strong> à la prise en main, remontée après 10 s d'inactivité</li>
+          <li><strong>Anti-triche fort</strong> — boutons volume, kill, redémarrage</li>
+          <li><strong>Série de réveils</strong> et retard moyen</li>
+        </ul>
+      </div>
+      <div class="stack-tight">
+        <h3>Après, sans refonte</h3>
+        <ul>
+          <li><strong>Défi pompes</strong> — capteur de proximité</li>
+          <li><strong>Défi photo</strong> — objet imposé, validation par IA, repli hors-ligne obligatoire</li>
+          <li><strong>Défi code-barres</strong> — scanner un objet de la cuisine</li>
+          <li><strong>Rituel du soir</strong> et rappel de coucher</li>
+          <li><strong>iOS</strong> — réécriture complète, les alarmes y sont bien plus contraintes</li>
+        </ul>
+      </div>
+      <div class="stack-tight">
+        <h3>Jamais</h3>
+        <ul>
+          <li><strong>Snooze</strong> — c'est le produit</li>
+          <li><strong>Alarmes multiples</strong> — c'est l'app d'à côté</li>
+          <li><strong>Compte obligatoire</strong> — tout reste sur le téléphone</li>
+          <li><strong>Publicité pendant l'alarme</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Cocorico — direction de marque et écrans, à valider avant la spécification technique.</div>
+</footer>
