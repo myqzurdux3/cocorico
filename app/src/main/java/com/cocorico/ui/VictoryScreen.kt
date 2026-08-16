@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.SerieCalculator
 import java.time.LocalTime
@@ -36,11 +37,21 @@ fun VictoryScreen(onFermer: () -> Unit) {
     val context = LocalContext.current
     var serie by remember { mutableStateOf(0) }
     var retard by remember { mutableStateOf(0) }
+    var defiLibelle by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
+        // WakeRecordDao.tous() trie par alarmeAt croissant : le dernier élément
+        // de la liste est donc bien le réveil le plus récent.
         val records = CocoricoDatabase.get(context).wakeRecordDao().tous()
         serie = SerieCalculator.serie(records, ZoneId.systemDefault())
         retard = SerieCalculator.retardMoyenSecondes(records)
+        defiLibelle = records.lastOrNull()?.let { dernier ->
+            when {
+                dernier.abandon -> "Calculs (renoncé)"
+                dernier.defi == ChallengeId.POMPES.name -> "Pompes"
+                else -> "Calculs"
+            }
+        }
     }
 
     Column(
@@ -67,6 +78,7 @@ fun VictoryScreen(onFermer: () -> Unit) {
         // Le libellé dit donc ce qui est réellement calculé.
         Statistique(libelle = "Réveils d'affilée", valeur = "$serie")
         Statistique(libelle = "Retard moyen", valeur = "$retard s")
+        defiLibelle?.let { Statistique(libelle = "Défi", valeur = it) }
         Button(onClick = onFermer, modifier = Modifier.fillMaxWidth()) {
             Text("Fermer", fontSize = 17.sp)
         }
