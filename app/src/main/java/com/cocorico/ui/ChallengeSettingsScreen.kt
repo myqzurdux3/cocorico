@@ -1,5 +1,9 @@
 package com.cocorico.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,13 +22,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.challenge.photo.JugeEmbarque
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
@@ -44,6 +51,29 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
     val capteursPompesDisponibles = remember {
         CapteurPompes(context) {}.capteurDisponible()
     }
+
+    // Même critère que celui qui fait basculer l'alarme sur les calculs quand
+    // la caméra manque ([PhotoChallenge.camerasDisponibles]) : sans lui, le
+    // réglage « Photo » resterait sélectionnable ici sur un téléphone sans
+    // caméra exploitable, alors qu'il sera ignoré en silence chaque matin. Le
+    // juge n'est construit que pour cette lecture, puis refermé aussitôt : il
+    // ne sert jamais à noter une photo depuis cet écran.
+    val cameraDisponibleAppareil = remember {
+        val juge = JugeEmbarque()
+        val disponible = context.packageManager
+            .hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) && juge.disponible()
+        juge.fermer()
+        disponible
+    }
+
+    // Reflète l'état réel de la permission, pas seulement celui lu à
+    // l'ouverture de l'écran : un refus dans la boîte de dialogue système doit
+    // aussitôt faire apparaître l'avertissement, sans attendre un aller-retour
+    // vers l'accueil.
+    var cameraAccordee by remember { mutableStateOf(PermissionChecker.etat(context).camera) }
+    val demanderCamera = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { accordee -> cameraAccordee = accordee }
 
     Column(
         modifier = Modifier
@@ -82,7 +112,30 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
             titre = "Photo",
             detail = "Un objet précis, validé par l'IA",
             selectionne = config.challengeId == ChallengeId.PHOTO,
-            onClick = { viewModel.majDefi(ChallengeId.PHOTO) },
+            indisponible = !cameraDisponibleAppareil,
+            // Choisir la photo sans avoir accordé la caméra ne doit plus
+            // rester silencieux : sans ce mot, l'accueil promettrait une
+            // photo que le réveil ne pourra jamais demander (voir la revue
+            // qui a établi ce défaut). Le choix reste possible : la
+            // permission peut toujours être accordée plus tard dans les
+            // réglages Android.
+            avertissement = if (cameraDisponibleAppareil && !cameraAccordee) {
+                "Sans l'accès à l'appareil photo, le réveil se rabattra sur les " +
+                    "calculs. Tu peux l'accorder plus tard dans les réglages du téléphone."
+            } else {
+                null
+            },
+            onClick = if (cameraDisponibleAppareil) {
+                {
+                    viewModel.majDefi(ChallengeId.PHOTO)
+                    // Demandée ici, au moment de la sélection : c'est le seul
+                    // parcours normal qui atteint jamais cette permission
+                    // (voir la KDoc d'[EtatPermissions.camera]).
+                    if (!cameraAccordee) demanderCamera.launch(Manifest.permission.CAMERA)
+                }
+            } else {
+                null
+            },
         )
         if (config.challengeId == ChallengeId.PHOTO) {
             ReglagesIaDistante(
@@ -125,6 +178,7 @@ private fun Option(
     selectionne: Boolean = false,
     bientot: Boolean = false,
     indisponible: Boolean = false,
+    avertissement: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     Column(
@@ -149,6 +203,16 @@ private fun Option(
             fontSize = 17.sp,
         )
         Text(detail, fontSize = 15.sp)
+        // Averti sans bloquer : contrairement à `indisponible`, ce cas laisse
+        // l'option sélectionnable, puisque la permission peut encore être
+        // accordée après coup.
+        if (avertissement != null) {
+            Text(
+                text = avertissement,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 
