@@ -1,0 +1,50 @@
+package com.cocorico.challenge
+
+import com.cocorico.data.Difficulty
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Progression et validation du défi maths, sans Compose ni Android : tout le
+ * comportement du défi est vérifiable en test unitaire.
+ */
+class MathChallengeEngine(
+    private val generator: MathProblemGenerator,
+    private val difficulty: Difficulty,
+    private val total: Int = 3,
+) {
+    private val _current = MutableStateFlow(generator.generate(difficulty))
+    val current: StateFlow<MathProblem> = _current.asStateFlow()
+
+    private val _progress = MutableStateFlow(ChallengeProgress(done = 0, total = total))
+    val progress: StateFlow<ChallengeProgress> = _progress.asStateFlow()
+
+    private val _isSolved = MutableStateFlow(false)
+    val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
+
+    private val _erreurs = MutableStateFlow(0)
+    val erreurs: StateFlow<Int> = _erreurs.asStateFlow()
+
+    /**
+     * Renvoie true si la réponse était juste. Une erreur ne pénalise pas le volume :
+     * seule l'inactivité le fait remonter, sinon l'application punirait l'effort.
+     */
+    fun submit(answer: Int): Boolean {
+        if (_isSolved.value) return false
+
+        val juste = answer == _current.value.answer
+        if (juste) {
+            val done = _progress.value.done + 1
+            _progress.value = ChallengeProgress(done = done, total = total)
+            if (done >= total) {
+                _isSolved.value = true
+                return true
+            }
+        } else {
+            _erreurs.value += 1
+        }
+        _current.value = generator.generate(difficulty)
+        return juste
+    }
+}
