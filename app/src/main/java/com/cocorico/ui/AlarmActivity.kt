@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,11 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.cocorico.alarm.AlarmService
+import com.cocorico.challenge.Challenge
 import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
 import com.cocorico.challenge.MathProblemGenerator
+import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
+import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
@@ -81,7 +85,15 @@ class AlarmActivity : ComponentActivity() {
     private val volumeAffiche = mutableStateOf(VolumeState.PLEIN)
     private val secondesAvantRemontee = mutableStateOf(SECONDES_INACTIVITE)
 
-    private var defi: MathChallenge? = null
+    /**
+     * État observable, pas un simple champ : le renoncement au défi pompes le
+     * remplace en cours de route par les calculs, et l'écran doit s'en rendre
+     * compte pour recomposer.
+     */
+    private val defi = mutableStateOf<Challenge?>(null)
+
+    /** Vrai si l'utilisateur a renoncé au défi initial pour se rabattre sur les calculs. */
+    private var abandon = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,31 +132,27 @@ class AlarmActivity : ComponentActivity() {
             // sonnerie à fond et aucun moyen de l'arrêter.
             val config = runCatching { AlarmConfigRepository(applicationContext).current() }
                 .getOrDefault(AlarmConfig.DEFAULT)
-            val engine = MathChallengeEngine(
-                generator = MathProblemGenerator(),
-                difficulty = config.difficulty,
-            )
-            val challenge = MathChallenge(engine) {
-                val maintenant = System.currentTimeMillis()
-                inactivite.onInteraction(maintenant)
-                machine.onInteraction()
-                majCompteARebours(maintenant)
-            }
-            defi = challenge
+            defi.value = construireDefi(config)
 
             setContent {
                 CocoricoTheme(darkTheme = true) {
-                    EcranAlarme(
-                        challenge = challenge,
-                        volume = volumeAffiche.value,
-                        secondes = secondesAvantRemontee.value,
-                    )
+                    val challengeActuel by defi
+                    challengeActuel?.let { challenge ->
+                        EcranAlarme(
+                            challenge = challenge,
+                            volume = volumeAffiche.value,
+                            secondes = secondesAvantRemontee.value,
+                        )
+                    }
                 }
             }
 
             // Surveillance de l'inactivité : réveille le volume si l'utilisateur décroche.
+            // On relit `defi.value` à chaque tour : un renoncement en cours de
+            // route remplace le défi, et une référence figée au démarrage
+            // continuerait de surveiller l'ancien, jamais résolu.
             inactivite.onInteraction(System.currentTimeMillis())
-            while (!challenge.isSolved.value) {
+            while (defi.value?.isSolved?.value != true) {
                 delay(500)
                 val maintenant = System.currentTimeMillis()
                 if (inactivite.isExpired(maintenant)) {
@@ -154,6 +162,44 @@ class AlarmActivity : ComponentActivity() {
             }
             terminer()
         }
+    }
+
+    /**
+     * Construit le défi demandé par la configuration, avec repli sur les
+     * calculs si le capteur de proximité manque : sans lui, le défi pompes ne
+     * peut jamais se valider et l'alarme deviendrait inarrêtable.
+     */
+    private fun construireDefi(config: AlarmConfig): Challenge {
+        val maths = {
+            MathChallenge(
+                MathChallengeEngine(MathProblemGenerator(), config.difficulty),
+            ) { interaction() }
+        }
+        if (config.challengeId != ChallengeId.POMPES) return maths()
+
+        val pompes = PompesChallenge(
+            context = this,
+            difficulty = config.difficulty,
+            onInteraction = { interaction() },
+            onRenoncer = {
+                abandon = true
+                // Le nouvel écran remplace l'ancien dans la composition : ses
+                // capteurs sont libérés par le `DisposableEffect` de
+                // `PompesChallenge.Content` quand celui-ci quitte la
+                // composition, et ses répétitions ne réarment plus rien.
+                defi.value = maths()
+            },
+        )
+        // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
+        return if (pompes.capteurDisponible) pompes else maths()
+    }
+
+    /** Regroupe les deux appels que chaque geste de l'utilisateur doit déclencher. */
+    private fun interaction() {
+        val maintenant = System.currentTimeMillis()
+        inactivite.onInteraction(maintenant)
+        machine.onInteraction()
+        majCompteARebours(maintenant)
     }
 
     /** Secondes restantes avant la remontée du volume, arrondies au supérieur. */
@@ -185,7 +231,10 @@ class AlarmActivity : ComponentActivity() {
         detector.arreter()
         // Défi résolu : le retour arrière redevient normal.
         retourNeutralise.isEnabled = false
-        val erreurs = defi?.erreurs?.value ?: 0
+        // Lu ici, pas au démarrage : c'est le défi qui vient effectivement de
+        // se résoudre, celui d'après un éventuel renoncement.
+        val challengeFinal = defi.value
+        val erreurs = (challengeFinal as? MathChallenge)?.erreurs?.value ?: 0
         lifecycleScope.launch {
             withContext(NonCancellable) {
                 runCatching {
@@ -195,6 +244,8 @@ class AlarmActivity : ComponentActivity() {
                             resoluAt = System.currentTimeMillis(),
                             erreurs = erreurs,
                             triches = 0,
+                            defi = challengeFinal?.id?.name ?: ChallengeId.MATHS.name,
+                            abandon = abandon,
                         ),
                     )
                 }
@@ -226,7 +277,7 @@ class AlarmActivity : ComponentActivity() {
  * fond nuit — et le pavé numérique s'afficherait en noir.
  */
 @Composable
-private fun EcranAlarme(challenge: MathChallenge, volume: VolumeState, secondes: Int) {
+private fun EcranAlarme(challenge: Challenge, volume: VolumeState, secondes: Int) {
     var defiOuvert by remember { mutableStateOf(false) }
     val heure = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
     val defilement = rememberScrollState()
@@ -279,7 +330,12 @@ private fun EcranAlarme(challenge: MathChallenge, volume: VolumeState, secondes:
                     textAlign = TextAlign.Center,
                 )
             } else {
-                challenge.Content(Modifier.fillMaxWidth())
+                // Clé sur le défi lui-même : un renoncement change son identité,
+                // ce qui force la sortie de composition de l'ancien (et donc la
+                // libération de ses capteurs) plutôt qu'une simple mise à jour.
+                key(challenge) {
+                    challenge.Content(Modifier.fillMaxWidth())
+                }
             }
         }
     }

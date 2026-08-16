@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 
 @Composable
@@ -37,8 +38,18 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
         Text("Défi", style = MaterialTheme.typography.titleLarge)
         Text("Ce que tu devras faire pour la faire taire.", fontSize = 15.sp)
 
-        Option(titre = "Calculs", detail = "3 opérations à résoudre", selectionne = true)
-        Option(titre = "Pompes", detail = "10 répétitions comptées", bientot = true)
+        Option(
+            titre = "Calculs",
+            detail = "3 opérations à résoudre",
+            selectionne = config.challengeId == ChallengeId.MATHS,
+            onClick = { viewModel.majDefi(ChallengeId.MATHS) },
+        )
+        Option(
+            titre = "Pompes",
+            detail = "10 répétitions comptées",
+            selectionne = config.challengeId == ChallengeId.POMPES,
+            onClick = { viewModel.majDefi(ChallengeId.POMPES) },
+        )
         Option(titre = "Photo", detail = "Un objet précis, validé par l'IA", bientot = true)
 
         Text("Difficulté", fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
@@ -72,6 +83,7 @@ private fun Option(
     detail: String,
     selectionne: Boolean = false,
     bientot: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -83,6 +95,7 @@ private fun Option(
                 else MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(12.dp),
             )
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(14.dp),
     ) {
         Text(if (bientot) "$titre — bientôt" else titre, fontSize = 17.sp)

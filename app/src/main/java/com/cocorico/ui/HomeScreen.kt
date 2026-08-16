@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.challenge.pompes.PompesChallenge
+import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
 import java.time.DayOfWeek
 import java.time.Duration
@@ -88,7 +90,11 @@ fun HomeScreen(
         )
         Ligne(
             titre = "Défi",
-            valeur = "Maths — ${config.difficulty.name.lowercase()}",
+            valeur = if (config.challengeId == ChallengeId.POMPES) {
+                "Pompes — ${PompesChallenge.nombrePour(config.difficulty)}"
+            } else {
+                "Maths — ${config.difficulty.name.lowercase()}"
+            },
             onClick = onOuvrirDefi,
         )
 

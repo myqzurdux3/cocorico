@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.cocorico.alarm.AlarmScheduler
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
+import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import java.time.DayOfWeek
 import java.time.LocalDateTime
@@ -49,6 +50,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun majSonnerie(id: String) = modifier { it.copy(ringtoneId = id) }
 
     fun majDifficulte(difficulte: Difficulty) = modifier { it.copy(difficulty = difficulte) }
+
+    fun majDefi(defi: ChallengeId) = modifier { it.copy(challengeId = defi) }
 
     fun armer(arme: Boolean) = modifier { it.copy(armed = arme) }
 
