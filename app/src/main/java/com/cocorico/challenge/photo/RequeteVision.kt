@@ -14,13 +14,30 @@ package com.cocorico.challenge.photo
 object RequeteVision {
 
     /**
-     * `gemini-2.0-flash` plutôt qu'un modèle plus récent : il est rapide, il
-     * voit, il est couvert par l'offre gratuite, et surtout il ne pratique pas
-     * de réflexion préalable susceptible de consommer le budget de réponse
-     * avant d'avoir écrit le moindre mot. Changer de modèle ne demande que de
-     * modifier cette constante.
+     * Le modèle interrogé. Changer de modèle ne demande que de modifier cette
+     * constante — et il faudra le refaire : Google retire ses modèles à un
+     * rythme soutenu. `gemini-2.0-flash` a été arrêté en juin 2026, et
+     * `gemini-2.5-flash` s'arrête le 16 octobre 2026.
+     *
+     * `gemini-3.5-flash-lite` retenu pour trois raisons :
+     *
+     * 1. **Stable**, pas en avant-première, et de la génération la plus récente
+     *    — donc le plus long répit avant la prochaine migration forcée.
+     * 2. **Le plus rapide de sa génération.** La question posée est triviale
+     *    pour un modèle de vision — « cette photo montre-t-elle une tasse ? » —
+     *    et ne justifie pas un modèle plus lourd. Ce qui compte ici, c'est le
+     *    délai : quelqu'un attend debout devant une sirène, et au-delà de huit
+     *    secondes le verdict devient un refus.
+     * 3. **Sa réflexion par défaut est déjà minimale**, contrairement aux
+     *    autres modèles de cette génération. C'est ce qui permet de ne rien
+     *    ajouter au corps de requête pour la brider : un champ de configuration
+     *    mal nommé serait rejeté par le serveur, et toutes les photos seraient
+     *    refusées. On préfère un défaut favorable à un réglage risqué.
+     *
+     * Si la reconnaissance s'avérait trop faible à l'usage, `gemini-3.5-flash`
+     * est le repli naturel — plus capable, un peu plus lent.
      */
-    const val MODELE = "gemini-2.0-flash"
+    const val MODELE = "gemini-3.5-flash-lite"
 
     /**
      * Large à dessein. La réponse attendue tient en un mot, mais un budget
