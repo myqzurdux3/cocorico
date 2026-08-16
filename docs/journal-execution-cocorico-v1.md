@@ -192,3 +192,44 @@ révoquées.
 Faiblesse relevée dans les nouveaux tests : ils dérivent leur durée de
 `AlarmState.FENETRE_VALIDITE_MS`, donc rien ne fixe la fenêtre à une heure —
 réduire la constante à une minute les laisserait tous verts.
+
+## Re-revue de la vague finale
+
+Tous les points (C1-C5, I1-I4, I7, I8 et les quatre items annexes) confirmés
+corrigés, vérifiés contre l'arbre de travail et non contre le rapport. Les deux
+écarts pris par l'implémenteur — lecture de configuration également protégée
+dans le service, écran du défi rendu défilable — sont jugés justes.
+
+Ruling 25 : les deux régressions Important introduites par la vague sont
+corrigées immédiatement, avec deux minors de la même zone. Raison : (a)
+`runCatching` autour d'un appel suspendu avale `CancellationException` — un
+service détruit pendant la lecture DataStore repartait démarrer un MediaPlayer
+orphelin, à fond, sans référence pour l'arrêter ; (b) la branche de ré-entrée
+ne retente jamais un démarrage raté, donc un lecteur nul vaut silence permanent
+alors que le code d'avant retentait. Ce sont exactement les deux échecs
+interdits, dans le code que la vague venait de réécrire, et chacun tient en
+trois lignes. Le processus proscrit une seconde vague large, pas la correction
+ciblée d'une régression que la vague a elle-même créée. Coût si faux : quatre
+lignes à revoir, build et 45 tests en garde-fou.
+
+Ruling 26 : la barrière dure d'onboarding sur `canUseFullScreenIntent()` reste
+en l'état pour cette branche. Raison : la re-revue propose de laisser passer
+l'utilisateur après refus explicite, avec bandeau persistant, en arguant que le
+correctif C2 rend la dégradation survivable. C'est un arbitrage produit, pas un
+défaut : le comportement actuel est le plus sûr des deux et l'écran de réglages
+ciblé existe réellement. À soumettre à l'utilisateur plutôt qu'à trancher seul.
+Coût si faux : sur Android 14+, un utilisateur qui ne trouve pas le réglage est
+bloqué avant d'avoir pu régler quoi que ce soit.
+
+## Résiduels connus, non corrigés
+
+- `VolumeStateMachine` a deux états là où la spec en décrit trois avec une rampe
+  progressive de 3 s. Divergence désormais visible, la jauge l'affiche.
+- La jauge annonce « 30 % » nominal alors que l'application arrondit vers le
+  cran inférieur du flux d'alarme.
+- Contraste 4,1:1 sur l'écran rouge : sous WCAG AA pour du corps de texte, mais
+  imposé par la charte de marque.
+- La jauge est dans la zone défilante, donc plus « en permanence » à l'écran
+  une fois descendu au pavé numérique.
+- Les nouveaux tests d'`AlarmState` dérivent leur durée de la constante qu'ils
+  vérifient : réduire la fenêtre ne les ferait pas échouer.
