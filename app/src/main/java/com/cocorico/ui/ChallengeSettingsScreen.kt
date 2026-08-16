@@ -32,7 +32,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cocorico.challenge.photo.JugeEmbarque
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
@@ -57,18 +56,12 @@ fun ChallengeSettingsScreen(
         CapteurPompes(context) {}.capteurDisponible()
     }
 
-    // Même critère que celui qui fait basculer l'alarme sur les calculs quand
-    // la caméra manque ([PhotoChallenge.camerasDisponibles]) : sans lui, le
-    // réglage « Photo » resterait sélectionnable ici sur un téléphone sans
-    // caméra exploitable, alors qu'il sera ignoré en silence chaque matin. Le
-    // juge n'est construit que pour cette lecture, puis refermé aussitôt : il
-    // ne sert jamais à noter une photo depuis cet écran.
+    // Une caméra sur l'appareil. La clé d'API, elle, est vérifiée séparément :
+    // ce sont deux manques distincts, avec deux messages distincts, et les
+    // confondre dirait à quelqu'un sans clé que son téléphone n'a pas de
+    // caméra.
     val cameraDisponibleAppareil = remember {
-        val juge = JugeEmbarque()
-        val disponible = context.packageManager
-            .hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) && juge.disponible()
-        juge.fermer()
-        disponible
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
     }
 
     // Reflète l'état réel de la permission, pas seulement celui lu à
@@ -165,16 +158,13 @@ fun ChallengeSettingsScreen(
                     .padding(14.dp),
             )
             Text(
-                "Sans alarme et sans envoi : la caméra, le verdict, et ce que le " +
-                    "modèle a réellement reconnu.",
+                "Sans alarme : la caméra, un objet, et le verdict du modèle.",
                 fontSize = 15.sp,
             )
         }
         if (config.challengeId == ChallengeId.PHOTO) {
-            ReglagesIaDistante(
-                active = config.iaDistanteActive,
+            ReglagesJugePhoto(
                 cleApi = config.cleApi,
-                onActiveChange = viewModel::majIaDistante,
                 onCleApiChange = viewModel::majCleApi,
             )
         }
@@ -201,6 +191,48 @@ fun ChallengeSettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ReglagesJugePhoto(
+    cleApi: String,
+    onCleApiChange: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "Ce défi fait juger la photo par un modèle de vision de Google. " +
+                "L'image prise au réveil part vers ses serveurs, uniquement au " +
+                "moment du verdict, et n'est jamais enregistrée : elle reste en " +
+                "mémoire puis disparaît. La clé est la tienne, obtenue sur " +
+                "Google AI Studio.",
+            fontSize = 15.sp,
+        )
+        Text(
+            if (cleApi.isBlank()) {
+                "Sans clé, le défi photo n'est pas proposé : le réveil se rabat " +
+                    "sur les calculs."
+            } else {
+                "Clé enregistrée. Sans réseau au moment du réveil, le défi se " +
+                    "rabat sur les calculs."
+            },
+            fontSize = 15.sp,
+        )
+        OutlinedTextField(
+            value = cleApi,
+            onValueChange = onCleApiChange,
+            label = { Text("Clé d'API Google", fontSize = 15.sp) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -249,62 +281,6 @@ private fun Option(
     }
 }
 
-/**
- * Réglages du juge distant du défi photo : le texte de consentement doit être lu
- * avant l'interrupteur, pas après, puisqu'activer ce mode fait sortir une photo
- * du téléphone — la seule donnée que l'application envoie à qui que ce soit.
- */
-@Composable
-private fun ReglagesIaDistante(
-    active: Boolean,
-    cleApi: String,
-    onActiveChange: (Boolean) -> Unit,
-    onCleApiChange: (String) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(width = 1.dp, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            "La photo prise dans la chambre au réveil est d'abord jugée sur le " +
-                "téléphone, sans rien envoyer nulle part. Si cette reconnaissance " +
-                "embarquée refuse la photo, celle-ci part vers un serveur tiers pour " +
-                "un second avis — seulement dans ce cas, et seulement vers ce " +
-                "serveur. Elle n'est jamais enregistrée : elle reste en mémoire le " +
-                "temps du verdict, puis disparaît.",
-            fontSize = 15.sp,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("Faire valider par une IA en ligne", fontSize = 15.sp)
-            Switch(checked = active, onCheckedChange = onActiveChange)
-        }
-        // Un interrupteur allumé sans clé ne fait rien du tout : `PhotoChallenge`
-        // n'interroge jamais le juge distant si la clé est vide (voir
-        // `PhotoChallenge.fautInterrogerJugeDistant`). Le dire explicitement
-        // évite de laisser croire que ce mode agit déjà.
-        if (active && cleApi.isBlank()) {
-            Text(
-                text = "Sans clé, ce mode reste inactif : seul le juge embarqué décide.",
-                fontSize = 15.sp,
-            )
-        }
-        OutlinedTextField(
-            value = cleApi,
-            onValueChange = onCleApiChange,
-            label = { Text("Clé d'API", fontSize = 15.sp) },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
 
 @Composable
 fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {

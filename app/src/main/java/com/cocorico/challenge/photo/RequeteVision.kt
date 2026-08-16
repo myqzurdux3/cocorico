@@ -1,128 +1,110 @@
 package com.cocorico.challenge.photo
 
 /**
- * La partie texte de l'appel au juge distant : construire le corps de la
- * requête et lire le verdict dans la réponse. Aucun import `android.*` ni
- * réseau ici — c'est du texte, ça se teste sans appareil.
+ * Construit la requête envoyée au modèle de vision et lit son verdict.
  *
- * Le format suit l'API Messages d'Anthropic
- * (`POST https://api.anthropic.com/v1/messages`) au mieux de la
- * documentation connue au moment de l'écriture : elle n'a pas pu être
- * confrontée à l'API réelle dans cet environnement, faute d'accès réseau.
+ * Partie purement textuelle, sans réseau ni Android : c'est là que vivent les
+ * erreurs de format, et c'est donc là que les tests ont le plus de valeur.
+ *
+ * Le format visé est celui de l'API Gemini de Google
+ * (`POST .../v1beta/models/<modèle>:generateContent`). Il n'a pas pu être
+ * confronté à l'API réelle depuis cet environnement : les tests en vérifient
+ * la structure, pas l'acceptation par le serveur.
  */
 object RequeteVision {
 
-    /** Modèle interrogé — voir [JugeDistant]. */
-    private const val MODELE = "claude-sonnet-5"
+    /**
+     * `gemini-2.0-flash` plutôt qu'un modèle plus récent : il est rapide, il
+     * voit, il est couvert par l'offre gratuite, et surtout il ne pratique pas
+     * de réflexion préalable susceptible de consommer le budget de réponse
+     * avant d'avoir écrit le moindre mot. Changer de modèle ne demande que de
+     * modifier cette constante.
+     */
+    const val MODELE = "gemini-2.0-flash"
 
     /**
-     * Un budget large, pas un pari serré. Un « OUI » ou un « NON » tient en
-     * un mot, mais si le modèle a de la réflexion active par défaut, cette
-     * réflexion consomme des jetons *avant* le premier mot de texte ; avec
-     * un budget de quelques jetons seulement, la réponse s'arrête avant
-     * d'avoir produit le moindre texte, `lireVerdict` ne trouve rien, et le
-     * mode en ligne — activé et payé par l'utilisateur pour rattraper les
-     * photos que l'embarqué a refusées — se met à tout refuser
-     * systématiquement. Le coût réel ne dépend que des jetons effectivement
-     * produits (la réponse attendue en fait deux ou trois), donc un budget
-     * large ne coûte rien de plus et supprime toute cette classe de défaut.
-     *
-     * On aurait pu à la place désactiver la réflexion via un champ
-     * `thinking` dans le corps de requête, mais cette requête n'a jamais pu
-     * être confrontée à l'API réelle dans cet environnement : un champ mal
-     * formé ferait échouer l'appel avec un code d'erreur, donc un refus
-     * systématique — exactement le défaut qu'on corrige. Un budget large
-     * fonctionne que la réflexion soit active ou non ; c'est le correctif
-     * sûr qui ne dépend d'aucune hypothèse invérifiable.
+     * Large à dessein. La réponse attendue tient en un mot, mais un budget
+     * serré est un pari sur le comportement exact du modèle : s'il est faux,
+     * la réponse est tronquée avant tout texte utile, le verdict devient un
+     * refus, et le défi refuse alors *toutes* les photos — l'utilisateur reste
+     * devant sa sirène. La facturation suit les jetons réellement produits,
+     * donc ce budget large ne coûte rien.
      */
     private const val MAX_TOKENS = 1024
 
+    fun url(modele: String = MODELE): String =
+        "https://generativelanguage.googleapis.com/v1beta/models/$modele:generateContent"
+
     /**
-     * Construit le corps JSON de la requête : une consigne qui nomme
-     * [objetNom] et exige une réponse à un seul mot, accompagnée de
-     * l'image encodée en base64 dans [imageBase64].
+     * Le corps JSON : l'image, puis la consigne. Le nom de l'objet part en
+     * français, tel qu'il est affiché à l'utilisateur — le modèle comprend la
+     * langue, il n'y a rien à traduire.
      */
     fun corps(objetNom: String, imageBase64: String): String {
         val consigne = "Cette photo montre-t-elle l'objet suivant : \"$objetNom\" ? " +
             "Réponds uniquement par le mot OUI ou le mot NON, sans aucune autre parole, " +
             "sans ponctuation et sans explication."
         return "{" +
-            "\"model\":\"$MODELE\"," +
-            "\"max_tokens\":$MAX_TOKENS," +
-            "\"messages\":[{" +
+            "\"contents\":[{" +
             "\"role\":\"user\"," +
-            "\"content\":[" +
-            "{\"type\":\"image\",\"source\":{\"type\":\"base64\"," +
-            "\"media_type\":\"image/jpeg\",\"data\":\"${echapper(imageBase64)}\"}}," +
-            "{\"type\":\"text\",\"text\":\"${echapper(consigne)}\"}" +
+            "\"parts\":[" +
+            "{\"inline_data\":{\"mime_type\":\"image/jpeg\"," +
+            "\"data\":\"${echapper(imageBase64)}\"}}," +
+            "{\"text\":\"${echapper(consigne)}\"}" +
             "]" +
-            "}]" +
+            "}]," +
+            "\"generationConfig\":{\"maxOutputTokens\":$MAX_TOKENS,\"temperature\":0}" +
             "}"
     }
 
     /**
-     * Lit le verdict dans la réponse brute de l'API. Renvoie `true`
-     * uniquement si le dernier bloc de type `"text"` de la réponse contient
-     * un « oui » franc — voir [estOuiFranc]. Tout le reste — refus, JSON
-     * invalide, chaîne vide, absence de bloc de texte — vaut refus : c'est
-     * le seul verdict sûr à opposer à une réponse qu'on ne maîtrise pas.
+     * Lit le verdict dans la réponse brute. Renvoie `true` uniquement sur un
+     * « oui » franc — voir [estOuiFranc]. Tout le reste vaut refus : réponse
+     * d'erreur, JSON invalide, chaîne vide, absence de texte. C'est le seul
+     * verdict sûr face à une réponse qu'on ne maîtrise pas, et un refus n'est
+     * jamais définitif puisque l'utilisateur reprend une photo.
      *
-     * On prend le *dernier* bloc de texte, pas le premier : si le modèle a
-     * produit d'autres blocs avant (une réflexion, un préambule bavard « Je
-     * regarde la photo... »), c'est dans le dernier que se trouve la
-     * réponse finale à la consigne.
+     * On lit le **dernier** bloc de texte : si le modèle a produit un
+     * préambule avant sa conclusion, c'est la conclusion qui compte.
      */
     fun lireVerdict(reponse: String): Boolean {
-        val blocsTexte = MOTIF_BLOC_TEXTE.findAll(reponse).map { it.groupValues[1] }.toList()
-        val dernierBloc = blocsTexte.lastOrNull() ?: return false
-        return estOuiFranc(dernierBloc)
+        val blocs = MOTIF_BLOC_TEXTE.findAll(reponse).map { it.groupValues[1] }.toList()
+        val dernier = blocs.lastOrNull() ?: return false
+        return estOuiFranc(dernier)
     }
 
     /**
-     * Capture la valeur du champ `"text"` de chaque bloc de contenu dont le
-     * `"type"` vaut `"text"` — pas n'importe quel champ `"text"` de la
-     * réponse (un bloc de réflexion, par exemple, porte son contenu dans un
-     * champ `"thinking"`, jamais `"text"`).
-     */
-    private val MOTIF_BLOC_TEXTE =
-        Regex("\"type\"\\s*:\\s*\"text\"[^}]*?\"text\"\\s*:\\s*\"([^\"]*)\"")
-
-    /**
-     * Un « oui franc » : le mot OUI apparaît dans le texte, entier (pas
-     * comme fragment d'un autre mot), et rien juste avant lui dans la même
-     * phrase ne le nie. Sans cette garde de négation, une phrase de refus
-     * comme « je ne peux pas dire oui » serait lue comme un accord parce
-     * qu'elle contient littéralement le mot « oui » — exactement le piège à
-     * éviter : rendre la lecture plus tolérante à la forme (une phrase
-     * autour du mot, une majuscule, une ponctuation) ne doit jamais la
-     * rendre tolérante au *sens*. Si un « non » apparaît avant le premier
-     * « oui » de la phrase, ou si aucun « oui » n'est trouvé du tout, c'est
-     * un refus.
+     * Un « oui » compte s'il n'est pas nié dans sa propre phrase. Chercher
+     * « oui » n'importe où ferait lire « je ne peux pas dire oui » comme un
+     * accord — l'erreur qui rendrait le défi contournable par une réponse
+     * hésitante du modèle.
      */
     private fun estOuiFranc(texte: String): Boolean {
-        val correspondance = MOTIF_MOT_VERDICT.find(texte) ?: return false
-        if (!correspondance.value.equals("oui", ignoreCase = true)) return false
+        val mot = MOTIF_MOT_VERDICT.find(texte) ?: return false
+        if (!mot.value.equals("oui", ignoreCase = true)) return false
         val debutPhrase = texte
-            .lastIndexOfAny(SEPARATEURS_PHRASE, startIndex = correspondance.range.first - 1)
+            .lastIndexOfAny(SEPARATEURS_PHRASE, startIndex = (mot.range.first - 1).coerceAtLeast(0))
             .let { if (it == -1) 0 else it + 1 }
-        val avantLeMot = texte.substring(debutPhrase, correspondance.range.first)
-        return !MOTIF_NEGATION.containsMatchIn(avantLeMot)
+        val avant = texte.substring(debutPhrase, mot.range.first)
+        return !MOTIF_NEGATION.containsMatchIn(avant)
     }
 
-    /** Le premier mot OUI ou NON entier (délimité par des frontières de mot). */
+    /** Échappe ce qui casserait le JSON construit à la main. */
+    private fun echapper(valeur: String): String = buildString {
+        valeur.forEach { c ->
+            when (c) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> if (c < ' ') append("\\u%04x".format(c.code)) else append(c)
+            }
+        }
+    }
+
+    private val MOTIF_BLOC_TEXTE = Regex("\"text\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
     private val MOTIF_MOT_VERDICT = Regex("(?i)\\b(oui|non)\\b")
-
-    private val SEPARATEURS_PHRASE = charArrayOf('.', '!', '?', '\n')
-
-    /** Négations françaises usuelles qui, juste avant le mot, l'invalident. */
     private val MOTIF_NEGATION = Regex("(?i)\\bne\\b|\\bpas\\b|\\bsans\\b|\\bjamais\\b|\\baucun")
-
-    /** Échappe une chaîne pour l'insérer telle quelle dans un littéral JSON. */
-    private fun echapper(valeur: String): String =
-        valeur
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
+    private val SEPARATEURS_PHRASE = charArrayOf('.', '!', '?', '\n')
 }

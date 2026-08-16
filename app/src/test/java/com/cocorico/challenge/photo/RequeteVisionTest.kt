@@ -25,57 +25,60 @@ class RequeteVisionTest {
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Tasse", image)) as Map<String, Any?>
 
-        assertEquals("claude-sonnet-5", json["model"])
-        assertEquals(1024.0, json["max_tokens"])
+        @Suppress("UNCHECKED_CAST")
+        val contents = json["contents"] as List<Map<String, Any?>>
+        assertEquals(1, contents.size)
+        assertEquals("user", contents[0]["role"])
 
         @Suppress("UNCHECKED_CAST")
-        val messages = json["messages"] as List<Map<String, Any?>>
-        assertEquals(1, messages.size)
-        assertEquals("user", messages[0]["role"])
+        val parts = contents[0]["parts"] as List<Map<String, Any?>>
+        assertEquals(2, parts.size)
 
         @Suppress("UNCHECKED_CAST")
-        val contenu = messages[0]["content"] as List<Map<String, Any?>>
-        assertEquals(2, contenu.size)
+        val inline = parts[0]["inline_data"] as Map<String, Any?>
+        assertEquals("image/jpeg", inline["mime_type"])
+        assertEquals(image, inline["data"])
 
-        val blocImage = contenu[0]
-        assertEquals("image", blocImage["type"])
+        assertTrue((parts[1]["text"] as String).contains("Tasse"))
+
         @Suppress("UNCHECKED_CAST")
-        val source = blocImage["source"] as Map<String, Any?>
-        assertEquals("base64", source["type"])
-        assertEquals("image/jpeg", source["media_type"])
-        assertEquals(image, source["data"])
-
-        val blocTexte = contenu[1]
-        assertEquals("text", blocTexte["type"])
-        assertTrue((blocTexte["text"] as String).contains("Tasse"))
+        val config = json["generationConfig"] as Map<String, Any?>
+        // Budget large : un budget serré est un pari sur le comportement du
+        // modèle, et s'il est faux le défi refuse toutes les photos.
+        assertEquals(1024.0, config["maxOutputTokens"])
     }
 
-    @Test fun `l image passee se retrouve exactement dans source data meme avec des caracteres a echapper`() {
-        val image = "AB\"CD\\EF\nGH\tIJ"
+    @Test fun `l url porte le modele et le point de terminaison de generation`() {
+        val url = RequeteVision.url()
+        assertTrue(url.contains(RequeteVision.MODELE))
+        assertTrue(url.endsWith(":generateContent"))
+        // La clé ne doit jamais voyager dans l'URL : une URL finit dans les
+        // journaux des serveurs traversés, pas un en-tête.
+        assertFalse(url.contains("key="))
+    }
+
+    @Test fun `l image passee se retrouve exactement dans les donnees, meme avec des caracteres a echapper`() {
+        val image = "AA\"BB\\CC"
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Tasse", image)) as Map<String, Any?>
         @Suppress("UNCHECKED_CAST")
-        val messages = json["messages"] as List<Map<String, Any?>>
+        val contents = json["contents"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val contenu = messages[0]["content"] as List<Map<String, Any?>>
+        val parts = contents[0]["parts"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val source = contenu[0]["source"] as Map<String, Any?>
-        // L'échappement JSON ne doit rien perdre ni rien ajouter : une fois
-        // désérialisée, la donnée doit être bit à bit celle qu'on a passée.
-        assertEquals(image, source["data"])
+        val inline = parts[0]["inline_data"] as Map<String, Any?>
+        assertEquals(image, inline["data"])
     }
 
-    @Test fun `le nom de l objet avec guillemets ne casse pas la structure`() {
+    @Test fun `un nom d objet avec des guillemets ne casse pas la structure`() {
         @Suppress("UNCHECKED_CAST")
-        val json = MiniJson.parse(RequeteVision.corps("un \"jouet\"", "AAAA")) as Map<String, Any?>
+        val json = MiniJson.parse(RequeteVision.corps("Une \"tasse\"", "AAAA")) as Map<String, Any?>
         @Suppress("UNCHECKED_CAST")
-        val messages = json["messages"] as List<Map<String, Any?>>
+        val contents = json["contents"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val contenu = messages[0]["content"] as List<Map<String, Any?>>
-        assertTrue((contenu[1]["text"] as String).contains("un \"jouet\""))
+        val parts = contents[0]["parts"] as List<Map<String, Any?>>
+        assertTrue((parts[1]["text"] as String).contains("Une \"tasse\""))
     }
-
-    // --- Lecture du verdict -----------------------------------------------
 
     @Test fun `une reponse affirmative est lue comme un accord`() {
         assertTrue(RequeteVision.lireVerdict("""{"content":[{"type":"text","text":"OUI"}]}"""))

@@ -121,7 +121,10 @@ class MainActivity : ComponentActivity() {
                 onEssayerPhoto = { ecran = Ecran.ESSAI_PHOTO },
                 onRetour = { ecran = Ecran.ACCUEIL },
             )
-            Ecran.ESSAI_PHOTO -> EssaiPhotoScreen { ecran = Ecran.DEFI }
+            Ecran.ESSAI_PHOTO -> EssaiPhotoScreen(
+                cleApi = config.cleApi,
+                onRetour = { ecran = Ecran.DEFI },
+            )
             Ecran.SONNERIE -> RingtoneScreen(viewModel) { ecran = Ecran.ACCUEIL }
             Ecran.STATS -> StatsScreen { ecran = Ecran.ACCUEIL }
             Ecran.VICTOIRE -> VictoryScreen {

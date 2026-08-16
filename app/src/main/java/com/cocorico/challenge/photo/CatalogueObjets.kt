@@ -6,73 +6,65 @@ import kotlin.random.Random
  * Un objet du défi photo.
  *
  * [id] est stable et sert de clé d'exclusion d'un réveil à l'autre. [nom] est
- * affiché à l'utilisateur, en français. [etiquettes] sont les étiquettes que
- * rend le modèle de reconnaissance embarqué de ML Kit pour cet objet — en
- * anglais et en minuscules, imposées par [JugementPhoto].
+ * affiché à l'utilisateur et envoyé tel quel au juge, en français : le modèle
+ * de vision comprend la consigne sans qu'on ait à lui traduire quoi que ce
+ * soit.
  */
-data class ObjetPhoto(val id: String, val nom: String, val etiquettes: Set<String>)
+data class ObjetPhoto(val id: String, val nom: String)
 
 /**
  * Le catalogue d'objets du défi photo : une liste figée dans le code, d'une
- * trentaine d'objets qu'on trouve dans un logement ordinaire, et que la
- * reconnaissance embarquée identifie de façon fiable.
+ * trentaine d'objets qu'on trouve dans un logement ordinaire.
  *
- * Chaque objet porte au moins une étiquette ML Kit ; plusieurs quand le modèle
- * rend des étiquettes voisines pour le même objet physique — refuser l'une des
- * deux serait arbitraire et laisserait l'utilisateur bloqué devant une sirène
- * pour une photo pourtant correcte.
+ * Les objets restent volontairement courants et sans ambiguïté. Le tirage a
+ * lieu pendant que l'alarme sonne : ce n'est pas le moment de faire chercher
+ * un objet rare, ni de laisser un doute sur ce qui est demandé.
  */
 object CatalogueObjets {
 
     val tous: List<ObjetPhoto> = listOf(
-        // Le modèle rend « mug » pour une tasse à anse épaisse et « cup » pour
-        // une tasse plus fine ou une tasse à café d'appoint.
-        ObjetPhoto("tasse", "Tasse", setOf("mug", "cup")),
-        ObjetPhoto("bouteille", "Bouteille", setOf("bottle")),
-        ObjetPhoto("livre", "Livre", setOf("book")),
+        ObjetPhoto("tasse", "Tasse"),
+        ObjetPhoto("bouteille", "Bouteille"),
+        ObjetPhoto("livre", "Livre"),
         // « footwear » revient pour les chaussures qui ne ressemblent pas
         // assez à une basket ou un mocassin pour que le modèle rende « shoe ».
-        ObjetPhoto("chaussure", "Chaussure", setOf("shoe", "footwear")),
+        ObjetPhoto("chaussure", "Chaussure"),
         // Une plante en pot est parfois rendue par le contenant seul.
-        ObjetPhoto("plante", "Plante", setOf("houseplant", "plant", "flowerpot")),
-        ObjetPhoto("clavier", "Clavier", setOf("computer keyboard")),
-        ObjetPhoto("souris_ordinateur", "Souris d'ordinateur", setOf("computer mouse")),
+        ObjetPhoto("plante", "Plante"),
+        ObjetPhoto("clavier", "Clavier"),
+        ObjetPhoto("souris_ordinateur", "Souris d'ordinateur"),
         // Un réveil à affichage numérique est parfois rendu « alarm clock »
         // plutôt que « clock » — les deux désignent le même objet ici.
-        ObjetPhoto("horloge", "Horloge", setOf("clock", "alarm clock")),
-        ObjetPhoto("serviette", "Serviette", setOf("towel")),
-        ObjetPhoto("chaise", "Chaise", setOf("chair")),
-        ObjetPhoto("refrigerateur", "Réfrigérateur", setOf("refrigerator")),
-        ObjetPhoto("brosse_a_dents", "Brosse à dents", setOf("toothbrush")),
+        ObjetPhoto("horloge", "Horloge"),
+        ObjetPhoto("serviette", "Serviette"),
+        ObjetPhoto("chaise", "Chaise"),
+        ObjetPhoto("refrigerateur", "Réfrigérateur"),
+        ObjetPhoto("brosse_a_dents", "Brosse à dents"),
         // Des lunettes de vue sont parfois classées dans la catégorie
         // générique « eyewear » plutôt que « glasses ».
-        ObjetPhoto("lunettes", "Lunettes", setOf("glasses", "eyewear")),
+        ObjetPhoto("lunettes", "Lunettes"),
         // Objet distinct des lunettes de vue : verres teintés, monture
-        // différente ; le modèle a une étiquette dédiée « sunglasses », et
-        // « goggles » revient pour des montures plus enveloppantes.
-        ObjetPhoto("lunettes_soleil", "Lunettes de soleil", setOf("sunglasses", "goggles")),
-        ObjetPhoto("montre", "Montre", setOf("watch", "wristwatch")),
-        ObjetPhoto("sac_a_dos", "Sac à dos", setOf("backpack")),
+        ObjetPhoto("lunettes_soleil", "Lunettes de soleil"),
+        ObjetPhoto("montre", "Montre"),
+        ObjetPhoto("sac_a_dos", "Sac à dos"),
         // Un coussin décoratif est parfois rendu « cushion » plutôt que
         // « pillow », qui désigne plutôt l'oreiller de lit.
-        ObjetPhoto("coussin", "Coussin", setOf("pillow", "cushion")),
-        ObjetPhoto("lampe", "Lampe", setOf("lamp", "lighting")),
-        ObjetPhoto("cadre_photo", "Cadre photo", setOf("picture frame")),
-        ObjetPhoto("vase", "Vase", setOf("vase")),
-        ObjetPhoto("telecommande", "Télécommande", setOf("remote control")),
+        ObjetPhoto("coussin", "Coussin"),
+        ObjetPhoto("lampe", "Lampe"),
+        ObjetPhoto("cadre_photo", "Cadre photo"),
+        ObjetPhoto("vase", "Vase"),
+        ObjetPhoto("telecommande", "Télécommande"),
         // « telephone » revient pour un téléphone fixe, rare aujourd'hui,
         // mais laissé au cas où ; le cas courant est le smartphone.
-        ObjetPhoto("telephone", "Téléphone", setOf("mobile phone", "telephone")),
-        ObjetPhoto("ordinateur_portable", "Ordinateur portable", setOf("laptop")),
-        ObjetPhoto("ecouteurs", "Écouteurs", setOf("headphones", "earphone")),
-        ObjetPhoto("cle", "Clé", setOf("key")),
-        ObjetPhoto("portefeuille", "Portefeuille", setOf("wallet")),
-        ObjetPhoto("chapeau", "Chapeau", setOf("hat", "cap")),
-        ObjetPhoto("echarpe", "Écharpe", setOf("scarf")),
-        ObjetPhoto("parapluie", "Parapluie", setOf("umbrella")),
-        // « stuffed toy » est l'étiquette générique que rend le modèle quand
-        // il n'identifie pas l'animal précis de la peluche.
-        ObjetPhoto("peluche", "Peluche", setOf("teddy bear", "stuffed toy")),
+        ObjetPhoto("telephone", "Téléphone"),
+        ObjetPhoto("ordinateur_portable", "Ordinateur portable"),
+        ObjetPhoto("ecouteurs", "Écouteurs"),
+        ObjetPhoto("cle", "Clé"),
+        ObjetPhoto("portefeuille", "Portefeuille"),
+        ObjetPhoto("chapeau", "Chapeau"),
+        ObjetPhoto("echarpe", "Écharpe"),
+        ObjetPhoto("parapluie", "Parapluie"),
+        ObjetPhoto("peluche", "Peluche"),
     )
 
     /**

@@ -43,43 +43,37 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.cocorico.challenge.photo.CatalogueObjets
-import com.cocorico.challenge.photo.EtiquetteReconnue
-import com.cocorico.challenge.photo.JugeEmbarque
-import com.cocorico.challenge.photo.JugementPhoto
+import com.cocorico.challenge.photo.JugeGemini
 import com.cocorico.challenge.photo.ObjetPhoto
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 
 /**
- * Banc d'essai de la reconnaissance embarquée, **sans alarme**.
+ * Banc d'essai du défi photo, **sans alarme**.
  *
- * Il existe parce que la seule autre façon d'éprouver le défi photo était de
- * faire sonner le réveil à plein volume. Aucun seuil de ce défi n'ayant été
- * mesuré sur un appareil, il fallait pouvoir les confronter au réel sans
- * réveiller la maison.
+ * Il existe parce que la seule autre façon d'éprouver le défi était de faire
+ * sonner le réveil à plein volume, et que rien de ce défi n'a jamais été
+ * confronté à un vrai objet dans une vraie pièce.
  *
- * Il affiche ce que le défi, lui, cache volontairement : les étiquettes brutes
- * reconnues et leur confiance. Un refus a trois causes possibles — objet mal
- * reconnu, seuil trop haut, étiquette absente du catalogue — et elles
- * appellent trois correctifs différents. Le verdict seul ne permet pas de les
- * distinguer ; la liste brute, si.
+ * Il fait exactement ce que fait le défi — même réduction, même redressement,
+ * même juge, même clé — et rien de plus. Un essai qui emprunterait un autre
+ * chemin ne prouverait rien sur le chemin réel.
  *
- * Rien n'est envoyé nulle part : le juge distant n'est pas sollicité ici, et
- * aucune image n'atteint le disque.
+ * L'image part vers le modèle de vision, comme au réveil. Aucune image
+ * n'atteint le disque.
  */
 @Composable
-fun EssaiPhotoScreen(onRetour: () -> Unit) {
+fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
-    val juge = remember { JugeEmbarque() }
+    val juge = remember { JugeGemini(cleApi) }
     val imageCapture = remember { ImageCapture.Builder().build() }
     var fournisseur by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val libere = remember { AtomicBoolean(false) }
 
     var objet by remember { mutableStateOf(CatalogueObjets.tous.first()) }
-    var etiquettes by remember { mutableStateOf<List<EtiquetteReconnue>?>(null) }
     var verdict by remember { mutableStateOf<Boolean?>(null) }
     var enCours by remember { mutableStateOf(false) }
     var cameraPrete by remember { mutableStateOf(false) }
@@ -105,14 +99,15 @@ fun EssaiPhotoScreen(onRetour: () -> Unit) {
         Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
         Text("Essai de la reconnaissance", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Aucune alarme, aucun envoi : tout se passe sur le téléphone.",
+            "Aucune alarme. La photo part au modèle de vision, comme au réveil, " +
+                "et n'est jamais enregistrée.",
             fontSize = 15.sp,
         )
 
-        if (!juge.disponible()) {
+        if (cleApi.isBlank()) {
             Text(
-                "La reconnaissance embarquée n'est pas disponible sur cet appareil. " +
-                    "Le défi photo se rabattrait sur les calculs.",
+                "Aucune clé d'API enregistrée. Sans elle, le défi photo n'est pas " +
+                    "disponible et le réveil se rabat sur les calculs.",
                 fontSize = 15.sp,
             )
             return@Column
@@ -132,7 +127,6 @@ fun EssaiPhotoScreen(onRetour: () -> Unit) {
                     // faudra retirer.
                     val suivant = (CatalogueObjets.tous.indexOf(objet) + 1) % CatalogueObjets.tous.size
                     objet = CatalogueObjets.tous[suivant]
-                    etiquettes = null
                     verdict = null
                 }
                 .padding(14.dp),
@@ -199,21 +193,17 @@ fun EssaiPhotoScreen(onRetour: () -> Unit) {
                             val bitmap = runCatching { image.versBitmapEssai() }.getOrNull()
                             runCatching { image.close() }
                             if (bitmap == null) {
-                                etiquettes = emptyList()
                                 verdict = false
                                 enCours = false
                                 return
                             }
                             scope.launch {
-                                val trouvees = juge.etiquettes(bitmap)
-                                etiquettes = trouvees
-                                verdict = JugementPhoto.accepte(objet, trouvees)
+                                verdict = juge.accepte(bitmap, objet)
                                 enCours = false
                             }
                         }
 
                         override fun onError(exception: ImageCaptureException) {
-                            etiquettes = emptyList()
                             verdict = false
                             enCours = false
                         }
@@ -235,41 +225,13 @@ fun EssaiPhotoScreen(onRetour: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "Étiquettes attendues pour « ${objet.nom} » : " +
-                    objet.etiquettes.joinToString(", "),
-                fontSize = 15.sp,
-            )
-        }
-
-        etiquettes?.let { liste ->
-            Text("Ce que le modèle a reconnu", fontSize = 15.sp)
-            if (liste.isEmpty()) {
-                Text("Rien du tout.", fontSize = 15.sp)
-            }
-            liste.forEach { e ->
-                val attendue = e.texte.lowercase() in objet.etiquettes
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = if (attendue) "→ ${e.texte}" else e.texte,
-                        fontSize = 15.sp,
-                    )
-                    Text(
-                        text = "%.2f".format(e.confiance),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 15.sp,
-                    )
-                }
-            }
-            Text(
-                text = "Seuil actuel : ${"%.2f".format(JugementPhoto.SEUIL_CONFIANCE)}. " +
-                    "Une flèche marque une étiquette attendue pour cet objet.",
+                text = if (accepte) {
+                    "Le modèle a reconnu « ${objet.nom} » sur cette photo."
+                } else {
+                    "Le modèle n'a pas reconnu « ${objet.nom} ». Un refus peut aussi " +
+                        "venir du réseau : sans connexion, ou au-delà de huit secondes, " +
+                        "le verdict est négatif par sécurité."
+                },
                 fontSize = 15.sp,
             )
         }

@@ -7,8 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhotoChallengeEtatTest {
-    private val a = ObjetPhoto("a", "A", setOf("a"))
-    private val b = ObjetPhoto("b", "B", setOf("b"))
+    private val a = ObjetPhoto("a", "A")
+    private val b = ObjetPhoto("b", "B")
 
     @Test fun `le premier objet est propose d emblee`() {
         assertEquals(a, PhotoChallengeEtat(listOf(a, b)).objetCourant.value)

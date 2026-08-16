@@ -66,7 +66,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun armer(arme: Boolean) = modifier { it.copy(armed = arme) }
 
-    fun majIaDistante(active: Boolean) = modifier { it.copy(iaDistanteActive = active) }
 
     fun majCleApi(cle: String) = modifier { it.copy(cleApi = cle) }
 

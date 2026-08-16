@@ -56,23 +56,20 @@ class CatalogueObjetsTest {
         assertTrue(tires.map { it.id }.toSet().containsAll(nonExclus))
     }
 
-    @Test fun `chaque objet porte au moins une etiquette et un nom francais`() {
-        CatalogueObjets.tous.forEach {
-            assertTrue(it.nom.isNotBlank())
-            assertTrue(it.etiquettes.isNotEmpty())
-        }
+    @Test fun `chaque objet porte un nom francais affichable`() {
+        // Ce nom est à la fois montré à l'utilisateur et envoyé au juge : un
+        // nom vide demanderait de photographier « rien » et ferait tout
+        // refuser, sirène en marche.
+        CatalogueObjets.tous.forEach { assertTrue(it.nom.isNotBlank()) }
     }
 
     @Test fun `les identifiants sont uniques`() {
         assertEquals(CatalogueObjets.tous.size, CatalogueObjets.tous.map { it.id }.toSet().size)
     }
 
-    @Test fun `les etiquettes sont normalisees en minuscules`() {
-        // Le jugement compare sans tenir compte de la casse ; une étiquette
-        // écrite « Mug » dans le catalogue et « mug » par le modèle doit
-        // correspondre. On normalise à la source plutôt qu'à chaque comparaison.
-        CatalogueObjets.tous.forEach { objet ->
-            objet.etiquettes.forEach { assertEquals(it.lowercase(), it) }
-        }
+    @Test fun `le catalogue est assez grand pour la difficulte la plus exigeante`() {
+        // Trois objets tirés, trois exclus du réveil précédent : en dessous de
+        // six, le tirage devrait piocher dans les exclus tous les matins.
+        assertTrue(CatalogueObjets.tous.size >= 6)
     }
 }

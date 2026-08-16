@@ -69,7 +69,6 @@ import kotlinx.coroutines.launch
 class PhotoChallenge(
     context: Context,
     difficulty: Difficulty,
-    private val iaDistanteActive: Boolean,
     private val cleApi: String,
     private val onInteraction: () -> Unit,
     private val onRenoncer: () -> Unit,
@@ -77,13 +76,7 @@ class PhotoChallenge(
 
     private val contexteApp = context.applicationContext
 
-    private val jugeEmbarque = JugeEmbarque()
-
-    // Construit même si le mode distant est éteint : JugeDistant refuse tout
-    // seul si sa clé est vide, et fautInterrogerJugeDistant() ne l'interroge
-    // de toute façon jamais dans ce cas. Le construire ici évite de recréer
-    // une connexion à chaque photo.
-    private val jugeDistant: JugePhoto = JugeDistant(cleApi)
+    private val juge: JugePhoto = JugeGemini(cleApi)
 
     private val total = nombrePour(difficulty)
 
@@ -132,19 +125,15 @@ class PhotoChallenge(
      */
     val camerasDisponibles: Boolean =
         contexteApp.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) &&
-            jugeEmbarque.disponible()
+            cleApi.isNotBlank()
 
     /**
-     * Interroge l'embarqué, puis le distant s'il le faut — voir
-     * [fautInterrogerJugeDistant]. Toute exception y vaut déjà refus, imposé
-     * par le contrat de [JugePhoto] : rien ici ne doit planter devant la
-     * sirène.
+     * Un seul juge depuis le retrait de la reconnaissance embarquée. Toute
+     * exception y vaut déjà refus, imposé par le contrat de [JugePhoto] :
+     * rien ici ne doit planter devant la sirène.
      */
-    private suspend fun verdict(image: Bitmap, objet: ObjetPhoto): Boolean {
-        val embarqueAccepte = jugeEmbarque.accepte(image, objet)
-        if (!fautInterrogerJugeDistant(embarqueAccepte, iaDistanteActive, cleApi)) return embarqueAccepte
-        return jugeDistant.accepte(image, objet)
-    }
+    private suspend fun verdict(image: Bitmap, objet: ObjetPhoto): Boolean =
+        juge.accepte(image, objet)
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
@@ -186,7 +175,7 @@ class PhotoChallenge(
         DisposableEffect(Unit) {
             onDispose {
                 libere.set(true)
-                jugeEmbarque.fermer()
+                juge.fermer()
                 runCatching { fournisseurCamera?.unbindAll() }
             }
         }
@@ -422,12 +411,6 @@ class PhotoChallenge(
          * contredire à prix d'appel réseau. Pure, sans import `android.*` :
          * testable sans caméra, sans réseau et sans modèle.
          */
-        fun fautInterrogerJugeDistant(
-            embarqueAccepte: Boolean,
-            iaDistanteActive: Boolean,
-            cleApi: String,
-        ): Boolean = !embarqueAccepte && iaDistanteActive && cleApi.isNotBlank()
-
         /** Durée d'appui exigée par le bouton de renoncement. Voir sa KDoc. */
         private const val SEUIL_APPUI_LONG_MS = 600L
 

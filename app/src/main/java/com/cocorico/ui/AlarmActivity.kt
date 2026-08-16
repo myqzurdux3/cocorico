@@ -233,7 +233,6 @@ class AlarmActivity : ComponentActivity() {
                     val photo = PhotoChallenge(
                         context = this,
                         difficulty = config.difficulty,
-                        iaDistanteActive = config.iaDistanteActive,
                         cleApi = config.cleApi,
                         onInteraction = { interaction() },
                         onRenoncer = onRenoncer,
