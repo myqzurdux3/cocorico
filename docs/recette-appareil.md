@@ -210,6 +210,10 @@ d'un modèle de reconnaissance et parfois d'un réseau. Aucun de ses réglages n
       que le modèle ne sait pas nommer rend le défi impossible ce matin-là.
 - [ ] Photographier un objet quelconque, différent de celui demandé : refusé.
 - [ ] Mesurer le délai entre le déclenchement et le verdict.
+- [ ] **Comparer téléphone tenu en portrait et en paysage.** Si le portrait
+      refuse beaucoup plus souvent, la rotation de la capture n'est pas
+      appliquée avant la reconnaissance : le modèle reçoit une image couchée.
+      Ce défaut est invisible depuis les seuils, qui restent corrects.
 
 ### Replis, à vérifier avant tout le reste
 
