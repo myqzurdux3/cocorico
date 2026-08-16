@@ -72,4 +72,86 @@ class CatalogueObjetsTest {
         // six, le tirage devrait piocher dans les exclus tous les matins.
         assertTrue(CatalogueObjets.tous.size >= 6)
     }
+
+    @Test fun `le catalogue est nettement plus etoffe qu avant cette fonctionnalite`() {
+        // Le catalogue comptait une trentaine d'objets avant l'ajout des
+        // pièces. La demande explicite est « beaucoup plus complet ».
+        assertTrue(CatalogueObjets.tous.size >= 50)
+    }
+
+    @Test fun `chaque piece du decoupage contient plusieurs objets`() {
+        // Une pièce anecdotique (un seul objet) rendrait le découpage inutile
+        // à l'écran de sélection : cocher ou décocher une pièce entière n'a
+        // d'intérêt que si elle regroupe un choix réel.
+        Piece.entries.forEach { piece ->
+            assertTrue(
+                "la pièce $piece devrait contenir plusieurs objets",
+                CatalogueObjets.tous.count { it.piece == piece } >= 5,
+            )
+        }
+    }
+
+    @Test fun `tous les objets du catalogue sont repartis sur une piece`() {
+        // Le catalogue ne rend pas de piece par defaut discrètement : chaque
+        // objet reel du catalogue precise la sienne.
+        assertEquals(CatalogueObjets.tous.size, CatalogueObjets.tous.map { it.piece }.size)
+        Piece.entries.forEach { piece -> assertTrue(CatalogueObjets.tous.any { it.piece == piece }) }
+    }
+
+    // --- Selection de l'utilisateur : le tirage ne doit piocher que dedans,
+    // sauf repli de sécurité quand elle est vide ou trop petite. ---
+
+    @Test fun `une selection suffisante restreint le tirage a ses identifiants`() {
+        val selection = CatalogueObjets.tous.take(5).map { it.id }.toSet()
+        val tires = CatalogueObjets.tirer(3, emptySet(), Random(10), selection)
+        assertTrue(tires.all { it.id in selection })
+    }
+
+    @Test fun `une selection vide ne restreint pas le tirage`() {
+        // Convention centrale : une selection vide vaut absence de
+        // restriction, piochée dans tout le catalogue. C'est ce repli qui
+        // empêche une sélection totalement décochée de bloquer le tirage.
+        val tires = CatalogueObjets.tirer(5, emptySet(), Random(11), emptySet())
+        assertEquals(5, tires.size)
+    }
+
+    @Test fun `un identifiant de selection inconnu du catalogue est ignore sans planter`() {
+        val connu = CatalogueObjets.tous.first().id
+        val tires = CatalogueObjets.tirer(1, emptySet(), Random(12), setOf(connu, "n_existe_pas"))
+        assertEquals(listOf(connu), tires.map { it.id })
+    }
+
+    @Test fun `une selection dont tous les identifiants sont inconnus se replie sur tout le catalogue`() {
+        val tires = CatalogueObjets.tirer(3, emptySet(), Random(13), setOf("a", "b", "c"))
+        assertEquals(3, tires.size)
+    }
+
+    @Test fun `une selection plus petite que la demande se complete hors selection`() {
+        // Cas explicitement signalé par la consigne : la sélection contient
+        // moins d'objets que la difficulté n'en demande (jusqu'à trois). Le
+        // tirage doit quand même rendre le compte promis, quitte à sortir de
+        // la sélection de l'utilisateur.
+        val selection = CatalogueObjets.tous.take(2).map { it.id }.toSet()
+        val tires = CatalogueObjets.tirer(3, emptySet(), Random(14), selection)
+        assertEquals(3, tires.size)
+        assertTrue(tires.map { it.id }.toSet().containsAll(selection))
+    }
+
+    @Test fun `la selection est completee par ses propres exclus avant de sortir de la selection`() {
+        // Priorité : sélection non exclue, puis sélection exclue, et
+        // seulement en dernier recours hors sélection.
+        val selection = CatalogueObjets.tous.take(3).map { it.id }.toSet()
+        val exclus = setOf(selection.first())
+        val tires = CatalogueObjets.tirer(3, exclus, Random(15), selection)
+        assertEquals(selection, tires.map { it.id }.toSet())
+    }
+
+    @Test fun `idsValides ignore les identifiants qui n existent plus dans le catalogue`() {
+        val connu = CatalogueObjets.tous.first().id
+        assertEquals(setOf(connu), CatalogueObjets.idsValides(setOf(connu, "fantome")))
+    }
+
+    @Test fun `idsValides d un ensemble vide rend un ensemble vide`() {
+        assertTrue(CatalogueObjets.idsValides(emptySet()).isEmpty())
+    }
 }

@@ -1,5 +1,6 @@
 package com.cocorico.data
 
+import com.cocorico.challenge.photo.CatalogueObjets
 import java.time.DayOfWeek
 
 enum class ChallengeId { MATHS, POMPES, PHOTO }
@@ -20,6 +21,27 @@ data class AlarmConfig(
     val armed: Boolean,
     /** Clé d'API du juge distant, fournie par l'utilisateur. Jamais livrée avec l'application. */
     val cleApi: String = "",
+    /**
+     * Identifiants des objets que le tirage du défi photo peut piocher,
+     * cochés depuis l'écran de sélection des pièces. Des identifiants, pas
+     * des index : le catalogue évolue, et un index se déplacerait sous les
+     * pieds d'une sélection déjà persistée.
+     *
+     * Une sélection vide n'est pas empêchée par l'écran de sélection — voir
+     * `SelectionObjetsScreen` — et n'a pas besoin de l'être :
+     * [CatalogueObjets.tirer] s'en accommode déjà en repliant sur le
+     * catalogue entier plutôt que de bloquer le tirage, exactement comme il
+     * ignore déjà un identifiant persisté qui n'existe plus dans le
+     * catalogue. Rester bloqué devant une sirène est pire que photographier
+     * un objet que l'utilisateur n'a pas explicitement coché.
+     *
+     * La valeur par défaut du paramètre (un ensemble vide) n'est là que pour
+     * des constructions ponctuelles, en test notamment ; [DEFAULT] ci-dessous
+     * coche tout le catalogue à l'installation, pour que le comportement
+     * d'aujourd'hui — piocher dans tout le catalogue — soit conservé sans
+     * configuration.
+     */
+    val objetsSelectionnes: Set<String> = emptySet(),
 ) {
     companion object {
         val DEFAULT = AlarmConfig(
@@ -37,6 +59,7 @@ data class AlarmConfig(
             difficulty = Difficulty.MOYEN,
             armed = false,
             cleApi = "",
+            objetsSelectionnes = CatalogueObjets.tous.map { it.id }.toSet(),
         )
     }
 }

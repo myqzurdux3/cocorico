@@ -74,6 +74,14 @@ class PhotoChallenge(
     private val cleApi: String,
     private val onInteraction: () -> Unit,
     private val onRenoncer: () -> Unit,
+    /**
+     * Identifiants cochés à l'écran de sélection des pièces
+     * (`AlarmConfig.objetsSelectionnes`). Valeur par défaut vide — pas de
+     * restriction, tout le catalogue — pour que l'appelant qui ne la
+     * fournirait pas encore continue de compiler et de sonner exactement
+     * comme avant cette fonctionnalité.
+     */
+    private val objetsSelectionnes: Set<String> = emptySet(),
 ) : Challenge {
 
     private val contexteApp = context.applicationContext
@@ -98,6 +106,7 @@ class PhotoChallenge(
             // Au pire, un objet du réveil précédent est proposé à nouveau.
             runCatching { ExclusionObjets.lire(contexteApp) }.getOrDefault(emptySet()),
             Random.Default,
+            objetsSelectionnes,
         ).also {
             runCatching { ExclusionObjets.ecrire(contexteApp, it.map(ObjetPhoto::id).toSet()) }
         }

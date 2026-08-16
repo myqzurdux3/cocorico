@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
@@ -44,6 +45,7 @@ import com.cocorico.ring.CapteurPompes
 fun ChallengeSettingsScreen(
     viewModel: HomeViewModel,
     onEssayerPhoto: () -> Unit,
+    onOuvrirSelectionObjets: () -> Unit,
     onRetour: () -> Unit,
 ) {
     val config by viewModel.config.collectAsState()
@@ -170,6 +172,34 @@ fun ChallengeSettingsScreen(
             )
         }
         if (config.challengeId == ChallengeId.PHOTO) {
+            val totalCoche = remember(config.objetsSelectionnes) {
+                SelectionObjets.totalCoche(config.objetsSelectionnes)
+            }
+            Text(
+                text = "Objets à photographier ($totalCoche cochés) ›",
+                fontSize = 17.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable(onClick = onOuvrirSelectionObjets)
+                    .padding(14.dp),
+            )
+            // Même avertissement qu'à l'écran de sélection, visible ici sans
+            // avoir à l'ouvrir : voir sa KDoc pour le choix d'avertir sans
+            // jamais bloquer.
+            if (totalCoche < SelectionObjets.SEUIL_AVERTISSEMENT) {
+                Text(
+                    text = if (totalCoche == 0) {
+                        "Aucun objet coché : le tirage se repliera sur tout le catalogue."
+                    } else {
+                        "Moins de ${SelectionObjets.SEUIL_AVERTISSEMENT} objets cochés : le " +
+                            "tirage peut compléter avec des objets non cochés."
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             ReglagesJugePhoto(
                 cleApi = config.cleApi,
                 onCleApiChange = viewModel::majCleApi,

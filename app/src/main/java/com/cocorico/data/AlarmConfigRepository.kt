@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.cocorico.challenge.photo.CatalogueObjets
 import java.time.DayOfWeek
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -42,6 +44,7 @@ class AlarmConfigRepository(private val context: Context) {
         val DIFFICULTY = stringPreferencesKey("difficulty")
         val ARMED = booleanPreferencesKey("armed")
         val CLE_API = stringPreferencesKey("cle_api")
+        val OBJETS_SELECTIONNES = stringSetPreferencesKey("objets_selectionnes")
     }
 
     /** Lecture d'un instantané de préférences, partagée par le flux et l'écriture. */
@@ -60,6 +63,13 @@ class AlarmConfigRepository(private val context: Context) {
                 ?: default.difficulty,
             armed = prefs[Keys.ARMED] ?: default.armed,
             cleApi = prefs[Keys.CLE_API] ?: default.cleApi,
+            // Un identifiant persisté qui n'existe plus dans le catalogue —
+            // objet retiré depuis une mise à jour — est ignoré par
+            // `idsValides` plutôt que de fausser le tirage ou l'écran de
+            // sélection avec une case qu'il n'affichera jamais.
+            objetsSelectionnes = prefs[Keys.OBJETS_SELECTIONNES]
+                ?.let(CatalogueObjets::idsValides)
+                ?: default.objetsSelectionnes,
         )
     }
 
@@ -82,6 +92,7 @@ class AlarmConfigRepository(private val context: Context) {
             prefs[Keys.DIFFICULTY] = updated.difficulty.name
             prefs[Keys.ARMED] = updated.armed
             prefs[Keys.CLE_API] = updated.cleApi
+            prefs[Keys.OBJETS_SELECTIONNES] = updated.objetsSelectionnes
         }
     }
 }

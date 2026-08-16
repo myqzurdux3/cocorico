@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.cocorico.alarm.AlarmScheduler
+import com.cocorico.challenge.photo.Piece
+import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.data.ChallengeId
@@ -68,6 +70,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
 
     fun majCleApi(cle: String) = modifier { it.copy(cleApi = cle) }
+
+    /** Coche ou décoche un objet du catalogue à l'écran de sélection des pièces. */
+    fun basculerObjet(id: String) = modifier {
+        it.copy(objetsSelectionnes = SelectionObjets.basculerObjet(it.objetsSelectionnes, id))
+    }
+
+    /** Coche ou décoche une pièce entière d'un geste. Voir [SelectionObjets.basculerPiece]. */
+    fun basculerPiece(piece: Piece) = modifier {
+        it.copy(objetsSelectionnes = SelectionObjets.basculerPiece(it.objetsSelectionnes, piece))
+    }
 
     private fun modifier(transform: (AlarmConfig) -> AlarmConfig) {
         viewModelScope.launch {
