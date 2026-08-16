@@ -15,17 +15,30 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
+import com.cocorico.ring.CapteurPompes
 
 @Composable
 fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
     val config by viewModel.config.collectAsState()
+
+    // Même critère que celui qui fait basculer l'alarme sur les calculs au
+    // réveil ([CapteurPompes.capteurDisponible]) : sans lui, le réglage
+    // « Pompes » pourrait rester sélectionnable ici alors qu'il sera ignoré
+    // en silence chaque matin. L'instance ne sert qu'à lire ce booléen, elle
+    // n'est jamais démarrée : aucun capteur n'est donc écouté.
+    val context = LocalContext.current
+    val capteursPompesDisponibles = remember {
+        CapteurPompes(context) {}.capteurDisponible()
+    }
 
     Column(
         modifier = Modifier
@@ -47,9 +60,18 @@ fun ChallengeSettingsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
         )
         Option(
             titre = "Pompes",
-            detail = "${PompesChallenge.nombrePour(config.difficulty)} répétitions comptées",
+            detail = if (capteursPompesDisponibles) {
+                "${PompesChallenge.nombrePour(config.difficulty)} répétitions comptées"
+            } else {
+                "Capteur de proximité ou accéléromètre absent : indisponible sur ce téléphone"
+            },
             selectionne = config.challengeId == ChallengeId.POMPES,
-            onClick = { viewModel.majDefi(ChallengeId.POMPES) },
+            indisponible = !capteursPompesDisponibles,
+            onClick = if (capteursPompesDisponibles) {
+                { viewModel.majDefi(ChallengeId.POMPES) }
+            } else {
+                null
+            },
         )
         Option(titre = "Photo", detail = "Un objet précis, validé par l'IA", bientot = true)
 
@@ -84,6 +106,7 @@ private fun Option(
     detail: String,
     selectionne: Boolean = false,
     bientot: Boolean = false,
+    indisponible: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     Column(
@@ -99,7 +122,14 @@ private fun Option(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(14.dp),
     ) {
-        Text(if (bientot) "$titre — bientôt" else titre, fontSize = 17.sp)
+        Text(
+            text = when {
+                bientot -> "$titre — bientôt"
+                indisponible -> "$titre — indisponible sur ce téléphone"
+                else -> titre
+            },
+            fontSize = 17.sp,
+        )
         Text(detail, fontSize = 15.sp)
     }
 }
