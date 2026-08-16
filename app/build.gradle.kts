@@ -52,3 +52,13 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// Room écrit le schéma généré dans `app/schemas/`, et ce dossier est versionné.
+// C'est le seul garde-fou automatique contre une migration incohérente : le
+// schéma attendu par Room y devient un fichier lisible en revue, et toute
+// divergence avec le SQL de `MIGRATION_1_2` — type, nullabilité, valeur par
+// défaut — apparaît dans le diff au lieu de se manifester par un plantage au
+// démarrage chez quelqu'un qui met à jour depuis la version précédente.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
