@@ -48,6 +48,7 @@ import com.cocorico.challenge.Challenge
 import com.cocorico.challenge.ChallengeProgress
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,8 +94,18 @@ class PhotoChallenge(
      * cours de route change quand même les objets proposés le lendemain.
      */
     private val objets: List<ObjetPhoto> =
-        CatalogueObjets.tirer(total, ExclusionObjets.lire(contexteApp), Random.Default)
-            .also { ExclusionObjets.ecrire(contexteApp, it.map(ObjetPhoto::id).toSet()) }
+        CatalogueObjets.tirer(
+            total,
+            // Une exclusion illisible ne doit pas empêcher le tirage : ce
+            // constructeur s'exécute avant que l'écran d'alarme ne s'affiche,
+            // et une exception y laisserait un écran noir par-dessus le
+            // verrouillage, sonnerie à fond, sans aucun moyen de l'arrêter.
+            // Au pire, un objet du réveil précédent est proposé à nouveau.
+            runCatching { ExclusionObjets.lire(contexteApp) }.getOrDefault(emptySet()),
+            Random.Default,
+        ).also {
+            runCatching { ExclusionObjets.ecrire(contexteApp, it.map(ObjetPhoto::id).toSet()) }
+        }
 
     private val etat = PhotoChallengeEtat(objets)
 
@@ -153,11 +164,28 @@ class PhotoChallenge(
         // fausser la progression.
         var enAttenteVerdict by remember { mutableStateOf(false) }
 
+        // Faux tant que la caméra n'a pas pu être liée. Sans cet état, un échec
+        // de liaison laissait un bouton actif dont chaque appui échouait en
+        // silence : l'utilisateur appuyait, rien ne se passait, et rien ne lui
+        // disait pourquoi ni comment s'en sortir.
+        var cameraPrete by remember { mutableStateOf(false) }
+        var echecCamera by remember { mutableStateOf(false) }
+
+        // La composition peut être détruite avant que le fournisseur de caméra,
+        // obtenu de façon asynchrone, ne soit arrivé — il suffit d'un appui long
+        // « Je ne peux pas » dans la seconde qui suit l'ouverture, ce que ce
+        // bouton est justement fait pour permettre. `onDispose` ne verrait alors
+        // qu'une référence nulle, et la liaison se ferait juste après sur une
+        // activité toujours vivante : la caméra resterait allumée pendant tout
+        // le défi de calcul mental qui suit.
+        val libere = remember { AtomicBoolean(false) }
+
         // Libère le juge embarqué et la caméra quand l'écran quitte la
         // composition — un client de reconnaissance ou une caméra non libérés
         // fuient à chaque réveil.
         DisposableEffect(Unit) {
             onDispose {
+                libere.set(true)
                 jugeEmbarque.fermer()
                 runCatching { fournisseurCamera?.unbindAll() }
             }
@@ -192,9 +220,17 @@ class PhotoChallenge(
                         {
                             // Toute exception ici vaut caméra indisponible :
                             // rien ne doit remonter jusqu'à l'écran d'alarme.
-                            runCatching {
+                            val resultat = runCatching {
                                 val fournisseur = futureFournisseur.get()
                                 fournisseurCamera = fournisseur
+                                // L'écran a pu disparaître entre la demande et
+                                // la réponse : lier maintenant allumerait la
+                                // caméra pour personne, sans que rien ne vienne
+                                // plus l'éteindre.
+                                if (libere.get()) {
+                                    fournisseur.unbindAll()
+                                    return@runCatching false
+                                }
                                 val previsualisation = Preview.Builder().build().also {
                                     it.setSurfaceProvider(previewView.surfaceProvider)
                                 }
@@ -205,7 +241,10 @@ class PhotoChallenge(
                                     previsualisation,
                                     imageCapture,
                                 )
+                                true
                             }
+                            cameraPrete = resultat.getOrDefault(false)
+                            echecCamera = resultat.isFailure
                         },
                         ContextCompat.getMainExecutor(ctx),
                     )
@@ -213,14 +252,19 @@ class PhotoChallenge(
                 },
             )
             Text(
-                text = consigne(objetCourant, essais, enAttenteVerdict),
+                text = if (echecCamera) {
+                    "Caméra indisponible. Appuie longuement sur le bouton " +
+                        "ci-dessous pour passer aux calculs."
+                } else {
+                    consigne(objetCourant, essais, enAttenteVerdict)
+                },
                 color = MaterialTheme.colorScheme.onError,
                 fontSize = 18.sp,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
             )
             Button(
-                enabled = objetCourant != null && !enAttenteVerdict,
+                enabled = objetCourant != null && !enAttenteVerdict && cameraPrete,
                 onClick = click@{
                     // Défense en profondeur en plus de `enabled` : un second
                     // appui pendant la recomposition ne doit pas non plus
@@ -272,8 +316,12 @@ class PhotoChallenge(
                     override val longPressTimeoutMillis: Long = SEUIL_APPUI_LONG_MS
                 },
             ) {
+                val renoncer = {
+                    onInteraction()
+                    onRenoncer()
+                }
                 Text(
-                    text = "Je ne peux pas — appui long",
+                    text = if (echecCamera) "Passer aux calculs" else "Je ne peux pas — appui long",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center,
@@ -282,14 +330,19 @@ class PhotoChallenge(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surface)
                         .combinedClickable(
-                            // Un appui simple ne doit rien faire : c'est lui,
-                            // pas l'appui long, que le doigt qui cadre la
-                            // photo déclencherait par accident.
-                            onClick = {},
-                            onLongClick = {
-                                onInteraction()
-                                onRenoncer()
-                            },
+                            // L'appui simple ne fait rien tant que la caméra
+                            // marche : c'est lui, pas l'appui long, que le doigt
+                            // qui cadre la photo déclencherait par accident, et
+                            // la progression serait perdue.
+                            //
+                            // Caméra en échec, l'arbitrage s'inverse : il n'y a
+                            // plus de progression à protéger, plus rien à
+                            // déclencher par accident, et laisser quelqu'un
+                            // chercher un appui long devant une sirène pour
+                            // sortir d'un écran qui ne fonctionne pas serait
+                            // gratuitement hostile.
+                            onClick = if (echecCamera) renoncer else ({}),
+                            onLongClick = renoncer,
                         )
                         .padding(vertical = 14.dp),
                 )
@@ -372,6 +425,13 @@ private object ExclusionObjets {
      * résolution du défi. Voir la KDoc de [PhotoChallenge.objets].
      */
     fun ecrire(context: Context, ids: Set<String>) {
-        prefs(context).edit().putStringSet(CLE, ids).commit()
+        // `apply()` et non `commit()` : cette écriture a lieu dans le
+        // constructeur du défi, donc sur le thread principal, juste avant
+        // d'afficher l'écran par-dessus une sonnerie à plein volume. Une
+        // écriture disque synchrone y est un risque gratuit — perdre une
+        // exclusion ne coûte qu'un objet répété le lendemain, contrairement au
+        // volume d'origine, que `VolumeOrigine` persiste bien en `commit()`
+        // parce que sa perte laisserait le téléphone à fond.
+        prefs(context).edit().putStringSet(CLE, ids).apply()
     }
 }
