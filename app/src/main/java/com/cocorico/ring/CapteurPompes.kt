@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.SystemClock
 import com.cocorico.challenge.pompes.EchantillonPompe
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -52,16 +53,34 @@ class CapteurPompes(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
+        // Horloge unique et monotone pour les deux capteurs, volontairement
+        // pas `event.timestamp` : CompteurPompes soustrait un horodatage de
+        // proximité à un horodatage d'accéléromètre pour mesurer une durée de
+        // cycle. `event.timestamp` a sa propre base par capteur — nanosecondes
+        // depuis le démarrage sur certains, boottime sur d'autres, parfois
+        // zéro faute de support matériel. Si les deux capteurs ne partagent
+        // pas la même base, la durée calculée tombe hors des bornes admises
+        // et plus aucune répétition n'est comptée, silencieusement, alarme à
+        // plein volume : ce n'est pas une dégradation progressive, c'est tout
+        // ou rien. `HandDetector` peut se permettre l'horodatage matériel
+        // avec un repli conditionnel car il ne combine jamais deux capteurs
+        // entre eux dans une même soustraction ; ici les deux canaux se
+        // rencontrent, donc seule une horloge commune à chaque événement,
+        // sans repli capteur par capteur, garantit qu'ils parlent le même
+        // temps. La latence de livraison d'un événement capteur (quelques
+        // millisecondes) reste très en dessous des seuils de durée du
+        // compteur (150 ms à 8 s) : rien n'est perdu à l'utiliser à la place
+        // de l'horodatage matériel.
+        val tMillis = SystemClock.elapsedRealtime()
         when (event.sensor.type) {
             Sensor.TYPE_PROXIMITY -> {
                 // Seuil relatif à la portée du capteur : certains ne rapportent
                 // que 0 ou leur maximum, d'autres une distance en centimètres.
                 proche = event.values[0] < (event.sensor.maximumRange / 2f)
-                emettre(event.timestampMillis())
+                emettre(tMillis)
             }
 
             Sensor.TYPE_ACCELEROMETER -> {
-                val tMillis = event.timestampMillis()
                 estimateurGravite.onEchantillon(event.values[0], event.values[1], event.values[2], tMillis)
                 emettre(tMillis)
             }
@@ -83,8 +102,6 @@ class CapteurPompes(
             ),
         )
     }
-
-    private fun SensorEvent.timestampMillis(): Long = timestamp / 1_000_000L
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 }
