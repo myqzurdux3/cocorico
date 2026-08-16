@@ -13,7 +13,7 @@ Le nom de ressource Android ignore l'extension : `klaxon.wav` reste bien
 
 Ce sont des sonneries de remplacement, sans prétention artistique : à
 substituer par de vrais enregistrements avant toute publication (voir
-`app/src/main/res/raw/credits.md`).
+`docs/sonneries-placeholder.md`).
 
 Usage : `python3 tools/generer_sonneries.py`
 """

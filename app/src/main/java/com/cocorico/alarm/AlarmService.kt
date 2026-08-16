@@ -13,11 +13,14 @@ import com.cocorico.R
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.Sonneries
+import com.cocorico.ui.AlarmActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Porte l'alarme du déclenchement jusqu'à la résolution du défi. C'est le seul
@@ -55,22 +58,30 @@ class AlarmService : Service() {
         return START_STICKY
     }
 
+    /**
+     * La replanification est faite AVANT l'arrêt, dans la même coroutine et en
+     * `NonCancellable` : `stopSelf()` déclenche `onDestroy`, qui annule le scope.
+     * Lancer la replanification puis s'arrêter aussitôt la ferait perdre une fois
+     * sur deux, et l'alarme ne sonnerait plus jamais après le premier réveil.
+     */
     private fun terminer() {
         AlarmState.marquerTerminee(this)
         player.arreter()
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
         scope.launch {
-            val repo = AlarmConfigRepository(applicationContext)
-            AlarmScheduler(applicationContext).schedule(repo.current())
+            withContext(NonCancellable) {
+                val repo = AlarmConfigRepository(applicationContext)
+                AlarmScheduler(applicationContext).schedule(repo.current())
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
 
     private fun demarrerActivitePleinEcran() {
         startActivity(
-            Intent(this, Class.forName("com.cocorico.ui.AlarmActivity")).apply {
+            Intent(this, AlarmActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             },
         )
@@ -101,7 +112,7 @@ class AlarmService : Service() {
         val plein = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, Class.forName("com.cocorico.ui.AlarmActivity")).apply {
+            Intent(this, AlarmActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -117,6 +128,11 @@ class AlarmService : Service() {
     }
 
     override fun onDestroy() {
+        // Filet : si le service meurt sans passer par terminer(), le volume
+        // système est quand même restauré. arreter() est idempotent.
+        player.arreter()
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
         scope.cancel()
         super.onDestroy()
     }

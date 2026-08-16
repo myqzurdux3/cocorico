@@ -3,7 +3,7 @@
 Les quatre fichiers de ce dossier (`coq.wav`, `reveil_matin.wav`, `klaxon.wav`,
 `sirene.wav`) ne sont **pas** des enregistrements. Ce sont des sonneries de
 remplacement synthétisées localement, générées par le script
-[`tools/generer_sonneries.py`](../../../../../tools/generer_sonneries.py)
+[`tools/generer_sonneries.py`](../tools/generer_sonneries.py)
 (WAV PCM 16 bits, mono, 22 050 Hz, 8 secondes chacune).
 
 Raison : la machine de développement n'a ni accès réseau ni encodeur audio
