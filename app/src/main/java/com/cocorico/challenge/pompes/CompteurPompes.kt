@@ -77,10 +77,9 @@ class CompteurPompes(private val total: Int) {
             EtatPompes.BAS -> {
                 if (e.procheDuCapteur) return false
                 _etat.value = EtatPompes.PRET
-                val tenueBasse = e.tMillis - debutBas
                 val depuisDernierHaut = e.tMillis - debutTenueHaute
                 debutTenueHaute = e.tMillis
-                val valide = tenueBasse >= TENUE_BASSE_MIN_MS &&
+                val valide =
                     depuisDernierHaut in DUREE_DEPUIS_DERNIER_HAUT_MIN_MS..DUREE_DEPUIS_DERNIER_HAUT_MAX_MS
                 if (valide) compter() else false
             }
@@ -115,13 +114,20 @@ class CompteurPompes(private val total: Int) {
          * maintenant explicitement.
          *
          * Plus court, c'est une main qui passe devant le capteur.
+         *
+         * C'est aussi pour cette raison qu'il n'existe pas de seconde borne,
+         * plus courte, dédiée à l'effleurement : l'accéléromètre alimente le
+         * compteur en continu (20 ms entre deux échantillons, voir
+         * `CapteurPompes.demarrer`), donc la référence haute est au plus vieille
+         * d'un échantillon quand la descente commence. La tenue basse réelle
+         * vaut toujours cette durée-ci à 20 ms près, et un seuil de 150 ms
+         * dessous n'aurait jamais pu se déclencher sur un vrai flux de capteurs
+         * — il ne rejetait quelque chose que dans des tests alimentés en
+         * échantillons épars, c'est-à-dire nulle part.
          */
         const val DUREE_DEPUIS_DERNIER_HAUT_MIN_MS = 600L
 
         /** Plus long, ce n'est plus une pompe. */
         const val DUREE_DEPUIS_DERNIER_HAUT_MAX_MS = 8_000L
-
-        /** Temps minimum en position basse, contre l'effleurement. */
-        const val TENUE_BASSE_MIN_MS = 150L
     }
 }

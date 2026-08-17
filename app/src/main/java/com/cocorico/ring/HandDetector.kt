@@ -38,6 +38,15 @@ class HandDetector(
     private var notifie = false
 
     /**
+     * Sans accéléromètre, la baisse de volume à la prise en main et le réarmement
+     * du compte à rebours sur mouvement sont l'un comme l'autre inopérants. Ce
+     * n'est pas rattrapable ici, mais l'appelant doit pouvoir le dire à
+     * l'utilisateur plutôt que de lui promettre un comportement qui n'arrivera
+     * jamais — [CapteurPompes.capteurDisponible] existe pour la même raison.
+     */
+    fun capteurDisponible(): Boolean = accelerometre != null
+
+    /**
      * `SENSOR_DELAY_GAME` (~50 Hz) et non `SENSOR_DELAY_UI` (~16 Hz) : à 16 Hz,
      * les vibrations du haut-parleur autour de 17 et 33 Hz se replient par
      * repliement de spectre en quasi-continu, et aucun filtre logiciel ne peut
@@ -57,15 +66,17 @@ class HandDetector(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        // `event.timestamp` est en nanosecondes depuis le démarrage, monotone —
-        // à l'inverse de l'horloge murale, qui peut sauter en pleine alarme.
-        // Certains capteurs l'horodatent mal : on retombe alors sur l'horloge
-        // monotone du système.
-        val instantMs = if (event.timestamp > 0L) {
-            event.timestamp / 1_000_000L
-        } else {
-            SystemClock.elapsedRealtime()
-        }
+        // Une seule horloge, jamais deux, exactement comme [CapteurPompes] le
+        // documente. Le repli conditionnel d'avant mélangeait `event.timestamp`
+        // (nanosecondes, base propre au capteur) et `SystemClock.elapsedRealtime`
+        // (millisecondes depuis le démarrage) échantillon par échantillon : le
+        // premier échantillon mal horodaté faisait basculer de base entre deux
+        // échantillons, et les détecteurs voyaient un `dt` de plusieurs heures ou
+        // négatif. Filtres téléportés, détection figée ou déclenchée à faux.
+        // `elapsedRealtime` est monotone et ne saute pas comme l'horloge murale ;
+        // la latence de livraison d'un événement capteur reste négligeable devant
+        // les constantes de temps en jeu (100 à 350 ms).
+        val instantMs = SystemClock.elapsedRealtime()
         val x = event.values[0]
         val y = event.values[1]
         val z = event.values[2]

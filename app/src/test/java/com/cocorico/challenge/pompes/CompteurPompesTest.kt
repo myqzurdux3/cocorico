@@ -7,6 +7,11 @@ import org.junit.Test
 
 class CompteurPompesTest {
 
+    private companion object {
+        /** Cadence de l'accelerometre sur l'appareil : SENSOR_DELAY_GAME. */
+        const val PAS_CAPTEUR_MS = 20L
+    }
+
     /** Téléphone à plat, immobile : la position est bonne. */
     private fun echantillon(
         proche: Boolean,
@@ -57,15 +62,57 @@ class CompteurPompesTest {
         assertEquals(0, c.comptees.value)
     }
 
+    /**
+     * Flux d'echantillons tel que l'appareil le produit : l'accelerometre
+     * alimente le compteur toutes les 20 ms (SENSOR_DELAY_GAME, voir
+     * CapteurPompes.demarrer), en portant la valeur courante de la proximite.
+     * Renvoie l'instant du dernier echantillon emis.
+     */
+    private fun CompteurPompes.fluxReel(depart: Long, proche: Boolean, dureeMs: Long): Long {
+        var t = depart
+        while (t < depart + dureeMs) {
+            onEchantillon(echantillon(proche = proche, t = t))
+            t += PAS_CAPTEUR_MS
+        }
+        return t - PAS_CAPTEUR_MS
+    }
+
     @Test
     fun `un effleurement du capteur ne compte pas`() {
         val c = CompteurPompes(total = 10)
-        // duree depuis le dernier echantillon haut assez longue, mais
-        // seulement 100 ms en position basse
-        c.onEchantillon(echantillon(proche = false, t = 1_000))
-        c.onEchantillon(echantillon(proche = true, t = 1_600))
-        c.onEchantillon(echantillon(proche = false, t = 1_700))
+        // Une main qui passe 100 ms devant le capteur, sur un flux realiste :
+        // la reference haute a ete rafraichie jusqu'a 20 ms avant la descente,
+        // donc la duree depuis le dernier haut vaut la tenue basse a un
+        // echantillon pres — 120 ms, tres en dessous des 600 ms exiges.
+        val finHaut = c.fluxReel(depart = 1_000, proche = false, dureeMs = 1_000)
+        val finBas = c.fluxReel(depart = finHaut + PAS_CAPTEUR_MS, proche = true, dureeMs = 100)
+        c.onEchantillon(echantillon(proche = false, t = finBas + PAS_CAPTEUR_MS))
         assertEquals(0, c.comptees.value)
+    }
+
+    /**
+     * Caracterise ce qui remplace l'ancienne garde anti-effleurement de 150 ms,
+     * supprimee parce qu'elle etait inatteignable : sur un flux continu, la
+     * duree depuis le dernier echantillon haut vaut la tenue basse plus un
+     * echantillon, si bien que la borne de 600 ms interdit deja toute tenue
+     * basse inferieure a 580 ms. Un seuil a 150 ms ne pouvait donc jamais
+     * trancher quoi que ce soit sur l'appareil — il ne rejetait que des
+     * sequences que seuls des tests aux echantillons epars savaient produire.
+     */
+    @Test
+    fun `sur un flux realiste la plus courte tenue basse comptee est de 580 ms`() {
+        val comptees = (20L..800L step PAS_CAPTEUR_MS).filter { tenueBasseMs ->
+            val c = CompteurPompes(total = 10)
+            val finHaut = c.fluxReel(depart = 1_000, proche = false, dureeMs = 1_000)
+            val finBas = c.fluxReel(
+                depart = finHaut + PAS_CAPTEUR_MS,
+                proche = true,
+                dureeMs = tenueBasseMs,
+            )
+            c.onEchantillon(echantillon(proche = false, t = finBas + PAS_CAPTEUR_MS))
+            c.comptees.value == 1
+        }
+        assertEquals(580L, comptees.min())
     }
 
     @Test
@@ -175,14 +222,24 @@ class CompteurPompesTest {
     }
 
     @Test
-    fun `une tenue basse exactement a la limite basse compte`() {
+    fun `une duree exactement a la borne basse compte`() {
         val c = CompteurPompes(total = 10)
         c.onEchantillon(echantillon(proche = false, t = 800)) // PRET, debutTenueHaute = 800
-        c.onEchantillon(echantillon(proche = true, t = 1_400)) // BAS, debutBas = 1400
-        // tenue basse exactement 150 ms (TENUE_BASSE_MIN_MS) et 750 ms depuis
-        // le dernier echantillon haut, dans la plage acceptee
-        assertTrue(c.onEchantillon(echantillon(proche = false, t = 1_550)))
+        c.onEchantillon(echantillon(proche = true, t = 1_000)) // BAS
+        // exactement 600 ms depuis le dernier echantillon haut
+        // (DUREE_DEPUIS_DERNIER_HAUT_MIN_MS) : la borne est inclusive
+        assertTrue(c.onEchantillon(echantillon(proche = false, t = 1_400)))
         assertEquals(1, c.comptees.value)
+    }
+
+    @Test
+    fun `une duree juste sous la borne basse ne compte pas`() {
+        val c = CompteurPompes(total = 10)
+        c.onEchantillon(echantillon(proche = false, t = 800))
+        c.onEchantillon(echantillon(proche = true, t = 1_000))
+        // 599 ms depuis le dernier echantillon haut : un de moins que la borne
+        assertFalse(c.onEchantillon(echantillon(proche = false, t = 1_399)))
+        assertEquals(0, c.comptees.value)
     }
 
     @Test

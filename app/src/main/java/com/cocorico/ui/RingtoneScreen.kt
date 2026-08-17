@@ -24,6 +24,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +65,8 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
     var uriPersonnalisee by remember { mutableStateOf(SonneriePersonnaliseeStore.lireUri(context)) }
     var nomPersonnalisee by remember { mutableStateOf(SonneriePersonnaliseeStore.lireNom(context)) }
     var erreurImport by remember { mutableStateOf<String?>(null) }
+    var verificationEnCours by remember { mutableStateOf(false) }
+    val portee = rememberCoroutineScope()
 
     // ACTION_OPEN_DOCUMENT plutôt que GET_CONTENT : lui seul autorise
     // `takePersistableUriPermission`, indispensable pour que la sonnerie soit
@@ -82,20 +88,35 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
             )
         }.isSuccess
 
-        if (permissionAccordee && SondeSonnerie.estLisible(context, uri)) {
-            val nom = SonneriePersonnaliseeLogique.nomAffichable(
-                uri.toString(),
-                SondeSonnerie.nomInterroge(context, uri),
-            )
-            SonneriePersonnaliseeStore.ecrire(context, uri.toString(), nom)
-            uriPersonnalisee = uri.toString()
-            nomPersonnalisee = nom
-            erreurImport = null
-            viewModel.majSonnerie(Sonneries.ID_PERSONNALISEE)
-            apercu.jouer(uri)
-        } else {
-            erreurImport = "Ce fichier ne peut pas servir de sonnerie : format illisible, " +
-                "fichier corrompu ou accès refusé. Choisis-en un autre."
+        // La sonde prépare réellement le média et interroge le fournisseur :
+        // sur un fichier servi par un fournisseur distant, la faire sur le fil
+        // principal gèle l'écran jusqu'à l'ANR. Seules les mises à jour d'état
+        // reviennent sur le fil principal, à la reprise de la coroutine.
+        verificationEnCours = true
+        portee.launch {
+            val lisible = permissionAccordee && withContext(Dispatchers.IO) {
+                SondeSonnerie.estLisible(context, uri)
+            }
+            if (lisible) {
+                val nom = withContext(Dispatchers.IO) {
+                    SonneriePersonnaliseeLogique.nomAffichable(
+                        uri.toString(),
+                        SondeSonnerie.nomInterroge(context, uri),
+                    )
+                }
+                withContext(Dispatchers.IO) {
+                    SonneriePersonnaliseeStore.ecrire(context, uri.toString(), nom)
+                }
+                uriPersonnalisee = uri.toString()
+                nomPersonnalisee = nom
+                erreurImport = null
+                viewModel.majSonnerie(Sonneries.ID_PERSONNALISEE)
+                if (!apercu.jouer(uri)) erreurImport = ECHEC_APERCU
+            } else {
+                erreurImport = "Ce fichier ne peut pas servir de sonnerie : format illisible, " +
+                    "fichier corrompu ou accès refusé. Choisis-en un autre."
+            }
+            verificationEnCours = false
         }
     }
 
@@ -128,7 +149,7 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 choisie = sonnerie.id == config.ringtoneId,
                 onClick = {
                     viewModel.majSonnerie(sonnerie.id)
-                    apercu.jouer(sonnerie)
+                    if (!apercu.jouer(sonnerie)) erreurImport = ECHEC_APERCU
                 },
             )
         }
@@ -143,7 +164,7 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 val uriTexte = uriPersonnalisee
                 if (uriTexte != null) {
                     viewModel.majSonnerie(Sonneries.ID_PERSONNALISEE)
-                    apercu.jouer(Uri.parse(uriTexte))
+                    if (!apercu.jouer(Uri.parse(uriTexte))) erreurImport = ECHEC_APERCU
                 } else {
                     lanceurImport.launch(arrayOf("audio/*"))
                 }
@@ -156,6 +177,13 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 modifier = Modifier.clickable { lanceurImport.launch(arrayOf("audio/*")) },
             )
         }
+        // La vérification est passée hors du fil principal : sans ce repère,
+        // l'écran resterait figé en apparence sur un fichier lent à sonder, et
+        // l'utilisateur appuierait à nouveau.
+        if (verificationEnCours) {
+            Text("Vérification du fichier…", fontSize = 13.sp)
+        }
+
         if (erreurImport != null) {
             Text(
                 text = erreurImport ?: "",
@@ -239,3 +267,11 @@ private fun ReglageVolumeMax(pourcent: Int, onChange: (Int) -> Unit) {
         )
     }
 }
+
+/**
+ * Un aperçu muet est la panne exacte que cet écran existe pour faire
+ * découvrir **avant** la nuit : sortir en silence laissait l'utilisateur
+ * croire qu'il venait de choisir une sonnerie qui marche.
+ */
+private const val ECHEC_APERCU =
+    "Cette sonnerie n'a pas pu être jouée. Elle ne sonnera pas non plus au réveil : choisis-en une autre."

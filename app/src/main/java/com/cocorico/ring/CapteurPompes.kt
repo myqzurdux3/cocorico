@@ -48,9 +48,26 @@ class CapteurPompes(
      */
     fun capteurDisponible(): Boolean = proximite != null && accelerometre != null
 
+    /**
+     * `SENSOR_DELAY_GAME` (20 ms) pour l'accéléromètre, et non `SENSOR_DELAY_UI`
+     * (66,7 ms), pour la raison que documente déjà [HandDetector.demarrer] : à
+     * 15 Hz d'échantillonnage, les vibrations du haut-parleur autour de 30 Hz se
+     * replient dans la bande utile et deviennent indiscernables d'un mouvement.
+     * Ici la conséquence est pire qu'un volume qui baisse tout seul : l'écart à
+     * la gravité franchit ECART_MAX en permanence, `positionValide` est faux à
+     * chaque échantillon, et **plus aucune pompe n'est comptée** — alarme à
+     * plein volume posée sur une surface dure, c'est-à-dire exactement la
+     * situation du matin. Mesuré sur le filtre d'[EstimateurGravite] : une
+     * vibration de 30 Hz et 2 m/s² culmine à 0,21 d'écart au pas de 20 ms,
+     * contre 2,0 au pas de 66,7 ms, pour un seuil à 1,5 (voir
+     * `EstimateurGraviteTest`).
+     *
+     * La proximité reste en `SENSOR_DELAY_NORMAL` : c'est un capteur à
+     * déclenchement sur changement, l'accélérer ne rapporte rien.
+     */
     fun demarrer() {
         proximite?.let { manager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        accelerometre?.let { manager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        accelerometre?.let { manager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
     }
 
     fun arreter() {
@@ -155,8 +172,8 @@ class CapteurPompes(
  *   sinusoïdale à 3 Hz et 4 m/s² d'amplitude culmine à un écart de 0,91 avec
  *   un filtre à 370 ms (sous le seuil ECART_MAX = 1,5 de CompteurPompes, donc
  *   invisible), contre 2,17 avec un filtre à 100 ms — largement au-dessus.
- *   Ces deux valeurs viennent d'une simulation numérique du filtre, à la
- *   cadence SENSOR_DELAY_UI (voir le rapport de correction).
+ *   Ces deux valeurs viennent d'une simulation numérique du filtre, au pas de
+ *   20 ms — la cadence réellement demandée à l'accéléromètre, SENSOR_DELAY_GAME.
  *
  * Le lissage rapide n'est pas nul pour autant : mesurer l'écart sur le signal
  * **brut** redresserait aussi les vibrations du haut-parleur — l'alarme
@@ -171,8 +188,8 @@ class CapteurPompes(
  *
  * Filtrage en temps réel — constante de temps en millisecondes, `dt` borné —
  * et non par échantillon à ALPHA fixe comme l'ancienne implémentation :
- * Android ne garantit pas la cadence SENSOR_DELAY_UI, un ALPHA fixe dériverait
- * si elle varie.
+ * Android ne garantit pas la cadence demandée (SENSOR_DELAY_GAME), un ALPHA
+ * fixe dériverait si elle varie.
  */
 class EstimateurGravite(
     private val tauOrientationMs: Float = TAU_ORIENTATION_MS,

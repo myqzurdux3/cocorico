@@ -26,12 +26,30 @@ object Sonneries {
      */
     const val ID_PERSONNALISEE = "personnalisee"
 
-    val toutes = listOf(
-        Sonnerie("coq", "Coq du village", R.raw.coq),
-        Sonnerie("reveil", "Réveil-matin", R.raw.reveil_matin),
-        Sonnerie("klaxon", "Klaxon d'enfer", R.raw.klaxon),
-        Sonnerie("sirene", "Sirène", R.raw.sirene),
-    )
+    private val coq = Sonnerie("coq", "Coq du village", R.raw.coq)
+    private val reveilMatin = Sonnerie("reveil", "Réveil-matin", R.raw.reveil_matin)
+    private val klaxon = Sonnerie("klaxon", "Klaxon d'enfer", R.raw.klaxon)
+    private val sirene = Sonnerie("sirene", "Sirène", R.raw.sirene)
+
+    /** Ordonnée de la plus douce à la plus violente : l'écran de choix affiche cet ordre. */
+    val toutes = listOf(coq, reveilMatin, klaxon, sirene)
+
+    /**
+     * Repli quand la configuration référence un identifiant qui n'existe plus.
+     * Nommé, et non désigné par sa position : ce chemin est traversé à chaque
+     * réveil, et un indice réordonnerait silencieusement la sonnerie du matin —
+     * ou sortirait de la liste si elle raccourcissait. Le klaxon plutôt que le
+     * coq, parce qu'une configuration illisible ne doit pas dégrader le réveil.
+     */
+    val repliIdInconnu = klaxon
+
+    /**
+     * Repli quand la source choisie est illisible au moment de sonner : la plus
+     * forte, jamais la plus douce. Quelqu'un qui a choisi la sirène l'a choisie
+     * parce que le coq ne le réveille pas ; lui substituer le coq en silence,
+     * c'est le laisser dormir.
+     */
+    val repliLaPlusForte = sirene
 
     /**
      * Entrée synthétique de la sonnerie personnalisée : pas de ressource
@@ -41,5 +59,5 @@ object Sonneries {
     private val personnalisee = Sonnerie(ID_PERSONNALISEE, "Ma sonnerie", resId = -1, personnalisee = true)
 
     fun parId(id: String): Sonnerie =
-        if (id == ID_PERSONNALISEE) personnalisee else toutes.firstOrNull { it.id == id } ?: toutes[2]
+        if (id == ID_PERSONNALISEE) personnalisee else toutes.firstOrNull { it.id == id } ?: repliIdInconnu
 }

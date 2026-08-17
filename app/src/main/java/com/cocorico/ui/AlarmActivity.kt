@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -156,6 +157,7 @@ class AlarmActivity : ComponentActivity() {
                 challengeActuel?.let { challenge ->
                     EcranAlarme(
                         plafondPourcent = plafondVolume.value,
+                        detectionPriseEnMain = detector.capteurDisponible(),
                         challenge = challenge,
                         volume = volumeAffiche.value,
                         secondes = secondesAvantRemontee.value,
@@ -182,10 +184,14 @@ class AlarmActivity : ComponentActivity() {
             // On relit `defi.value` à chaque tour : un renoncement en cours de
             // route remplace le défi, et une référence figée au démarrage
             // continuerait de surveiller l'ancien, jamais résolu.
-            inactivite.onInteraction(System.currentTimeMillis())
+            // Horloge monotone, exigée par `InactivityTracker` : l'horloge
+            // murale peut sauter (resynchronisation au réveil), ce qui
+            // figerait le compte à rebours ou ferait remonter le volume
+            // aussitôt, téléphone en main.
+            inactivite.onInteraction(SystemClock.elapsedRealtime())
             while (defi.value?.isSolved?.value != true) {
                 delay(500)
-                val maintenant = System.currentTimeMillis()
+                val maintenant = SystemClock.elapsedRealtime()
                 if (inactivite.isExpired(maintenant)) {
                     machine.onInactiviteExpiree()
                 }
@@ -283,7 +289,10 @@ class AlarmActivity : ComponentActivity() {
 
     /** Regroupe les deux appels que chaque geste de l'utilisateur doit déclencher. */
     private fun interaction() {
-        val maintenant = System.currentTimeMillis()
+        // Même horloge monotone que la boucle de surveillance : mélanger les
+        // deux ferait comparer un instant mural à un instant depuis le
+        // démarrage, et le compte à rebours n'aurait plus aucun sens.
+        val maintenant = SystemClock.elapsedRealtime()
         inactivite.onInteraction(maintenant)
         machine.onInteraction()
         majCompteARebours(maintenant)
@@ -401,6 +410,7 @@ private fun EcranAlarme(
     volume: VolumeState,
     secondes: Int,
     plafondPourcent: Int,
+    detectionPriseEnMain: Boolean,
 ) {
     var defiOuvert by remember { mutableStateOf(false) }
     val heure = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
@@ -455,7 +465,15 @@ private fun EcranAlarme(
                     Text("Faire taire ce coq", fontSize = 18.sp)
                 }
                 Text(
-                    text = "Prends le téléphone en main : le volume baisse tout seul.",
+                    // Promesse conditionnée au capteur : sur un téléphone sans
+                    // accéléromètre, la baisse à la prise en main n'a jamais
+                    // lieu, et l'annoncer quand même serait mentir à quelqu'un
+                    // qui secoue son téléphone en attendant qu'il se taise.
+                    text = if (detectionPriseEnMain) {
+                        "Prends le téléphone en main : le volume baisse tout seul."
+                    } else {
+                        "Ce téléphone n'a pas le capteur qu'il faut : le volume ne baissera pas."
+                    },
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center,
                 )

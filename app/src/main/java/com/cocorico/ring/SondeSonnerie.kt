@@ -20,11 +20,25 @@ object SondeSonnerie {
      * défaillance — format exotique, fichier corrompu, permission déjà
      * perdue — est absorbée par `runCatching` : aucune exception ne doit
      * remonter jusqu'à l'écran de sélection, seul le verdict compte.
+     *
+     * **À appeler hors du thread principal.** `MediaPlayer.create` prépare le
+     * média de façon synchrone : sur une URI servie par un fournisseur distant
+     * (stockage réseau, application tierce endormie), la préparation peut durer
+     * plusieurs secondes et bloque alors l'interface jusqu'à l'ANR. L'appelant
+     * doit l'exécuter dans une coroutine sur un dispatcher d'entrées-sorties.
+     *
+     * Le `release()` est dans un `finally` : la lecture de `duration` peut
+     * lever, et le lecteur restait alors ouvert — un descripteur de fichier et
+     * une session audio fuités à chaque fichier refusé.
      */
     fun estLisible(context: Context, uri: Uri): Boolean {
         val duree = runCatching {
             MediaPlayer.create(context, uri)?.let { lecteur ->
-                lecteur.duration.also { lecteur.release() }
+                try {
+                    lecteur.duration
+                } finally {
+                    runCatching { lecteur.release() }
+                }
             }
         }.getOrNull()
         return SonneriePersonnaliseeLogique.estJouable(duree)

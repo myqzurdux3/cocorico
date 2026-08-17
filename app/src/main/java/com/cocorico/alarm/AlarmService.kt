@@ -79,7 +79,12 @@ class AlarmService : Service() {
             // pour le reste du passage du filet de secours. On ne relance que la
             // lecture : ni le WakeLock ni le volume ne sont retouchés.
             if (!player.estEnLecture()) {
-                demarrerLecture()
+                // Le volume n'est pas retouché : la machine à états l'a
+                // peut-être déjà baissé parce que l'utilisateur a le téléphone
+                // en main, et elle ne renotifierait jamais une baisse qu'elle
+                // croit toujours en vigueur. C'est ce que ce commentaire
+                // promettait déjà sans que le code le fasse.
+                demarrerLecture(appliquerVolume = false)
             }
             return START_STICKY
         }
@@ -95,8 +100,13 @@ class AlarmService : Service() {
         return START_STICKY
     }
 
-    /** Lit la config puis lance la sonnerie. Utilisé au premier démarrage et en repli. */
-    private fun demarrerLecture() {
+    /**
+     * Lit la config puis lance la sonnerie.
+     *
+     * [appliquerVolume] distingue les deux appelants : le premier démarrage
+     * pousse le volume à plein, le filet de secours ne relance que la lecture.
+     */
+    private fun demarrerLecture(appliquerVolume: Boolean = true) {
         scope.launch {
             // Une lecture de configuration qui échoue ne doit pas laisser le
             // réveil muet : on sonne avec la sonnerie par défaut.
@@ -114,7 +124,8 @@ class AlarmService : Service() {
             // sonnerie sortir au maximum de l'appareil — précisément ce que ce
             // réglage existe pour éviter.
             player.volumeMaxPourcent = config.volumeMaxPourcent
-            player.demarrer(Sonneries.parId(config.ringtoneId))
+            val sonnerie = Sonneries.parId(config.ringtoneId)
+            if (appliquerVolume) player.demarrer(sonnerie) else player.demarrerLecture(sonnerie)
         }
     }
 

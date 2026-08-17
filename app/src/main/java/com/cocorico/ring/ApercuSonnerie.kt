@@ -35,12 +35,16 @@ class ApercuSonnerie(private val context: Context) {
     /**
      * Coupe l'extrait en cours et lance le nouveau. Enchaîner les appuis sur
      * plusieurs sonneries ne doit jamais les superposer.
+     *
+     * Renvoie `false` si le lecteur n'a pas pu être créé — voir [jouer] sur URI
+     * pour la raison de ce retour.
      */
-    fun jouer(sonnerie: Sonneries.Sonnerie) {
+    fun jouer(sonnerie: Sonneries.Sonnerie): Boolean {
         arreter()
 
-        val nouveau = creer(sonnerie.resId) ?: return
+        val nouveau = creer(sonnerie.resId) ?: return false
         demarrerExtrait(nouveau)
+        return true
     }
 
     /**
@@ -48,12 +52,19 @@ class ApercuSonnerie(private val context: Context) {
      * Utilisé à la fois pour rejouer une sonnerie personnalisée déjà choisie
      * et, à l'écran de sélection, pour donner à entendre un fichier tout
      * juste importé — au-delà de la simple vérification qu'il est lisible.
+     *
+     * Renvoie `false` si le lecteur n'a pas pu être créé, pour que l'appelant
+     * l'affiche. Sortir en silence laissait l'utilisateur appuyer sur sa
+     * sonnerie, ne rien entendre et ne rien apprendre — alors que la panne
+     * qu'il vient de rencontrer est exactement celle qu'il doit découvrir
+     * maintenant plutôt que le lendemain matin.
      */
-    fun jouer(uri: Uri) {
+    fun jouer(uri: Uri): Boolean {
         arreter()
 
-        val nouveau = runCatching { creerDepuisUri(uri) }.getOrNull() ?: return
+        val nouveau = runCatching { creerDepuisUri(uri) }.getOrNull() ?: return false
         demarrerExtrait(nouveau)
+        return true
     }
 
     private fun demarrerExtrait(nouveau: MediaPlayer) {
