@@ -73,6 +73,30 @@ class NiveauxVolumeTest {
         assertTrue("$doux devrait être sous $fort", doux < fort)
     }
 
+    // --- Ce que la jauge de l'écran d'alarme annonce ---
+
+    @Test fun `le pourcentage affiche a plein suit le plafond choisi`() {
+        // La jauge annonçait « 100 % » en dur, quel que soit le plafond : à
+        // 60 % de plafond, l'écran contredisait le réglage de l'utilisateur.
+        assertEquals(100, NiveauxVolume.pourcentAffichePlein(100))
+        assertEquals(60, NiveauxVolume.pourcentAffichePlein(60))
+        assertEquals(50, NiveauxVolume.pourcentAffichePlein(10))
+    }
+
+    @Test fun `le pourcentage affiche a la baisse est une part du plafond`() {
+        assertEquals(30, NiveauxVolume.pourcentAfficheBaisse(100))
+        assertEquals(18, NiveauxVolume.pourcentAfficheBaisse(60))
+    }
+
+    @Test fun `le pourcentage affiche a la baisse reste sous celui a plein`() {
+        for (pourcent in 50..100) {
+            assertTrue(
+                "pourcent=$pourcent",
+                NiveauxVolume.pourcentAfficheBaisse(pourcent) < NiveauxVolume.pourcentAffichePlein(pourcent),
+            )
+        }
+    }
+
     @Test fun `le plancher expose vaut cinquante`() {
         assertEquals(50, NiveauxVolume.POURCENT_MINIMAL)
     }

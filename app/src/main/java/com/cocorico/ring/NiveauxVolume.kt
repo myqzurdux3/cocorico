@@ -61,6 +61,25 @@ object NiveauxVolume {
         return vise.coerceIn(1, plein - 1)
     }
 
+    /**
+     * Ce que la jauge de l'écran d'alarme annonce à pleine puissance : le
+     * plafond lui-même. Elle affichait « 100 % » en dur, donc contredisait
+     * ouvertement le réglage dès que l'utilisateur descendait le plafond.
+     */
+    fun pourcentAffichePlein(pourcent: Int): Int = normaliser(pourcent)
+
+    /**
+     * Ce que la jauge annonce téléphone en main : la même part du plafond que
+     * celle appliquée par [baisse].
+     *
+     * Nominal, et pas au cran près : le flux d'alarme est quantifié, et le
+     * niveau réellement posé est arrondi. Annoncer la valeur nominale reste
+     * plus juste que l'ancien « 30 % » figé, qui se rapportait à un maximum
+     * d'appareil que l'utilisateur venait justement de refuser.
+     */
+    fun pourcentAfficheBaisse(pourcent: Int): Int =
+        (normaliser(pourcent) * FRACTION_BAISSE).roundToInt()
+
     /** Assez bas pour se sentir, assez haut pour rester audible d'un lit. */
     private const val FRACTION_BAISSE = 0.3f
 }

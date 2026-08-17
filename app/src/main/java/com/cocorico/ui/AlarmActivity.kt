@@ -57,6 +57,7 @@ import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
 import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.InactivityTracker
+import com.cocorico.ring.NiveauxVolume
 import com.cocorico.ring.VolumeState
 import com.cocorico.ring.VolumeStateMachine
 import com.cocorico.ui.theme.CocoricoTheme
@@ -87,6 +88,13 @@ class AlarmActivity : ComponentActivity() {
      * compte à rebours. On ne fait que recopier ce qu'ils décident déjà.
      */
     private val volumeAffiche = mutableStateOf(VolumeState.PLEIN)
+
+    /**
+     * Plafond sonore choisi par l'utilisateur, pour que la jauge annonce un
+     * pourcentage qui corresponde à ce qu'il a réglé. Renseigné avec le reste
+     * de la configuration ; jusque-là, le maximum, comme le lecteur.
+     */
+    private val plafondVolume = mutableStateOf(NiveauxVolume.POURCENT_MAXIMAL)
     private val secondesAvantRemontee = mutableStateOf(SECONDES_INACTIVITE)
 
     /**
@@ -148,6 +156,7 @@ class AlarmActivity : ComponentActivity() {
             // du service, sans quoi la remontée après inactivité repousserait
             // le son au maximum de l'appareil.
             player.volumeMaxPourcent = config.volumeMaxPourcent
+            plafondVolume.value = config.volumeMaxPourcent
             defi.value = construireDefi(config)
 
             setContent {
@@ -155,6 +164,7 @@ class AlarmActivity : ComponentActivity() {
                     val challengeActuel by defi
                     challengeActuel?.let { challenge ->
                         EcranAlarme(
+                            plafondPourcent = plafondVolume.value,
                             challenge = challenge,
                             volume = volumeAffiche.value,
                             secondes = secondesAvantRemontee.value,
@@ -381,7 +391,12 @@ internal fun challengeEffectif(
  * fond nuit — et le pavé numérique s'afficherait en noir.
  */
 @Composable
-private fun EcranAlarme(challenge: Challenge, volume: VolumeState, secondes: Int) {
+private fun EcranAlarme(
+    challenge: Challenge,
+    volume: VolumeState,
+    secondes: Int,
+    plafondPourcent: Int,
+) {
     var defiOuvert by remember { mutableStateOf(false) }
     val heure = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
     val defilement = rememberScrollState()
@@ -412,7 +427,7 @@ private fun EcranAlarme(challenge: Challenge, volume: VolumeState, secondes: Int
             },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Jauge(volume = volume, secondes = secondes)
+            Jauge(volume = volume, secondes = secondes, plafondPourcent = plafondPourcent)
 
             if (!defiOuvert) {
                 Text(
@@ -454,7 +469,7 @@ private fun EcranAlarme(challenge: Challenge, volume: VolumeState, secondes: Int
  * jaune : sur fond rouge, c'est le seul contraste qui saute aux yeux à 6 h.
  */
 @Composable
-private fun Jauge(volume: VolumeState, secondes: Int) {
+private fun Jauge(volume: VolumeState, secondes: Int, plafondPourcent: Int) {
     val urgent = volume == VolumeState.BAISSE && secondes <= SEUIL_URGENCE_S
     // Le décompte ne s'affiche qu'une fois le volume baissé : à fond, il n'y a
     // rien à décompter, seulement le contrat à rappeler.
@@ -469,7 +484,13 @@ private fun Jauge(volume: VolumeState, secondes: Int) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Volume — ${if (volume == VolumeState.PLEIN) 100 else 30} %",
+            // Le pourcentage se rapporte au plafond choisi par l'utilisateur,
+            // pas au maximum de l'appareil : afficher « 100 % » en dur
+            // contredisait ouvertement un plafond réglé plus bas.
+            text = "Volume — ${
+                if (volume == VolumeState.PLEIN) NiveauxVolume.pourcentAffichePlein(plafondPourcent)
+                else NiveauxVolume.pourcentAfficheBaisse(plafondPourcent)
+            } %",
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
             fontSize = 17.sp,
