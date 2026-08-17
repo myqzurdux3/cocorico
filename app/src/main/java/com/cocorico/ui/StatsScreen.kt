@@ -36,20 +36,39 @@ import com.cocorico.data.ReveilRecent
 import com.cocorico.data.Statistiques
 import com.cocorico.data.StatsCalculator
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 @Composable
 fun StatsScreen(onRetour: () -> Unit) {
     val context = LocalContext.current
     var stats by remember { mutableStateOf<Statistiques?>(null) }
+    var echecLecture by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        val records = CocoricoDatabase.get(context).wakeRecordDao().tous()
-        stats = StatsCalculator.calculer(records, ZoneId.systemDefault())
+        // Une exception qui sort d'ici remonte au scope de composition et fait
+        // planter l'application entière. Une base illisible doit coûter un
+        // message, pas l'application.
+        val resultat = runCatching {
+            val records = CocoricoDatabase.get(context).wakeRecordDao().tous()
+            // Le jour de référence est passé explicitement, comme la série :
+            // un calcul pur ne doit pas aller chercher l'heure courante au
+            // fond de lui-même, sinon il n'est plus testable.
+            val zone = ZoneId.systemDefault()
+            StatsCalculator.calculer(records, zone, LocalDate.now(zone))
+        }
+        // `runCatching` avale aussi l'annulation : sans ce contrôle, quitter
+        // l'écran pendant la lecture afficherait une panne imaginaire.
+        currentCoroutineContext().ensureActive()
+        resultat
+            .onSuccess { stats = it }
+            .onFailure { echecLecture = true }
     }
 
     Column(
@@ -61,8 +80,18 @@ fun StatsScreen(onRetour: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
+        BoutonRetour(onRetour)
         Text("Statistiques", style = MaterialTheme.typography.titleLarge)
+
+        if (echecLecture) {
+            Text(
+                text = "Tes statistiques n'ont pas pu être lues. Elles ne sont pas " +
+                    "perdues : réessaie plus tard.",
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.error,
+            )
+            return@Column
+        }
 
         val valeurs = stats
         if (valeurs == null) {

@@ -33,6 +33,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.cocorico.alarm.AlarmService
+import com.cocorico.alarm.AlarmState
 import com.cocorico.challenge.Challenge
 import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
@@ -64,8 +66,12 @@ import com.cocorico.ring.VolumeStateMachine
 import com.cocorico.ui.theme.CocoricoTheme
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -81,7 +87,18 @@ class AlarmActivity : ComponentActivity() {
     private lateinit var detector: HandDetector
     private lateinit var retourNeutralise: OnBackPressedCallback
     private val inactivite = InactivityTracker(SECONDES_INACTIVITE * 1_000L)
-    private val alarmeAt: Long = System.currentTimeMillis()
+    /**
+     * Instant du déclenchement, lu chez le service et non horodaté ici.
+     * L'activité peut mourir et être relancée en cours d'alarme ; horodater sa
+     * propre création faisait repartir de zéro la durée enregistrée dans
+     * l'historique, et faussait toutes les statistiques qui en découlent.
+     *
+     * Repli sur l'instant courant si le drapeau a disparu : une durée
+     * approximative vaut mieux qu'un horodatage nul en base.
+     */
+    private val alarmeAt: Long by lazy {
+        AlarmState.instantDeclenchement(this).takeIf { it > 0L } ?: System.currentTimeMillis()
+    }
 
     /**
      * Reflets d'affichage, pas une seconde source de vérité : la machine à états
@@ -135,6 +152,11 @@ class AlarmActivity : ComponentActivity() {
         machine = VolumeStateMachine {
             player.appliquer(it)
             volumeAffiche.value = it
+            // Le décompte n'est calculé que lorsqu'il est affiché : à l'instant
+            // où il le devient, il faut donc le rafraîchir ici plutôt que de
+            // laisser jusqu'à un demi-tour d'horloge une valeur périmée sous
+            // les yeux de l'utilisateur.
+            majCompteARebours(SystemClock.elapsedRealtime())
         }
         detector = HandDetector(
             context = this,
@@ -180,25 +202,51 @@ class AlarmActivity : ComponentActivity() {
             plafondVolume.value = config.volumeMaxPourcent
             defi.value = construireDefi(config)
 
-            // Surveillance de l'inactivité : réveille le volume si l'utilisateur décroche.
-            // On relit `defi.value` à chaque tour : un renoncement en cours de
-            // route remplace le défi, et une référence figée au démarrage
-            // continuerait de surveiller l'ancien, jamais résolu.
             // Horloge monotone, exigée par `InactivityTracker` : l'horloge
             // murale peut sauter (resynchronisation au réveil), ce qui
             // figerait le compte à rebours ou ferait remonter le volume
             // aussitôt, téléphone en main.
             inactivite.onInteraction(SystemClock.elapsedRealtime())
-            while (defi.value?.isSolved?.value != true) {
-                delay(500)
-                val maintenant = SystemClock.elapsedRealtime()
-                if (inactivite.isExpired(maintenant)) {
-                    machine.onInactiviteExpiree()
+
+            // Surveillance de l'inactivité : réveille le volume si l'utilisateur
+            // décroche. Elle seule a besoin d'un tour d'horloge ; la résolution
+            // du défi, elle, est désormais notifiée (voir ci-dessous).
+            val surveillance = launch {
+                while (true) {
+                    delay(500)
+                    val maintenant = SystemClock.elapsedRealtime()
+                    if (inactivite.isExpired(maintenant)) {
+                        machine.onInactiviteExpiree()
+                    }
+                    majCompteARebours(maintenant)
                 }
-                majCompteARebours(maintenant)
             }
+
+            attendreResolution()
+            surveillance.cancel()
             terminer()
         }
+    }
+
+    /**
+     * Rend la main à l'instant précis où le défi courant se déclare résolu.
+     *
+     * Scruter [Challenge.isSolved] toutes les 500 ms laissait jusqu'à une
+     * demi-seconde de sirène après la victoire — la demi-seconde la plus longue
+     * de la journée. On s'abonne donc au flux au lieu de le relire.
+     *
+     * `defi` reste relu à chaque changement : un renoncement **remplace** le
+     * défi en cours de route, et `flatMapLatest` abandonne alors la surveillance
+     * de l'ancien pour celle du nouveau. Une référence figée au démarrage
+     * attendrait la résolution d'un défi que plus personne ne joue, et l'alarme
+     * ne s'arrêterait jamais.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun attendreResolution() {
+        snapshotFlow { defi.value }
+            .filterNotNull()
+            .flatMapLatest { challenge -> challenge.isSolved }
+            .first { resolu -> resolu }
     }
 
     /**
@@ -298,8 +346,18 @@ class AlarmActivity : ComponentActivity() {
         majCompteARebours(maintenant)
     }
 
-    /** Secondes restantes avant la remontée du volume, arrondies au supérieur. */
+    /**
+     * Secondes restantes avant la remontée du volume, arrondies au supérieur.
+     *
+     * N'écrit **que** si la valeur est effectivement à l'écran. Chaque écriture
+     * recompose tout `EcranAlarme`, dont `challenge.Content` — un récepteur
+     * instable que Compose ne saute jamais : à plein volume, où le décompte
+     * n'est pas affiché, on recomposait donc le pavé numérique ou l'aperçu
+     * caméra deux fois par seconde pendant toute la durée de l'alarme, pour une
+     * valeur que personne ne voyait.
+     */
     private fun majCompteARebours(maintenant: Long) {
+        if (!compteAReboursAffiche(volumeAffiche.value)) return
         val restant = inactivite.millisRestantes(maintenant)
         secondesAvantRemontee.value = ((restant + 999L) / 1000L).toInt()
     }
@@ -314,6 +372,20 @@ class AlarmActivity : ComponentActivity() {
         KeyEvent.KEYCODE_VOLUME_MUTE,
         -> true
         else -> super.onKeyDown(keyCode, event)
+    }
+
+    /**
+     * Le relâchement doit être consommé comme l'appui. Ne neutraliser que
+     * `onKeyDown` laissait l'événement `KEYUP` remonter jusqu'à `PhoneWindow`,
+     * qui peut alors afficher le panneau de volume du système par-dessus l'écran
+     * d'alarme — un panneau qui, lui, obéit au doigt.
+     */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_VOLUME_UP,
+        KeyEvent.KEYCODE_VOLUME_DOWN,
+        KeyEvent.KEYCODE_VOLUME_MUTE,
+        -> true
+        else -> super.onKeyUp(keyCode, event)
     }
 
     /**
@@ -356,7 +428,10 @@ class AlarmActivity : ComponentActivity() {
             }
             startActivity(
                 Intent(this@AlarmActivity, MainActivity::class.java)
-                    .putExtra(MainActivity.EXTRA_VICTOIRE, true),
+                    .putExtra(MainActivity.EXTRA_VICTOIRE, true)
+                    // Preuve que la victoire vient bien de nous : `MainActivity`
+                    // est exportée et refuse l'annonce sans ce jeton.
+                    .putExtra(MainActivity.EXTRA_JETON, MainActivity.jetonIdentite(this@AlarmActivity)),
             )
             finish()
         }
@@ -397,6 +472,18 @@ internal fun challengeEffectif(
     ChallengeId.PHOTO ->
         if (permissionCameraAccordee && camerasDisponibles) ChallengeId.PHOTO else ChallengeId.MATHS
 }
+
+/**
+ * Le compte à rebours avant la remontée du volume est-il à l'écran ?
+ *
+ * À plein volume il n'y a rien à décompter : la jauge se contente de rappeler
+ * le contrat. Ce prédicat est partagé entre l'affichage ([Jauge]) et le calcul
+ * ([AlarmActivity.majCompteARebours]) parce que les deux doivent répondre la
+ * même chose : c'est ce qui garantit qu'on ne recalcule jamais — donc qu'on ne
+ * recompose jamais l'écran de défi — pour une valeur invisible, sans jamais
+ * risquer d'afficher un décompte figé.
+ */
+internal fun compteAReboursAffiche(volume: VolumeState): Boolean = volume != VolumeState.PLEIN
 
 /**
  * L'écran est peint en `error` : sa `Surface` impose donc `onError` comme
@@ -502,10 +589,10 @@ private fun Jauge(volume: VolumeState, secondes: Int, plafondPourcent: Int) {
     val urgent = volume == VolumeState.BAISSE && secondes <= SEUIL_URGENCE_S
     // Le décompte ne s'affiche qu'une fois le volume baissé : à fond, il n'y a
     // rien à décompter, seulement le contrat à rappeler.
-    val avertissement = if (volume == VolumeState.PLEIN) {
-        AVERTISSEMENT_REMONTEE
-    } else {
+    val avertissement = if (compteAReboursAffiche(volume)) {
         "Ça repart à fond dans %02d s.".format(secondes)
+    } else {
+        AVERTISSEMENT_REMONTEE
     }
     Column(
         modifier = Modifier.fillMaxWidth(),

@@ -67,7 +67,14 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
-    val juge = remember { JugeGemini(cleApi) }
+    // Clé sur la clé d'API : sans elle, une modification de la clé pendant que
+    // cet écran est composé laissait le juge sur l'ancienne, et tous les essais
+    // échouaient sans que rien ne l'explique — précisément l'inverse de ce que
+    // ce banc d'essai existe pour faire.
+    val juge = remember(cleApi) { JugeGemini(cleApi) }
+    // Le juge remplacé doit être fermé comme à la sortie de l'écran : c'est le
+    // même contrat, seul le moment change.
+    DisposableEffect(juge) { onDispose { juge.fermer() } }
     val imageCapture = remember { ImageCapture.Builder().build() }
     var fournisseur by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val libere = remember { AtomicBoolean(false) }
@@ -81,7 +88,6 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
     DisposableEffect(Unit) {
         onDispose {
             libere.set(true)
-            juge.fermer()
             runCatching { fournisseur?.unbindAll() }
         }
     }
@@ -95,7 +101,7 @@ fun EssaiPhotoScreen(cleApi: String, onRetour: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
+        BoutonRetour(onRetour)
         Text("Essai de la reconnaissance", style = MaterialTheme.typography.titleLarge)
         Text(
             "Aucune alarme. La photo part au modèle de vision, comme au réveil, " +

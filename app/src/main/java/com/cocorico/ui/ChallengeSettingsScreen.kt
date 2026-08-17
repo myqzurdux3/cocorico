@@ -1,9 +1,15 @@
 package com.cocorico.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,11 +74,44 @@ fun ChallengeSettingsScreen(
     // Reflète l'état réel de la permission, pas seulement celui lu à
     // l'ouverture de l'écran : un refus dans la boîte de dialogue système doit
     // aussitôt faire apparaître l'avertissement, sans attendre un aller-retour
-    // vers l'accueil.
-    var cameraAccordee by remember { mutableStateOf(PermissionChecker.etat(context).camera) }
+    // vers l'accueil. Relu aussi à chaque retour au premier plan, donc au
+    // retour des réglages Android — accordée là-bas, la permission doit être
+    // constatée ici sans avoir à ressortir de l'écran.
+    val permissions = etatPermissionsObserve()
+    val cameraAccordee = permissions.value.camera
+
+    // Après un second refus, Android n'ouvre plus jamais la boîte de dialogue
+    // et `launch` ne fait plus rien : chaque appui sur l'option Photo devenait
+    // un échec parfaitement silencieux, alors même que l'avertissement parlait
+    // des réglages du téléphone. On bascule donc vers la fiche de
+    // l'application, seul chemin qui reste.
+    var refusDefinitif by remember { mutableStateOf(false) }
+    val activite = context as? Activity
     val demanderCamera = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { accordee -> cameraAccordee = accordee }
+    ) { accordee ->
+        permissions.value = PermissionChecker.etat(context)
+        refusDefinitif = refusCameraDefinitif(
+            accordee = accordee,
+            // Sans activité — cas qui ne se produit pas ici, mais que le type
+            // autorise — on ne peut rien affirmer : on préfère laisser une
+            // nouvelle demande possible plutôt que d'envoyer à tort dans les
+            // réglages.
+            justificationPossible = activite == null || ActivityCompat
+                .shouldShowRequestPermissionRationale(activite, Manifest.permission.CAMERA),
+        )
+    }
+
+    // Demander la caméra, ou ouvrir la fiche de l'application quand demander ne
+    // sert plus à rien. Un seul chemin pour les deux appelants (l'option Photo
+    // et le banc d'essai) : les séparer laisserait l'un des deux dans le vide.
+    val reclamerCamera = {
+        if (refusDefinitif) {
+            ouvrirFicheApplication(context)
+        } else {
+            demanderCamera.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -87,7 +126,7 @@ fun ChallengeSettingsScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
+        BoutonRetour(onRetour)
         Text("Défi", style = MaterialTheme.typography.titleLarge)
         Text("Ce que tu devras faire pour la faire taire.", fontSize = 15.sp)
 
@@ -123,11 +162,18 @@ fun ChallengeSettingsScreen(
             // qui a établi ce défaut). Le choix reste possible : la
             // permission peut toujours être accordée plus tard dans les
             // réglages Android.
-            avertissement = if (cameraDisponibleAppareil && !cameraAccordee) {
-                "Sans l'accès à l'appareil photo, le réveil se rabattra sur les " +
-                    "calculs. Tu peux l'accorder plus tard dans les réglages du téléphone."
-            } else {
-                null
+            avertissement = when {
+                !cameraDisponibleAppareil || cameraAccordee -> null
+                // Le message doit dire ce que fera l'appui suivant : promettre
+                // une boîte de dialogue qui ne s'ouvrira plus est la panne
+                // qu'on corrige ici.
+                refusDefinitif ->
+                    "L'accès à l'appareil photo a été refusé définitivement : le réveil se " +
+                        "rabattra sur les calculs. Appuie à nouveau pour ouvrir la fiche de " +
+                        "Cocorico dans les réglages et l'y autoriser."
+                else ->
+                    "Sans l'accès à l'appareil photo, le réveil se rabattra sur les " +
+                        "calculs. Tu peux l'accorder plus tard dans les réglages du téléphone."
             },
             onClick = if (cameraDisponibleAppareil) {
                 {
@@ -135,7 +181,7 @@ fun ChallengeSettingsScreen(
                     // Demandée ici, au moment de la sélection : c'est le seul
                     // parcours normal qui atteint jamais cette permission
                     // (voir la KDoc d'[EtatPermissions.camera]).
-                    if (!cameraAccordee) demanderCamera.launch(Manifest.permission.CAMERA)
+                    if (!cameraAccordee) reclamerCamera()
                 }
             } else {
                 null
@@ -155,11 +201,7 @@ fun ChallengeSettingsScreen(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .clickable {
-                        if (!cameraAccordee) {
-                            demanderCamera.launch(Manifest.permission.CAMERA)
-                        } else {
-                            onEssayerPhoto()
-                        }
+                        if (!cameraAccordee) reclamerCamera() else onEssayerPhoto()
                     }
                     .padding(14.dp),
             )
@@ -225,6 +267,42 @@ fun ChallengeSettingsScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * Le refus de la caméra est-il définitif, c'est-à-dire hors de portée d'une
+ * nouvelle demande ?
+ *
+ * Android n'annonce pas le « ne plus demander » : il se déduit d'un refus que
+ * le système ne juge plus justifiable. Décision isolée d'Android — donc
+ * vérifiable — parce que s'y tromper redonne exactement la panne qu'elle
+ * corrige : un bouton qui n'ouvre plus rien.
+ *
+ * [justificationPossible] n'a de sens qu'**après** un refus effectif :
+ * `shouldShowRequestPermissionRationale` répond faux aussi bien pour un refus
+ * définitif que pour une permission jamais demandée. D'où le premier terme —
+ * évalué sur le résultat d'une demande, jamais à froid, sans quoi on
+ * enverrait dans les réglages Android quelqu'un à qui on n'a encore rien
+ * demandé.
+ */
+internal fun refusCameraDefinitif(accordee: Boolean, justificationPossible: Boolean): Boolean =
+    !accordee && !justificationPossible
+
+/**
+ * Ouvre la fiche « Informations sur l'application », d'où la permission
+ * refusée définitivement peut encore être accordée. Sans garantie : quelques
+ * surcouches n'exposent pas cet écran, et un échec ici ne doit pas faire
+ * planter un écran de réglages.
+ */
+private fun ouvrirFicheApplication(context: Context) {
+    runCatching {
+        context.startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null),
+            ),
+        )
     }
 }
 

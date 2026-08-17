@@ -1,7 +1,9 @@
 package com.cocorico.ui
 
+import com.cocorico.alarm.InstantSonnerie
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Formate le délai avant le prochain réveil. Classe pure — l'instant courant
@@ -27,9 +29,9 @@ object CompteARebours {
      * replanification, c'est l'état normal. On l'annonce comme imminent plutôt
      * que d'afficher un délai faux.
      */
-    fun libelle(depuis: LocalDateTime, cible: LocalDateTime?): String {
+    fun libelle(depuis: LocalDateTime, cible: LocalDateTime?, zone: ZoneId): String {
         if (cible == null) return SANS_OCCURRENCE
-        val duree = Duration.between(depuis, cible)
+        val duree = ecart(depuis, cible, zone)
         if (duree.isZero || duree.isNegative) return IMMINENT
 
         val heures = duree.toHours()
@@ -47,8 +49,25 @@ object CompteARebours {
      * Séparé de [libelle] pour que l'écran décide quand recharger sans avoir à
      * interpréter une chaîne de caractères.
      */
-    fun estPerimee(depuis: LocalDateTime, cible: LocalDateTime?): Boolean =
-        cible != null && !cible.isAfter(depuis)
+    fun estPerimee(depuis: LocalDateTime, cible: LocalDateTime?, zone: ZoneId): Boolean {
+        if (cible == null) return false
+        val duree = ecart(depuis, cible, zone)
+        return duree.isZero || duree.isNegative
+    }
+
+    /**
+     * L'écart **réel**, en instants, et non la soustraction de deux heures
+     * murales.
+     *
+     * Les deux nuits de bascule, une heure disparaît ou se répète : soustraire
+     * des `LocalDateTime` annonçait alors jusqu'à une heure d'écart avec
+     * l'instant réellement programmé par `AlarmScheduler`. La cible passe par
+     * [InstantSonnerie.resoudre], la même résolution que la planification, pour
+     * que l'écran et le système parlent du même instant. L'origine, elle, vient
+     * d'une horloge : elle ne peut pas tomber dans un trou.
+     */
+    private fun ecart(depuis: LocalDateTime, cible: LocalDateTime, zone: ZoneId): Duration =
+        Duration.between(depuis.atZone(zone).toInstant(), InstantSonnerie.resoudre(cible, zone))
 
     const val SANS_OCCURRENCE = "Aucun jour actif. Le coq dort."
     const val IMMINENT = "Réveil imminent."

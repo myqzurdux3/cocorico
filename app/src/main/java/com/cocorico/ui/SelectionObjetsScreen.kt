@@ -64,7 +64,7 @@ fun SelectionObjetsScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
+        BoutonRetour(onRetour)
         Text("Objets à photographier", style = MaterialTheme.typography.titleLarge)
         Text(
             "Le réveil ne tirera un objet que parmi ceux cochés ici. Déplie une " +

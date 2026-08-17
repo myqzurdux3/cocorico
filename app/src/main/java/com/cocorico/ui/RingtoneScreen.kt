@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,11 +60,24 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
     val apercu = remember { ApercuSonnerie(context) }
     DisposableEffect(Unit) { onDispose { apercu.arreter() } }
 
-    // Lu à chaque recomposition depuis le magasin dédié plutôt que depuis
-    // `config` : la sonnerie personnalisée n'est pas un champ d'`AlarmConfig`,
-    // voir la KDoc de `SonneriePersonnaliseeStore` pour la raison.
-    var uriPersonnalisee by remember { mutableStateOf(SonneriePersonnaliseeStore.lireUri(context)) }
-    var nomPersonnalisee by remember { mutableStateOf(SonneriePersonnaliseeStore.lireNom(context)) }
+    // Lu depuis le magasin dédié plutôt que depuis `config` : la sonnerie
+    // personnalisée n'est pas un champ d'`AlarmConfig`, voir la KDoc de
+    // `SonneriePersonnaliseeStore` pour la raison.
+    //
+    // Chargé par un effet, jamais dans l'initialiseur d'un `remember` : ce sont
+    // deux lectures SharedPreferences, donc deux accès disque, et l'initialiseur
+    // s'exécute sur le fil principal au milieu de la composition. Le temps du
+    // chargement la ligne annonce « Importer ma sonnerie… », ce qu'elle
+    // annonçait déjà pour quelqu'un qui n'a jamais importé de fichier.
+    var uriPersonnalisee by remember { mutableStateOf<String?>(null) }
+    var nomPersonnalisee by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        val (uri, nom) = withContext(Dispatchers.IO) {
+            SonneriePersonnaliseeStore.lireUri(context) to SonneriePersonnaliseeStore.lireNom(context)
+        }
+        uriPersonnalisee = uri
+        nomPersonnalisee = nom
+    }
     var erreurImport by remember { mutableStateOf<String?>(null) }
     var verificationEnCours by remember { mutableStateOf(false) }
     val portee = rememberCoroutineScope()
@@ -134,7 +148,7 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("‹ Retour", fontSize = 16.sp, modifier = Modifier.clickable(onClick = onRetour))
+        BoutonRetour(onRetour)
         Text("Sonnerie", style = MaterialTheme.typography.titleLarge)
         Text("De la moins violente à la pire.", fontSize = 15.sp)
 

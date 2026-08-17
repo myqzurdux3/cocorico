@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -39,9 +41,12 @@ import com.cocorico.ring.CapteurPompes
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
 import com.cocorico.ring.SonneriePersonnaliseeStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Le libellé s'exprime en minutes : le rebattre plus souvent ne changerait rien
@@ -66,11 +71,21 @@ fun HomeScreen(
     // On rebat l'instant courant régulièrement, et on redemande l'occurrence
     // dès qu'elle est périmée — c'est la replanification qui a la vérité, pas
     // cet écran.
-    // Relu à chaque retour sur l'accueil : l'utilisateur peut venir d'importer
-    // un fichier depuis l'écran des sonneries.
     val contexte = LocalContext.current
-    val nomSonneriePersonnalisee = remember(config.ringtoneId) {
-        SonneriePersonnaliseeStore.lireNom(contexte)
+
+    // Relu à chaque entrée sur l'accueil, et hors du fil principal.
+    //
+    // Deux défauts en un : la lecture (SharedPreferences, donc disque) se
+    // faisait pendant la composition, et sa clé était `config.ringtoneId` —
+    // or « Remplacer le fichier importé » garde le même identifiant. L'accueil
+    // continuait donc d'annoncer le nom de l'ancien fichier, indéfiniment.
+    // `LaunchedEffect(Unit)` relit à chaque entrée dans l'écran : revenir de
+    // l'écran des sonneries en recompose la totalité, donc relance l'effet.
+    var nomSonneriePersonnalisee by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        nomSonneriePersonnalisee = withContext(Dispatchers.IO) {
+            SonneriePersonnaliseeStore.lireNom(contexte)
+        }
     }
 
     // L'accueil annonçait le défi *choisi*, pas celui qui sonnera. Sans capteur,
@@ -88,6 +103,11 @@ fun HomeScreen(
         )
     }
 
+    // Le fuseau est relu à chaque composition plutôt que figé : un vol change
+    // le fuseau du système, et un compte à rebours calculé sur l'ancien
+    // afficherait un délai faux jusqu'au prochain redémarrage de l'écran.
+    val fuseau: ZoneId = ZoneId.systemDefault()
+
     var maintenant by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -96,7 +116,7 @@ fun HomeScreen(
         }
     }
     LaunchedEffect(maintenant, prochaine) {
-        if (CompteARebours.estPerimee(maintenant, prochaine)) viewModel.rafraichirProchaine()
+        if (CompteARebours.estPerimee(maintenant, prochaine, fuseau)) viewModel.rafraichirProchaine()
     }
 
     Column(
@@ -116,7 +136,7 @@ fun HomeScreen(
         Text("Cocorico", style = MaterialTheme.typography.titleLarge)
 
         Text(
-            text = CompteARebours.libelle(maintenant, prochaine),
+            text = CompteARebours.libelle(maintenant, prochaine, fuseau),
             fontSize = 15.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
@@ -134,7 +154,9 @@ fun HomeScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            // Écart resserré : ce qu'il rend est repris par les cibles
+            // tactiles, qui se partagent toute la largeur restante.
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             DayOfWeek.entries.forEach { jour ->
                 PastilleJour(
@@ -191,8 +213,25 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Un jour de la semaine, activable d'un appui.
+ *
+ * La cible tactile ne faisait que 38 dp de côté, sous le minimum utilisable :
+ * armer le mardi coupait un doigt sur deux. Elle est ici découplée du disque
+ * coloré — la cible occupe toute la cellule, haute d'au moins
+ * [HAUTEUR_CIBLE_TACTILE], tandis que le disque garde sa taille de dessin.
+ *
+ * Sept cellules à 48 dp de large ne tiennent pas côte à côte sur un écran de
+ * 360 dp : la largeur est donc partagée par poids (autour de 41 dp sur les plus
+ * étroits, au-delà de 48 dp dès 400 dp d'écran) plutôt que fixée, ce qui aurait
+ * poussé le dimanche hors de l'écran — un jour de la semaine impossible à
+ * régler est pire qu'une cible un peu juste.
+ *
+ * Le disque, lui, grandit avec la police système au lieu de rogner la lettre :
+ * sa taille est un minimum, pas une taille fixe.
+ */
 @Composable
-private fun PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -> Unit) {
+private fun RowScope.PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -> Unit) {
     val lettre = when (jour) {
         DayOfWeek.MONDAY -> "L"
         DayOfWeek.TUESDAY -> "M"
@@ -204,23 +243,37 @@ private fun PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -> Unit) {
     }
     Box(
         modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(
-                if (actif) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surface,
-            )
+            .weight(1f)
+            .heightIn(min = HAUTEUR_CIBLE_TACTILE)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = lettre,
-            fontSize = 15.sp,
-            color = if (actif) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurface,
-        )
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = DIAMETRE_PASTILLE, minHeight = DIAMETRE_PASTILLE)
+                .clip(CircleShape)
+                .background(
+                    if (actif) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surface,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = lettre,
+                fontSize = 15.sp,
+                maxLines = 1,
+                color = if (actif) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurface,
+                // Marge intérieure : c'est elle qui fait grandir le disque avec
+                // la police plutôt que de laisser la lettre en déborder.
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
     }
 }
+
+/** Taille de dessin du disque d'un jour, hors cible tactile. */
+private val DIAMETRE_PASTILLE = 38.dp
 
 @Composable
 private fun Ligne(titre: String, valeur: String, onClick: () -> Unit) {

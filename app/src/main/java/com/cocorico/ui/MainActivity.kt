@@ -1,6 +1,8 @@
 package com.cocorico.ui
 
+import android.app.PendingIntent
 import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,7 +23,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -109,9 +110,14 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        var etat by remember { mutableStateOf(PermissionChecker.etat(this)) }
-        if (!etat.toutesAccordees) {
-            OnboardingScreen(etat, config.challengeId) { etat = PermissionChecker.etat(this) }
+        // Relu à chaque retour au premier plan : chacune de ces permissions se
+        // règle dans un écran d'Android, et le retour se fait souvent par le
+        // bouton retour, qui ne rend aucun résultat. Voir la KDoc du helper.
+        val etat = etatPermissionsObserve()
+        if (!etat.value.toutesAccordees) {
+            OnboardingScreen(etat.value, config.challengeId) {
+                etat.value = PermissionChecker.etat(this)
+            }
             return
         }
         // `rememberSaveable` et non `remember` : une rotation détruit et
@@ -180,11 +186,20 @@ class MainActivity : ComponentActivity() {
      * consommation, chaque recréation de l'activité — une rotation, un
      * changement de thème — relisait le même intent et ramenait l'écran de
      * victoire que l'utilisateur venait de fermer, indéfiniment.
+     *
+     * L'annonce n'est retenue que si elle vient de l'application elle-même.
+     * Cette activité est exportée : sans vérification, n'importe quelle
+     * application installée pouvait la lancer avec cet extra, afficher l'écran
+     * de victoire et remettre [alarmeEnCours] à faux — masquant le seul chemin
+     * visible vers `AlarmActivity` pendant que la sonnerie, elle, continuait.
      */
     private fun consommerVictoire(intent: Intent): Boolean {
         val victorieux = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+        @Suppress("DEPRECATION")
+        val jeton = intent.getParcelableExtra<PendingIntent>(EXTRA_JETON)
         intent.removeExtra(EXTRA_VICTOIRE)
-        return victorieux
+        intent.removeExtra(EXTRA_JETON)
+        return victoireLegitime(victorieux, jeton?.creatorPackage, packageName)
     }
 
     private fun demarrerAlarme() {
@@ -207,8 +222,46 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_VICTOIRE = "com.cocorico.EXTRA_VICTOIRE"
+        const val EXTRA_JETON = "com.cocorico.EXTRA_JETON"
+
+        /**
+         * Jeton d'origine, accompagnant [EXTRA_VICTOIRE].
+         *
+         * Un `PendingIntent` porte le paquet qui l'a fabriqué, et le système
+         * seul le renseigne : une autre application ne peut pas en forger un
+         * qui prétende venir de nous. C'est la seule preuve d'appelant qui
+         * tienne ici — ni `referrer` (figé au lancement, donc faux quand
+         * l'activité est déjà vivante et reçoit `onNewIntent`, le cas courant)
+         * ni le paquet de l'intent ne prouvent quoi que ce soit.
+         *
+         * Il n'est jamais envoyé : c'est une pièce d'identité, pas une action.
+         * D'où l'intent vide, et `FLAG_IMMUTABLE` — exigé depuis Android 12 et,
+         * de toute façon, la seule forme acceptable pour un jeton qu'on
+         * transmet.
+         */
+        fun jetonIdentite(context: Context): PendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            Intent(ACTION_JETON).setPackage(context.packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        private const val ACTION_JETON = "com.cocorico.JETON_IDENTITE"
     }
 }
+
+/**
+ * L'annonce de victoire est-elle recevable ?
+ *
+ * Décision isolée d'Android — donc vérifiable — parce qu'elle garde le seul
+ * chemin visible vers l'écran qui arrête la sonnerie : la retenir sur un intent
+ * forgé revient à cacher ce chemin pendant que l'alarme hurle.
+ */
+internal fun victoireLegitime(
+    demandee: Boolean,
+    paquetCreateurJeton: String?,
+    paquetApplication: String,
+): Boolean = demandee && paquetCreateurJeton == paquetApplication
 
 /**
  * Passe avant tout le reste, onboarding compris : tant que la sonnerie tourne,

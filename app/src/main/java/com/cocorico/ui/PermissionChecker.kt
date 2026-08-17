@@ -6,7 +6,16 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.cocorico.alarm.AlarmScheduler
 
 data class EtatPermissions(
@@ -26,6 +35,36 @@ data class EtatPermissions(
 ) {
     val toutesAccordees: Boolean
         get() = alarmesExactes && notifications && pleinEcran && batterieExemptee
+}
+
+/**
+ * État des permissions, relu à **chaque** retour au premier plan.
+ *
+ * Toutes les permissions de cette application se règlent hors de l'application :
+ * boîte de dialogue système, écran d'alarmes exactes, fiche « Informations sur
+ * l'application ». Lu une seule fois à la composition, l'état restait celui
+ * d'avant le départ : quelqu'un qui venait d'accorder ce qu'on lui demandait et
+ * revenait par le bouton retour retrouvait le même onboarding, avec le même
+ * bouton, sans rien comprendre.
+ *
+ * L'état est rendu modifiable pour que l'appelant puisse aussi le relire
+ * lui-même après une demande explicite, sans attendre un cycle de vie.
+ */
+@Composable
+fun etatPermissionsObserve(): MutableState<EtatPermissions> {
+    val context = LocalContext.current
+    val etat = remember { mutableStateOf(PermissionChecker.etat(context)) }
+    val proprietaire = LocalLifecycleOwner.current
+    DisposableEffect(proprietaire) {
+        val observateur = LifecycleEventObserver { _, evenement ->
+            if (evenement == Lifecycle.Event.ON_RESUME) {
+                etat.value = PermissionChecker.etat(context)
+            }
+        }
+        proprietaire.lifecycle.addObserver(observateur)
+        onDispose { proprietaire.lifecycle.removeObserver(observateur) }
+    }
+    return etat
 }
 
 object PermissionChecker {
