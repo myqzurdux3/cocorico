@@ -269,9 +269,18 @@ class StatsCalculatorTest {
 
     @Test
     fun `l echelle sur une liste vide ne divise jamais par zero`() {
+        // Le maximum vaut désormais la moyenne plutôt qu'un plancher à 1 :
+        // l'échelle doit contenir tout ce que le graphique dessine, et sans
+        // barre la ligne de moyenne est la seule chose à cadrer. Ce que ce
+        // test protège — un maximum jamais nul — tient toujours.
         val echelle = StatsCalculator.echelle(emptyList(), moyenneSecondes = 10L)
-        assertEquals(1L, echelle.maxSecondes)
+        assertEquals(10L, echelle.maxSecondes)
         assertEquals(1f, echelle.positionMoyenne)
+    }
+
+    @Test
+    fun `l echelle sans barre ni moyenne garde un maximum non nul`() {
+        assertEquals(1L, StatsCalculator.echelle(emptyList(), moyenneSecondes = null).maxSecondes)
     }
 
     @Test

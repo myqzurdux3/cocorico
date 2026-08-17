@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.SerieCalculator
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -43,7 +44,8 @@ fun VictoryScreen(onFermer: () -> Unit) {
         // WakeRecordDao.tous() trie par alarmeAt croissant : le dernier élément
         // de la liste est donc bien le réveil le plus récent.
         val records = CocoricoDatabase.get(context).wakeRecordDao().tous()
-        serie = SerieCalculator.serie(records, ZoneId.systemDefault())
+        val zone = ZoneId.systemDefault()
+        serie = SerieCalculator.serie(records, zone, LocalDate.now(zone))
         retard = SerieCalculator.retardMoyenSecondes(records)
         defiLibelle = records.lastOrNull()?.let { dernier ->
             when {

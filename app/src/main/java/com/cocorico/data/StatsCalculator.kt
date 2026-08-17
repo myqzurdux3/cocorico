@@ -79,8 +79,11 @@ object StatsCalculator {
      * de tout agrégat de durée : une seule valeur aberrante ferait sinon
      * exploser la moyenne, le meilleur, le pire ou le cumul.
      */
-    private const val DUREE_MIN_VALIDE_MS = 1_000L
-    private const val DUREE_MAX_VALIDE_MS = 3_600_000L
+    // `internal` et non `private` : `SerieCalculator` applique exactement le
+    // même filtre, et deux moyennes du même chiffre ne doivent pas répondre
+    // différemment selon l'écran qui les demande.
+    internal const val DUREE_MIN_VALIDE_MS = 1_000L
+    internal const val DUREE_MAX_VALIDE_MS = 3_600_000L
 
     /** Nombre de réveils affichés dans la rangée « derniers réveils » de l'écran. */
     private const val NOMBRE_RECENTS = 7
@@ -236,7 +239,13 @@ object StatsCalculator {
      * contente de poser les repères, elle ne filtre rien.
      */
     fun echelle(dureesSecondes: List<Long>, moyenneSecondes: Long?): EchelleGraphique {
-        val max = (dureesSecondes.maxOrNull() ?: 1L).coerceAtLeast(1L)
+        // L'échelle doit contenir tout ce que le graphique dessine, la ligne de
+        // moyenne comprise. Se caler sur les seules barres affichées plaquait
+        // cette ligne au sommet dès que les sept derniers matins étaient plus
+        // rapides que la moyenne historique — indiscernable, alors, d'une
+        // moyenne exactement égale au pire matin affiché.
+        val maxBarres = dureesSecondes.maxOrNull() ?: 1L
+        val max = maxOf(maxBarres, moyenneSecondes ?: 1L).coerceAtLeast(1L)
         val position = moyenneSecondes?.let { moyenne -> (moyenne.toFloat() / max.toFloat()).coerceIn(0f, 1f) }
         return EchelleGraphique(maxSecondes = max, positionMoyenne = position)
     }

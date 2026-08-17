@@ -6,6 +6,11 @@ import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/**
+ * `serie` prend un jour de référence depuis qu'une suite ancienne ne compte
+ * plus comme une série en cours : chaque cas fixe donc le jour du réveil le
+ * plus récent comme « aujourd'hui ».
+ */
 class SerieCalculatorTest {
 
     private val zone: ZoneId = ZoneId.of("Europe/Paris")
@@ -24,7 +29,7 @@ class SerieCalculatorTest {
 
     @Test
     fun `une liste vide donne une serie de zero`() {
-        assertEquals(0, SerieCalculator.serie(emptyList(), zone))
+        assertEquals(0, SerieCalculator.serie(emptyList(), zone, LocalDate.of(2026, 8, 14)))
     }
 
     @Test
@@ -34,7 +39,7 @@ class SerieCalculatorTest {
             record(LocalDate.of(2026, 8, 13), 60),
             record(LocalDate.of(2026, 8, 14), 60),
         )
-        assertEquals(3, SerieCalculator.serie(records, zone))
+        assertEquals(3, SerieCalculator.serie(records, zone, LocalDate.of(2026, 8, 14)))
     }
 
     @Test
@@ -44,7 +49,7 @@ class SerieCalculatorTest {
             record(LocalDate.of(2026, 8, 11), 60),
             record(LocalDate.of(2026, 8, 14), 60),
         )
-        assertEquals(1, SerieCalculator.serie(records, zone))
+        assertEquals(1, SerieCalculator.serie(records, zone, LocalDate.of(2026, 8, 14)))
     }
 
     @Test
@@ -53,7 +58,7 @@ class SerieCalculatorTest {
             record(LocalDate.of(2026, 8, 14), 60),
             record(LocalDate.of(2026, 8, 14), 90),
         )
-        assertEquals(1, SerieCalculator.serie(records, zone))
+        assertEquals(1, SerieCalculator.serie(records, zone, LocalDate.of(2026, 8, 14)))
     }
 
     @Test
