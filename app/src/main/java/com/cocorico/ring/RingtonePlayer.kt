@@ -236,10 +236,15 @@ class RingtonePlayer(private val context: Context) {
         memoriserVolumeOrigine()
         runCatching {
             val max = audio.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val cible = when (state) {
+            val calcule = when (state) {
                 VolumeState.PLEIN -> NiveauxVolume.plein(max, volumeMaxPourcent)
                 VolumeState.BAISSE -> NiveauxVolume.baisse(max, volumeMaxPourcent)
             }
+            // Atténuation d'essai appliquée **en dernier**, après le calcul
+            // produit : c'est ce qui permet d'essayer le vrai code sans une
+            // sirène à plein volume. Sans consigne, et en version publiée, elle
+            // rend le niveau intact. Voir [AttenuationDebug].
+            val cible = AttenuationDebug.appliquer(calcule, AttenuationDebug.consigne(context))
             audio.setStreamVolume(AudioManager.STREAM_ALARM, cible, 0)
         }.onFailure { Log.w(TAG, "Volume d'alarme non modifiable : $it") }
     }
