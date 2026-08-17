@@ -33,6 +33,11 @@ jobs:
       # Met en cache les dépendances et l'état de configuration de Gradle.
       - uses: gradle/actions/setup-gradle@v4
 
+      # En premier : un écart de format est le moins cher à corriger et le
+      # plus bruyant en revue s'il passe.
+      - name: Format
+        run: ./gradlew spotlessCheck --console=plain
+
       - name: Tests unitaires
         run: ./gradlew testDebugUnitTest --console=plain
 
