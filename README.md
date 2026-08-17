@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
   <img src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.0">
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache%202.0-D22128" alt="Licence Apache 2.0"></a>
 </p>
 
 ---
@@ -77,7 +78,9 @@ sans import `android.*`, couverte par des tests unitaires**, et les composants
 Android ne font que du câblage. C'est ce qui permet de tout tester sans
 téléphone.
 
-Le détail est dans [CONTRIBUTING.md](CONTRIBUTING.md).
+Le détail est dans [CONTRIBUTING.md](CONTRIBUTING.md). Le projet suit un
+[code de conduite](CODE_OF_CONDUCT.md), et les failles se signalent en privé —
+voir [SECURITY.md](SECURITY.md).
 
 ## Aller plus loin
 
@@ -90,5 +93,10 @@ Le détail est dans [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-Pas encore choisie. Tant qu'aucune licence n'est déclarée, le code reste sous
-droit d'auteur exclusif et n'est pas réutilisable.
+[Apache 2.0](LICENSE). Réutilisation, modification et redistribution libres, y
+compris commerciales, tant que l'avis de licence est conservé. La licence porte
+une concession de brevets explicite — c'est ce qui la distingue de MIT, et c'est
+celle de Kotlin, d'AndroidX et de Jetpack Compose.
+
+Les quatre sonneries de `app/src/main/res/raw/` sont **synthétisées** par
+`tools/generer_sonneries.py` : aucun échantillon tiers, aucun droit attaché.
