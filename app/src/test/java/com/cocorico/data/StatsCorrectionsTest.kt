@@ -1,5 +1,6 @@
 package com.cocorico.data
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -8,8 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Trois statistiques qui affichaient une valeur fausse avec l'aplomb d'une
- * valeur vraie. Une statistique fausse est pire qu'une statistique absente :
+ * Les statistiques qui affichaient une valeur fausse avec l'aplomb d'une valeur
+ * vraie. Une statistique fausse est pire qu'une statistique absente :
  * l'utilisateur n'a aucun moyen de s'apercevoir de l'erreur.
  */
 class StatsCorrectionsTest {
@@ -21,6 +22,23 @@ class StatsCorrectionsTest {
         return WakeRecord(
             alarmeAt = debut,
             resoluAt = debut + dureeSecondes * 1000,
+            defi = ChallengeId.MATHS.name,
+            erreurs = 0,
+            triches = 0,
+            abandon = false,
+        )
+    }
+
+    /** Même chose que [jour], mais à la milliseconde : les moyennes par jour de la semaine se jouent sous la seconde. */
+    /** Jour de référence : celui du réveil le plus récent, comme à l'ouverture de l'écran. */
+    private fun jourDe(records: List<WakeRecord>): LocalDate =
+        java.time.Instant.ofEpochMilli(records.maxOf { it.alarmeAt }).atZone(zone).toLocalDate()
+
+    private fun reveil(date: String, dureeMillis: Long): WakeRecord {
+        val debut = LocalDate.parse(date).atTime(6, 30).atZone(zone).toInstant().toEpochMilli()
+        return WakeRecord(
+            alarmeAt = debut,
+            resoluAt = debut + dureeMillis,
             defi = ChallengeId.MATHS.name,
             erreurs = 0,
             triches = 0,
@@ -51,6 +69,46 @@ class StatsCorrectionsTest {
 
     @Test fun `une serie sans reveil vaut zero`() {
         assertEquals(0, SerieCalculator.serie(emptyList(), zone, aujourdhui = LocalDate.parse("2026-08-17")))
+    }
+
+    // --- Le temps « de ce matin » ---
+
+    @Test fun `le temps de ce matin est absent apres un jour sans reveil`() {
+        // Le dernier enregistrement date de la veille : l'écran l'étiquetait
+        // pourtant « ce matin ».
+        val records = listOf(jour("2026-08-15", 120), jour("2026-08-16", 90))
+        val stats = StatsCalculator.calculer(records, zone, aujourdhui = LocalDate.parse("2026-08-17"))
+        assertNull(stats.dureeCeMatinSecondes)
+    }
+
+    @Test fun `le temps de ce matin est celui du reveil du jour courant`() {
+        val records = listOf(jour("2026-08-16", 120), jour("2026-08-17", 90))
+        val stats = StatsCalculator.calculer(records, zone, aujourdhui = LocalDate.parse("2026-08-17"))
+        assertEquals(90L, stats.dureeCeMatinSecondes)
+    }
+
+    // --- Le jour le plus lent ---
+
+    @Test fun `le jour le plus lent se departage sur la moyenne reelle et non tronquee`() {
+        // Mercredi 10 333 ms contre lundi (10 000 + 10 000 + 11 000) / 3 =
+        // 10 333,33 ms. La division entière rendait 10 333 des deux côtés et le
+        // premier jour rencontré l'emportait.
+        // Enregistrements dans l'ordre chronologique, comme les rend le DAO :
+        // le défaut n'a pas besoin d'un historique désordonné pour se produire.
+        val records = listOf(
+            reveil("2026-08-12", 10_333L),
+            reveil("2026-08-17", 10_000L),
+            reveil("2026-08-24", 10_000L),
+            reveil("2026-08-31", 11_000L),
+        )
+        assertEquals(DayOfWeek.MONDAY, StatsCalculator.calculer(records, zone, jourDe(records)).jourLePlusLent)
+    }
+
+    @Test fun `a moyenne strictement egale le jour le plus tot dans la semaine l emporte`() {
+        // Départage documenté et stable : sans lui, deux jours à la même moyenne
+        // s'échangeaient selon l'ordre d'insertion des enregistrements.
+        val records = listOf(reveil("2026-08-12", 12_000L), reveil("2026-08-17", 12_000L))
+        assertEquals(DayOfWeek.MONDAY, StatsCalculator.calculer(records, zone, jourDe(records)).jourLePlusLent)
     }
 
     // --- Le retard moyen ---

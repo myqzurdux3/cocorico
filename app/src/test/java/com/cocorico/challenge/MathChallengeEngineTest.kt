@@ -5,6 +5,7 @@ import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -66,6 +67,37 @@ class MathChallengeEngineTest {
         val dernier = e.current.value
         e.submit(dernier.answer)
         assertEquals(dernier, e.current.value)
+    }
+
+    @Test
+    fun `un total inferieur a un est refuse a la construction`() {
+        // Le défi de maths est le repli de tous les autres : à total = 0 il rendait
+        // ChallengeProgress(0, 0), l'écran calculait 0 / 0 et poussait un NaN dans
+        // la barre de progression. Le seul défi toujours disponible ne doit pas
+        // pouvoir se casser.
+        assertThrows(IllegalArgumentException::class.java) { engine(total = 0) }
+        assertThrows(IllegalArgumentException::class.java) { engine(total = -1) }
+    }
+
+    @Test
+    fun `une bonne reponse apres resolution ne s affiche pas comme une faute`() {
+        // Le pavé reste affiché le temps de la bascule vers l'écran de victoire.
+        // Un dernier appui sur ✓ était rejeté par le moteur, et l'écran, qui
+        // lisait ce refus comme une erreur, affichait « Non. Et le coq a
+        // entendu. » sur une réponse pourtant juste.
+        val e = engine(total = 1)
+        val bonne = e.current.value.answer
+        e.submit(bonne)
+        assertTrue(e.isSolved.value)
+        assertFalse(MathChallengeEngine.estUneFaute(e.isSolved.value, e.submit(bonne)))
+    }
+
+    @Test
+    fun `une faute n est signalee que sur une reponse fausse et un defi non resolu`() {
+        assertTrue(MathChallengeEngine.estUneFaute(dejaResolu = false, reponseJuste = false))
+        assertFalse(MathChallengeEngine.estUneFaute(dejaResolu = false, reponseJuste = true))
+        assertFalse(MathChallengeEngine.estUneFaute(dejaResolu = true, reponseJuste = false))
+        assertFalse(MathChallengeEngine.estUneFaute(dejaResolu = true, reponseJuste = true))
     }
 
     @Test

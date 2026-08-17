@@ -64,6 +64,26 @@ class MathProblemGeneratorTest {
     }
 
     @Test
+    fun `toute reponse est saisissable au pave numerique`() {
+        // Contrat implicite entre le générateur et le pavé de MathChallenge : le
+        // pavé n'a ni touche « moins » ni séparateur décimal, et borne la saisie
+        // à six chiffres. Une réponse négative ou à sept chiffres serait donc
+        // insaisissable — et l'alarme, impossible à arrêter, puisque les calculs
+        // sont le repli de tous les autres défis. Rien dans le code ne l'empêche :
+        // seul ce test tient la borne.
+        val large = MathProblemGenerator(Random(20260817))
+        Difficulty.entries.forEach { difficulty ->
+            repeat(5_000) {
+                val problem = large.generate(difficulty)
+                assertTrue(
+                    "$difficulty : « ${problem.prompt} » = ${problem.answer}, hors de 0..999999",
+                    problem.answer in 0..999_999,
+                )
+            }
+        }
+    }
+
+    @Test
     fun `deux generateurs de meme graine produisent la meme suite`() {
         val a = MathProblemGenerator(Random(7))
         val b = MathProblemGenerator(Random(7))

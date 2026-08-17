@@ -101,7 +101,11 @@ class MathChallenge(
                     onInteraction()
                     val valeur = saisie.toIntOrNull()
                     if (valeur != null) {
-                        faux = !engine.submit(valeur)
+                        // Lu avant la soumission : une fois le défi résolu, le moteur
+                        // ignore les envois suivants et rend false — ce qui n'est pas
+                        // une faute. Voir MathChallengeEngine.estUneFaute.
+                        val dejaResolu = engine.isSolved.value
+                        faux = MathChallengeEngine.estUneFaute(dejaResolu, engine.submit(valeur))
                         saisie = ""
                     }
                 },

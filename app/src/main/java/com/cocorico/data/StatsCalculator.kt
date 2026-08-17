@@ -18,7 +18,12 @@ import kotlin.math.abs
 data class Statistiques(
     /** Nombre de réveils enregistrés, aberrants compris : c'est un compte d'événements, pas une moyenne. */
     val nombreTotal: Int,
-    /** Temps du dernier réveil, brut — y compris s'il est aberrant : c'est une donnée individuelle, pas un agrégat. */
+    /**
+     * Temps du réveil du jour civil courant, brut — y compris s'il est aberrant :
+     * c'est une donnée individuelle, pas un agrégat. `null` s'il n'y a pas eu de
+     * réveil aujourd'hui : l'écran étiquette ce champ « ce matin », il ne doit
+     * jamais porter la valeur d'un autre jour.
+     */
     val dureeCeMatinSecondes: Long?,
     /**
      * Les sept derniers réveils *valides*, du plus ancien au plus récent —
@@ -91,7 +96,21 @@ object StatsCalculator {
     /** Taille de chaque groupe comparé pour la progression. */
     private const val TAILLE_GROUPE_PROGRESSION = 5
 
-    fun calculer(records: List<WakeRecord>, zone: ZoneId): Statistiques {
+    /**
+     * [aujourdhui] est un paramètre et non un `LocalDate.now()` enfoui dans le
+     * calcul : c'est ce qui rend « ce matin » vérifiable en test, et c'est déjà
+     * la convention retenue par [SerieCalculator.serie], qui répond à la même
+     * question — cette donnée touche-t-elle encore le présent ?
+     *
+     * La valeur par défaut n'existe que pour ne pas casser l'appelant Compose
+     * tant qu'il ne passe pas la date lui-même ; elle est à retirer dès qu'il le
+     * fait, comme l'écran de victoire le fait déjà pour la série.
+     */
+    fun calculer(
+        records: List<WakeRecord>,
+        zone: ZoneId,
+        aujourdhui: LocalDate,
+    ): Statistiques {
         if (records.isEmpty()) {
             return Statistiques(
                 nombreTotal = 0,
@@ -137,9 +156,15 @@ object StatsCalculator {
             pompesTentees.count { it.abandon }.toDouble() / pompesTentees.size
         }
 
+        // Le dernier enregistrement n'est « ce matin » que s'il tombe bien dans le
+        // jour civil courant. Après un jour sans réveil, l'écran affichait sinon
+        // la durée de la veille — ou d'un mois plus tôt — sous cette étiquette.
+        val jourDuDernier = Instant.ofEpochMilli(records.last().alarmeAt).atZone(zone).toLocalDate()
+        val dureeCeMatin = if (jourDuDernier == aujourdhui) dureesMillis.last() / 1000L else null
+
         return Statistiques(
             nombreTotal = records.size,
-            dureeCeMatinSecondes = dureesMillis.last() / 1000L,
+            dureeCeMatinSecondes = dureeCeMatin,
             reveilsRecents = reveilsRecents,
             dureeMoyenneSecondes = validesSecondes.moyenneOuNull(),
             meilleureDureeSecondes = validesSecondes.minOrNull(),
@@ -158,6 +183,17 @@ object StatsCalculator {
      * Regroupe les temps valides par jour de la semaine (fuseau de
      * l'utilisateur, comme [SerieCalculator.serie]) et renvoie celui dont la
      * moyenne est la plus longue. `null` s'il n'y a aucun temps valide.
+     *
+     * La comparaison se fait en `Double` : en division entière, deux jours
+     * séparés de moins d'une milliseconde de moyenne tombaient à égalité, et
+     * c'était alors le premier rencontré dans l'historique qui l'emportait —
+     * autrement dit l'ordre d'insertion des enregistrements, qui n'a rien à
+     * dire sur la lenteur d'un jour.
+     *
+     * Départage assumé, pour les moyennes *strictement* égales : le jour le plus
+     * tôt dans la semaine (lundi d'abord). Arbitraire, mais stable et
+     * indépendant des données — deux historiques identiques à l'ordre près
+     * doivent afficher le même jour.
      */
     private fun jourLePlusLent(
         records: List<WakeRecord>,
@@ -170,7 +206,13 @@ object StatsCalculator {
                 keySelector = { i -> Instant.ofEpochMilli(records[i].alarmeAt).atZone(zone).dayOfWeek },
                 valueTransform = { i -> dureesMillis[i] },
             )
-        return parJour.maxByOrNull { (_, durees) -> durees.sum() / durees.size }?.key
+        return parJour.entries
+            .maxWithOrNull(
+                compareBy<Map.Entry<DayOfWeek, List<Long>>> { (_, durees) ->
+                    durees.sum().toDouble() / durees.size
+                }.thenByDescending { (jour, _) -> jour.value },
+            )
+            ?.key
     }
 
     /**

@@ -11,6 +11,22 @@ data class WakeRecord(
     val alarmeAt: Long,
     val resoluAt: Long,
     val erreurs: Int,
+    /**
+     * **Colonne morte : jamais alimentée, jamais lue.** Tous les appelants
+     * écrivent 0 en dur, aucun écran ni calcul ne la consulte. Ne pas la prendre
+     * pour une donnée : un `triches = 0` en base ne signifie pas « pas de
+     * triche », il signifie « rien n'a jamais été mesuré ».
+     *
+     * Elle reste là parce que l'enlever n'est pas un nettoyage mais un
+     * changement à part entière : SQLite ne supprime une colonne qu'en
+     * recréant la table, il faudrait donc une migration Room v3 et le schéma
+     * versionné correspondant, avec le risque de plantage au démarrage que
+     * comporte toute désynchronisation entre schéma généré et migration.
+     *
+     * Pour l'enlever un jour : retirer le champ ici, écrire `MIGRATION_2_3` qui
+     * recrée `wake_records` sans la colonne et y recopie les lignes, l'ajouter à
+     * [CocoricoDatabase], porter la version à 3 et regénérer le schéma versionné.
+     */
     val triches: Int,
     /**
      * Identifiant du défi accompli, au format [ChallengeId].

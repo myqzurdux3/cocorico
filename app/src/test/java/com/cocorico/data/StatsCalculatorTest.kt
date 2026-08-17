@@ -13,6 +13,15 @@ class StatsCalculatorTest {
 
     private val zone: ZoneId = ZoneId.of("Europe/Paris")
 
+    /**
+     * Jour de référence des calculs : celui du réveil le plus récent. C'est la
+     * situation réelle — l'écran de statistiques s'ouvre après un réveil — et
+     * la passer explicitement évite que ces tests dépendent de la date du jour
+     * où on les exécute.
+     */
+    private fun jourDe(records: List<WakeRecord>): LocalDate =
+        java.time.Instant.ofEpochMilli(records.last().alarmeAt).atZone(zone).toLocalDate()
+
     private fun instant(date: LocalDate, heure: LocalTime = LocalTime.of(6, 30)): Long =
         LocalDateTime.of(date, heure).atZone(zone).toInstant().toEpochMilli()
 
@@ -34,7 +43,7 @@ class StatsCalculatorTest {
 
     @Test
     fun `une liste vide rend des statistiques neutres`() {
-        val stats = StatsCalculator.calculer(emptyList(), zone)
+        val stats = StatsCalculator.calculer(emptyList(), zone, LocalDate.of(2026, 8, 17))
         assertEquals(0, stats.nombreTotal)
         assertNull(stats.dureeCeMatinSecondes)
         assertEquals(emptyList<Any>(), stats.reveilsRecents)
@@ -52,7 +61,7 @@ class StatsCalculatorTest {
     fun `un seul reveil valide alimente ce matin le meilleur et le pire`() {
         val jour = LocalDate.of(2026, 8, 10)
         val alarme = instant(jour)
-        val stats = StatsCalculator.calculer(listOf(record(alarme, 120_000L)), zone)
+        val stats = StatsCalculator.calculer(listOf(record(alarme, 120_000L)), zone, aujourdhui = jour)
         assertEquals(1, stats.nombreTotal)
         assertEquals(120L, stats.dureeCeMatinSecondes)
         assertEquals(1, stats.reveilsRecents.size)
@@ -81,7 +90,7 @@ class StatsCalculatorTest {
             // Plus d'une heure : le téléphone a probablement traîné, pas l'utilisateur, exclu.
             record(base + 120_000L, 4_000_000L),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, aujourdhui = LocalDate.of(2026, 8, 10))
         assertEquals(3, stats.nombreTotal)
         assertEquals(90L, stats.dureeMoyenneSecondes)
         assertEquals(90L, stats.meilleureDureeSecondes)
@@ -100,7 +109,7 @@ class StatsCalculatorTest {
             // Horloge incohérente : resoluAt avant alarmeAt.
             record(base + 60_000L, -2_000L),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, aujourdhui = LocalDate.of(2026, 8, 10))
         assertEquals(2, stats.nombreTotal)
         assertEquals(90L, stats.dureeMoyenneSecondes)
         assertEquals(90L, stats.dureeCumuleeSecondes)
@@ -115,7 +124,7 @@ class StatsCalculatorTest {
             record(base + 60_000L, 45_000L),
             record(base + 120_000L, 60_000L),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(135L, stats.dureeCumuleeSecondes)
     }
 
@@ -131,7 +140,7 @@ class StatsCalculatorTest {
             record(base + 240_000L, 60_000L, defi = ChallengeId.MATHS.name, abandon = false),
             record(base + 300_000L, 60_000L, defi = ChallengeId.MATHS.name, abandon = false),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         // 1 renoncement sur 3 tentatives pompes (2 réussies + 1 renoncée).
         assertEquals(1.0 / 3.0, stats.tauxAbandonPompes!!, 0.0001)
     }
@@ -140,7 +149,7 @@ class StatsCalculatorTest {
     fun `le taux de renoncement est indisponible sans aucune tentative de pompes`() {
         val base = instant(LocalDate.of(2026, 8, 10))
         val records = listOf(record(base, 60_000L, defi = ChallengeId.MATHS.name))
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertNull(stats.tauxAbandonPompes)
     }
 
@@ -153,7 +162,7 @@ class StatsCalculatorTest {
             // n'est pas un agrégat de durée, il n'a aucune raison d'être filtré.
             record(base + 60_000L, 4_000_000L, erreurs = 3),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(5, stats.erreursCumulees)
     }
 
@@ -163,7 +172,7 @@ class StatsCalculatorTest {
         val records = (0 until 9).map { i ->
             record(base + i * 3_600_000L, (i + 1) * 10_000L)
         }
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(listOf(30L, 40L, 50L, 60L, 70L, 80L, 90L), stats.reveilsRecents.map { it.dureeSecondes })
     }
 
@@ -178,7 +187,7 @@ class StatsCalculatorTest {
             // Plus d'une heure : idem.
             record(base + 180_000L, 4_000_000L),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(4, stats.nombreTotal)
         assertEquals(listOf(90L, 60L), stats.reveilsRecents.map { it.dureeSecondes })
     }
@@ -190,7 +199,7 @@ class StatsCalculatorTest {
             record(base, 60_000L, defi = ChallengeId.POMPES.name, abandon = false),
             record(base + 60_000L, 60_000L, defi = ChallengeId.MATHS.name, abandon = true),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(
             listOf(ChallengeId.POMPES.name, ChallengeId.MATHS.name),
             stats.reveilsRecents.map { it.defi },
@@ -207,7 +216,7 @@ class StatsCalculatorTest {
             // Mercredi : moyenne de 200 s, plus lente.
             record(instant(LocalDate.of(2026, 8, 12)), 200_000L),
         )
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertEquals(DayOfWeek.WEDNESDAY, stats.jourLePlusLent)
     }
 
@@ -216,7 +225,8 @@ class StatsCalculatorTest {
         val base = instant(LocalDate.of(2026, 8, 1))
         val premiers = (0 until 5).map { i -> record(base + i * 3_600_000L, 200_000L) }
         val derniers = (5 until 10).map { i -> record(base + i * 3_600_000L, 100_000L) }
-        val stats = StatsCalculator.calculer(premiers + derniers, zone)
+        val tous = premiers + derniers
+        val stats = StatsCalculator.calculer(tous, zone, jourDe(tous))
         // Négatif : les cinq derniers matins sont plus rapides que les cinq premiers.
         assertEquals(-100L, stats.progressionSecondes)
     }
@@ -225,7 +235,7 @@ class StatsCalculatorTest {
     fun `la progression est indisponible en dessous de dix reveils valides`() {
         val base = instant(LocalDate.of(2026, 8, 1))
         val records = (0 until 9).map { i -> record(base + i * 3_600_000L, 100_000L) }
-        val stats = StatsCalculator.calculer(records, zone)
+        val stats = StatsCalculator.calculer(records, zone, jourDe(records))
         assertNull(stats.progressionSecondes)
     }
 
