@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -20,9 +22,53 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    /**
+     * La signature vit hors du dépôt : `~/.cocorico-release.jks`, décrit par un
+     * `keystore.properties` non versionné, ou par les variables d'environnement
+     * de l'intégration continue. Un dépôt qui contient sa propre clé de
+     * signature n'en a plus.
+     *
+     * Absente, la configuration est simplement nulle : `assembleDebug` et les
+     * tests continuent de fonctionner sur une machine qui n'a pas la clé, ce
+     * qui est le cas de tous les contributeurs sauf le mainteneur.
+     */
+    val proprietesSignature = rootProject.file("keystore.properties")
+    val signatureDisponible = proprietesSignature.exists() ||
+        System.getenv("COCORICO_KEYSTORE") != null
+
+    signingConfigs {
+        if (signatureDisponible) {
+            create("release") {
+                val props = Properties()
+                if (proprietesSignature.exists()) {
+                    proprietesSignature.inputStream().use { flux -> props.load(flux) }
+                }
+                storeFile = file(
+                    props.getProperty("storeFile") ?: System.getenv("COCORICO_KEYSTORE"),
+                )
+                storePassword = props.getProperty("storePassword")
+                    ?: System.getenv("COCORICO_KEYSTORE_PASSWORD")
+                keyAlias = props.getProperty("keyAlias") ?: System.getenv("COCORICO_KEY_ALIAS")
+                keyPassword = props.getProperty("keyPassword")
+                    ?: System.getenv("COCORICO_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 et la réduction des ressources. Les règles propres au projet
+            // sont dans `proguard-rules.pro` : elles protègent les noms que
+            // l'application relit depuis le disque, que R8 ne peut pas deviner.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            if (signatureDisponible) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
