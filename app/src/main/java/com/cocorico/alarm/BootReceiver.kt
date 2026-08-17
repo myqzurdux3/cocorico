@@ -29,22 +29,20 @@ import kotlinx.coroutines.launch
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        // `MY_PACKAGE_REPLACED` compte autant que le démarrage : Android annule
-        // toutes les alarmes d'une application quand on la met à jour. Sans ce
-        // filet, installer une nouvelle version désarme le réveil du lendemain
-        // sans rien dire, pendant que l'accueil continue d'annoncer l'heure.
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
-            intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
-        ) {
-            return
-        }
+        // Quatre événements effacent ou périment les alarmes programmées ;
+        // le filtre qui les reconnaît vit dans `ActionsReplanification`, seul
+        // endroit testable sans téléphone.
+        if (!ActionsReplanification.doitReplanifier(intent.action)) return
 
-        if (AlarmState.estEnCours(context)) {
+        val redemarrage = intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+
+        if (redemarrage && AlarmState.estEnCours(context)) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, AlarmService::class.java),
             )
-        } else {
+        } else if (redemarrage) {
             // Purge d'un drapeau périmé : un arrêt forcé pendant l'alarme le
             // laisse à `true` sans que rien ne vienne le remettre à zéro.
             AlarmState.marquerTerminee(context)

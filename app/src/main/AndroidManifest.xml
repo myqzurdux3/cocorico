@@ -72,6 +72,16 @@
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
+            <!-- `setAlarmClock` mémorise un instant absolu, calculé une fois
+                 depuis l'heure murale choisie. Un vol vers un autre fuseau ou
+                 un réglage manuel de l'horloge laisse cet instant intact
+                 pendant que l'heure visée a bougé : le réveil sonnerait au
+                 mauvais moment, ou sauterait son tour. La replanification
+                 étant idempotente, la rejouer ici ne coûte rien. -->
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
         </receiver>
     </application>
 </manifest>
