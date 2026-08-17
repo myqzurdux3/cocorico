@@ -418,7 +418,6 @@ class AlarmActivity : ComponentActivity() {
                             alarmeAt = alarmeAt,
                             resoluAt = System.currentTimeMillis(),
                             erreurs = erreurs,
-                            triches = 0,
                             defi = challengeFinal?.id?.name ?: ChallengeId.MATHS.name,
                             abandon = abandon,
                         ),

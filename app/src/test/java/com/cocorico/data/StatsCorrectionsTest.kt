@@ -24,7 +24,6 @@ class StatsCorrectionsTest {
             resoluAt = debut + dureeSecondes * 1000,
             defi = ChallengeId.MATHS.name,
             erreurs = 0,
-            triches = 0,
             abandon = false,
         )
     }
@@ -41,7 +40,6 @@ class StatsCorrectionsTest {
             resoluAt = debut + dureeMillis,
             defi = ChallengeId.MATHS.name,
             erreurs = 0,
-            triches = 0,
             abandon = false,
         )
     }

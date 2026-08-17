@@ -69,6 +69,41 @@ class MigrationTest {
      * le format de [CocoricoDatabase.SQL_MIGRATION_1_2] est entièrement sous
      * notre contrôle, une regex n'apporterait rien de plus fiable.
      */
+    /**
+     * La migration 2 → 3 n'ajoute pas de colonne, elle recrée la table sans
+     * `triches` : le test ci-dessus, qui lit des `ADD COLUMN`, ne peut rien en
+     * dire. Ce contrôle-ci compare les colonnes du `CREATE TABLE` au schéma
+     * exporté de la version 3.
+     *
+     * Il reste une vérification de chaînes, donc faible : la vraie preuve est
+     * `MigrationInstrumenteeTest`, qui joue la migration contre un vrai SQLite.
+     * Mais l'intégration continue n'a pas d'appareil, et une dérive entre le
+     * SQL et l'entité doit se voir avant d'atteindre un téléphone.
+     */
+    @Test
+    fun `la recreation de table de la migration 2 vers 3 suit le schema attendu`() {
+        val creation = CocoricoDatabase.SQL_MIGRATION_2_3.first { it.startsWith("CREATE TABLE") }
+        val colonnesSql = creation
+            .substringAfter("(")
+            .substringBeforeLast(")")
+            .split(", ")
+            .map { it.trim().substringBefore(" ") }
+
+        val schema = JsonSimple.parseObjet(lireFichierSchema(3))
+        val attendues = colonnesAttendues(schema).keys
+
+        assertEquals(
+            "Le CREATE TABLE de SQL_MIGRATION_2_3 et le schéma exporté 3.json " +
+                "doivent porter exactement les mêmes colonnes.",
+            attendues.sorted(),
+            colonnesSql.sorted(),
+        )
+        assertTrue(
+            "La colonne `triches` doit avoir disparu du schéma et de la migration.",
+            "triches" !in colonnesSql && "triches" !in attendues,
+        )
+    }
+
     private fun parseAjoutColonne(instruction: String): ColonneAjoutee {
         assertTrue("instruction de migration inattendue : $instruction", instruction.contains("ADD COLUMN"))
         val apresAddColumn = instruction.substringAfter("ADD COLUMN ").trim()
@@ -114,10 +149,10 @@ class MigrationTest {
      * lance la tâche depuis la racine du dépôt ou depuis le module `app`. Échoue
      * bruyamment — jamais silencieusement — si le fichier reste introuvable.
      */
-    private fun lireFichierSchema(): String {
+    private fun lireFichierSchema(version: Int = 2): String {
         val cheminsRelatifs = listOf(
-            "app/schemas/com.cocorico.data.CocoricoDatabase/2.json",
-            "schemas/com.cocorico.data.CocoricoDatabase/2.json",
+            "app/schemas/com.cocorico.data.CocoricoDatabase/$version.json",
+            "schemas/com.cocorico.data.CocoricoDatabase/$version.json",
         )
         val essais = mutableListOf<String>()
         var repertoire: File? = File(System.getProperty("user.dir")!!).absoluteFile

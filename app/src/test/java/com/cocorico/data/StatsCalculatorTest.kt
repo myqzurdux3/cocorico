@@ -36,7 +36,6 @@ class StatsCalculatorTest {
         alarmeAt = alarme,
         resoluAt = alarme + dureeMillis,
         erreurs = erreurs,
-        triches = 0,
         defi = defi,
         abandon = abandon,
     )

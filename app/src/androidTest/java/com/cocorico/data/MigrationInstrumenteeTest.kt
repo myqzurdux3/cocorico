@@ -80,6 +80,66 @@ class MigrationInstrumenteeTest {
         helper.runMigrationsAndValidate(BASE, 2, true, CocoricoDatabase.MIGRATION_1_2).close()
     }
 
+    @Test
+    fun la_migration_2_vers_3_conserve_l_historique_en_retirant_la_colonne_morte() {
+        // SQLite ne sait pas supprimer une colonne avant sa version 3.35 : la
+        // migration recrée la table et recopie. C'est exactement le genre de
+        // migration où l'on perd des lignes sans s'en apercevoir.
+        helper.createDatabase(BASE, 2).use { v2 ->
+            v2.execSQL(
+                "INSERT INTO wake_records (id, alarmeAt, resoluAt, erreurs, triches, defi, abandon) " +
+                    "VALUES (1, 1000, 61000, 2, 0, 'POMPES', 0), (2, 90000, 150000, 1, 0, 'PHOTO', 1)",
+            )
+        }
+
+        val v3 = helper.runMigrationsAndValidate(BASE, 3, true, CocoricoDatabase.MIGRATION_2_3)
+
+        v3.query("SELECT id, alarmeAt, resoluAt, erreurs, defi, abandon FROM wake_records ORDER BY id").use { c ->
+            assertEquals("aucune ligne ne doit être perdue à la recopie", 2, c.count)
+
+            assertTrue(c.moveToFirst())
+            assertEquals(1L, c.getLong(0))
+            assertEquals(61_000L, c.getLong(2))
+            assertEquals(2, c.getInt(3))
+            assertEquals("POMPES", c.getString(4))
+            assertEquals(0, c.getInt(5))
+
+            assertTrue(c.moveToNext())
+            assertEquals("PHOTO", c.getString(4))
+            assertEquals("le renoncement doit survivre à la recopie", 1, c.getInt(5))
+        }
+        v3.close()
+    }
+
+    @Test
+    fun une_installation_de_la_version_1_atteint_la_version_3() {
+        // Le chemin le plus long, et celui que personne ne joue à la main :
+        // quelqu'un qui n'a pas mis à jour depuis la toute première version.
+        helper.createDatabase(BASE, 1).use { v1 ->
+            v1.execSQL(
+                "INSERT INTO wake_records (id, alarmeAt, resoluAt, erreurs, triches) " +
+                    "VALUES (1, 1000, 61000, 3, 0)",
+            )
+        }
+
+        val v3 = helper.runMigrationsAndValidate(
+            BASE,
+            3,
+            true,
+            CocoricoDatabase.MIGRATION_1_2,
+            CocoricoDatabase.MIGRATION_2_3,
+        )
+
+        v3.query("SELECT erreurs, defi, abandon FROM wake_records").use { c ->
+            assertEquals(1, c.count)
+            assertTrue(c.moveToFirst())
+            assertEquals(3, c.getInt(0))
+            assertEquals(ChallengeId.MATHS.name, c.getString(1))
+            assertEquals(0, c.getInt(2))
+        }
+        v3.close()
+    }
+
     private companion object {
         const val BASE = "migration-test.db"
     }

@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "60649878631ba461e0ce4e391543f379",
+    "entities": [
+      {
+        "tableName": "wake_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `alarmeAt` INTEGER NOT NULL, `resoluAt` INTEGER NOT NULL, `erreurs` INTEGER NOT NULL, `defi` TEXT NOT NULL DEFAULT 'MATHS', `abandon` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alarmeAt",
+            "columnName": "alarmeAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resoluAt",
+            "columnName": "resoluAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "erreurs",
+            "columnName": "erreurs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defi",
+            "columnName": "defi",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'MATHS'"
+          },
+          {
+            "fieldPath": "abandon",
+            "columnName": "abandon",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '60649878631ba461e0ce4e391543f379')"
+    ]
+  }
+}

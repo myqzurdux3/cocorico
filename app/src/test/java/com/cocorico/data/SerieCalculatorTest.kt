@@ -23,7 +23,6 @@ class SerieCalculatorTest {
             alarmeAt = alarme,
             resoluAt = alarme + retardSecondes * 1000L,
             erreurs = 0,
-            triches = 0,
         )
     }
 
