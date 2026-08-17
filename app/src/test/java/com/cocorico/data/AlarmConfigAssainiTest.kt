@@ -44,6 +44,15 @@ class AlarmConfigAssainiTest {
         )
     }
 
+    @Test fun `une cle d api collee avec des blancs est nettoyee`() {
+        // Une clé collée depuis un courriel ou un gestionnaire de mots de passe
+        // arrive souvent avec une espace ou un saut de ligne. Posée telle
+        // quelle en en-tête HTTP, elle fait échouer **tous** les verdicts, et
+        // l'écran ne dit que « pas reconnu ».
+        assertEquals("ABC123", AlarmConfig.DEFAULT.copy(cleApi = "  ABC123\n").assaini().cleApi)
+        assertEquals("", AlarmConfig.DEFAULT.copy(cleApi = "   ").assaini().cleApi)
+    }
+
     @Test fun `l assainissement ne touche a rien d autre`() {
         val config = AlarmConfig.DEFAULT.copy(
             hour = 42,

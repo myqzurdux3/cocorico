@@ -65,6 +65,11 @@ data class AlarmConfig(
         hour = hour.coerceIn(0, 23),
         minute = minute.coerceIn(0, 59),
         volumeMaxPourcent = NiveauxVolume.normaliser(volumeMaxPourcent),
+        // Une clé collée depuis un courriel ou un gestionnaire de mots de passe
+        // arrive souvent avec une espace ou un saut de ligne. Posée telle
+        // quelle en en-tête HTTP, elle fait échouer **tous** les verdicts du
+        // juge, et l'écran ne sait dire que « pas reconnu ».
+        cleApi = cleApi.trim(),
     )
 
     companion object {
