@@ -22,6 +22,7 @@ class RequeteVisionTest {
 
     @Test fun `la structure du corps est correcte`() {
         val image = "AAAA"
+
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Tasse", image)) as Map<String, Any?>
 
@@ -61,12 +62,16 @@ class RequeteVisionTest {
         // Tout l'alphabet que `Base64.NO_WRAP` peut produire, remplissage
         // compris : c'est le seul contenu que ce champ verra jamais.
         val image = "ABCXYZabcxyz0189+/=="
+
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Tasse", image)) as Map<String, Any?>
+
         @Suppress("UNCHECKED_CAST")
         val contents = json["contents"] as List<Map<String, Any?>>
+
         @Suppress("UNCHECKED_CAST")
         val parts = contents[0]["parts"] as List<Map<String, Any?>>
+
         @Suppress("UNCHECKED_CAST")
         val inline = parts[0]["inline_data"] as Map<String, Any?>
         assertEquals(image, inline["data"])
@@ -86,8 +91,10 @@ class RequeteVisionTest {
     @Test fun `un nom d objet avec des guillemets ne casse pas la structure`() {
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Une \"tasse\"", "AAAA")) as Map<String, Any?>
+
         @Suppress("UNCHECKED_CAST")
         val contents = json["contents"] as List<Map<String, Any?>>
+
         @Suppress("UNCHECKED_CAST")
         val parts = contents[0]["parts"] as List<Map<String, Any?>>
         assertTrue((parts[1]["text"] as String).contains("Une \"tasse\""))
@@ -133,21 +140,21 @@ class RequeteVisionTest {
     @Test fun `une phrase autour du mot OUI est lue comme un accord`() {
         assertTrue(
             RequeteVision.lireVerdict(
-                """{"content":[{"type":"text","text":"Oui, cette photo montre bien une tasse."}]}"""
-            )
+                """{"content":[{"type":"text","text":"Oui, cette photo montre bien une tasse."}]}""",
+            ),
         )
         assertTrue(
             RequeteVision.lireVerdict(
-                """{"content":[{"type":"text","text":"La réponse est OUI."}]}"""
-            )
+                """{"content":[{"type":"text","text":"La réponse est OUI."}]}""",
+            ),
         )
     }
 
     @Test fun `une phrase autour du mot NON reste un refus`() {
         assertFalse(
             RequeteVision.lireVerdict(
-                """{"content":[{"type":"text","text":"Non, ce n'est pas une tasse."}]}"""
-            )
+                """{"content":[{"type":"text","text":"Non, ce n'est pas une tasse."}]}""",
+            ),
         )
     }
 
@@ -156,13 +163,13 @@ class RequeteVisionTest {
         // ferait lire cette phrase de refus comme un accord.
         assertFalse(
             RequeteVision.lireVerdict(
-                """{"content":[{"type":"text","text":"Je ne peux pas dire oui avec certitude."}]}"""
-            )
+                """{"content":[{"type":"text","text":"Je ne peux pas dire oui avec certitude."}]}""",
+            ),
         )
         assertFalse(
             RequeteVision.lireVerdict(
-                """{"content":[{"type":"text","text":"Je ne suis pas certain, donc je ne dirai pas oui."}]}"""
-            )
+                """{"content":[{"type":"text","text":"Je ne suis pas certain, donc je ne dirai pas oui."}]}""",
+            ),
         )
     }
 
@@ -316,7 +323,10 @@ private object MiniJson {
         var i = 1
         while (true) {
             when (val c = s[i]) {
-                '"' -> { i++; break }
+                '"' -> {
+                    i++
+                    break
+                }
                 '\\' -> {
                     i++
                     when (val e = s[i]) {
@@ -329,7 +339,10 @@ private object MiniJson {
                     }
                     i++
                 }
-                else -> { sb.append(c); i++ }
+                else -> {
+                    sb.append(c)
+                    i++
+                }
             }
         }
         return sb.toString() to s.substring(i)

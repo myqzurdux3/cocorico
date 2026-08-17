@@ -21,10 +21,7 @@ import kotlin.math.sqrt
  * qui sépare les deux usages sur deux canaux — voir sa documentation pour le
  * pourquoi.
  */
-class CapteurPompes(
-    context: Context,
-    private val onEchantillon: (EchantillonPompe) -> Unit,
-) : SensorEventListener {
+class CapteurPompes(context: Context, private val onEchantillon: (EchantillonPompe) -> Unit) : SensorEventListener {
 
     private val manager = context.getSystemService(SensorManager::class.java)
     private val proximite: Sensor? = manager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
@@ -225,8 +222,12 @@ class EstimateurGravite(
         // partiraient de zéro et convergeraient artificiellement lentement
         // vers la première vraie mesure.
         if (!amorce) {
-            lenteX = x; lenteY = y; lenteZ = z
-            rapideX = x; rapideY = y; rapideZ = z
+            lenteX = x
+            lenteY = y
+            lenteZ = z
+            rapideX = x
+            rapideY = y
+            rapideZ = z
             amorce = true
             dernierMs = nowMillis
             majSorties()

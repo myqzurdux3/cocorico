@@ -1,11 +1,11 @@
 package com.cocorico.alarm
 
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Les deux jours de bascule de l'heure d'été sont les seuls où l'heure murale

@@ -35,6 +35,8 @@ import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.ReveilRecent
 import com.cocorico.data.Statistiques
 import com.cocorico.data.StatsCalculator
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,8 +44,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 
 @Composable
 fun StatsScreen(onRetour: () -> Unit) {
@@ -109,10 +109,25 @@ fun StatsScreen(onRetour: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Statistique(libelle = "Ce matin", valeur = valeurs.dureeCeMatinSecondes?.let(StatsCalculator::formatDuree) ?: "—")
-        Statistique(libelle = "Temps moyen", valeur = valeurs.dureeMoyenneSecondes?.let(StatsCalculator::formatDuree) ?: "—")
-        Statistique(libelle = "Meilleur temps", valeur = valeurs.meilleureDureeSecondes?.let(StatsCalculator::formatDuree) ?: "—")
-        Statistique(libelle = "Pire temps", valeur = valeurs.pireDureeSecondes?.let(StatsCalculator::formatDuree) ?: "—")
+        Statistique(
+            libelle = "Ce matin",
+            valeur =
+            valeurs.dureeCeMatinSecondes?.let(StatsCalculator::formatDuree) ?: "—",
+        )
+        Statistique(
+            libelle = "Temps moyen",
+            valeur =
+            valeurs.dureeMoyenneSecondes?.let(StatsCalculator::formatDuree) ?: "—",
+        )
+        Statistique(
+            libelle = "Meilleur temps",
+            valeur =
+            valeurs.meilleureDureeSecondes?.let(StatsCalculator::formatDuree) ?: "—",
+        )
+        Statistique(
+            libelle = "Pire temps",
+            valeur = valeurs.pireDureeSecondes?.let(StatsCalculator::formatDuree) ?: "—",
+        )
         Statistique(libelle = "Temps cumulé", valeur = StatsCalculator.formatDuree(valeurs.dureeCumuleeSecondes))
         Statistique(libelle = "Réveils affrontés", valeur = "${valeurs.nombreTotal}")
 

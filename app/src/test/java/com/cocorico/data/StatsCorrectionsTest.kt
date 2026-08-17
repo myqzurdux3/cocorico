@@ -1,12 +1,12 @@
 package com.cocorico.data
 
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Les statistiques qui affichaient une valeur fausse avec l'aplomb d'une valeur

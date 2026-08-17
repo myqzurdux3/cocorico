@@ -70,10 +70,7 @@ private val CocoricoTypography = Typography(
  * redéclare la sienne (l'écran d'alarme fournit `onError`).
  */
 @Composable
-fun CocoricoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
+fun CocoricoTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val scheme = if (darkTheme) DarkScheme else LightScheme
     MaterialTheme(
         colorScheme = scheme,

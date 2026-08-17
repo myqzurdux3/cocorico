@@ -28,22 +28,18 @@ import androidx.compose.ui.unit.sp
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.SerieCalculator
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 
 /**
  * Ce que la base a répondu, ou rien. Un seul état pour les trois mesures :
  * elles viennent de la même lecture et n'ont aucun sens séparément.
  */
-private data class BilanVictoire(
-    val serie: Int,
-    val retardSecondes: Int,
-    val defiLibelle: String?,
-)
+private data class BilanVictoire(val serie: Int, val retardSecondes: Int, val defiLibelle: String?)
 
 @Composable
 fun VictoryScreen(onFermer: () -> Unit) {

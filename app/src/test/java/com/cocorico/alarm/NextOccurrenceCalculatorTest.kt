@@ -3,11 +3,11 @@ package com.cocorico.alarm
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
-import java.time.DayOfWeek
-import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.LocalDateTime
 
 class NextOccurrenceCalculatorTest {
 
@@ -34,7 +34,8 @@ class NextOccurrenceCalculatorTest {
         // mercredi 8 h 00, alarme a 6 h 30 les mercredi et vendredi
         val from = LocalDateTime.of(2026, 8, 19, 8, 0)
         val next = NextOccurrenceCalculator.next(
-            config(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), from,
+            config(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+            from,
         )
         assertEquals(LocalDateTime.of(2026, 8, 21, 6, 30), next)
     }

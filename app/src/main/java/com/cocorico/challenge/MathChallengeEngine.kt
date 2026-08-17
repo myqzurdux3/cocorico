@@ -74,7 +74,6 @@ class MathChallengeEngine(
          * Extrait ici, hors du composable, pour être testable : c'est la seule
          * décision de l'affichage qui puisse être fausse.
          */
-        fun estUneFaute(dejaResolu: Boolean, reponseJuste: Boolean): Boolean =
-            !dejaResolu && !reponseJuste
+        fun estUneFaute(dejaResolu: Boolean, reponseJuste: Boolean): Boolean = !dejaResolu && !reponseJuste
     }
 }

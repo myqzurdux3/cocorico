@@ -106,11 +106,7 @@ object StatsCalculator {
      * tant qu'il ne passe pas la date lui-même ; elle est à retirer dès qu'il le
      * fait, comme l'écran de victoire le fait déjà pour la série.
      */
-    fun calculer(
-        records: List<WakeRecord>,
-        zone: ZoneId,
-        aujourdhui: LocalDate,
-    ): Statistiques {
+    fun calculer(records: List<WakeRecord>, zone: ZoneId, aujourdhui: LocalDate): Statistiques {
         if (records.isEmpty()) {
             return Statistiques(
                 nombreTotal = 0,
@@ -195,11 +191,7 @@ object StatsCalculator {
      * indépendant des données — deux historiques identiques à l'ordre près
      * doivent afficher le même jour.
      */
-    private fun jourLePlusLent(
-        records: List<WakeRecord>,
-        dureesMillis: List<Long>,
-        zone: ZoneId,
-    ): DayOfWeek? {
+    private fun jourLePlusLent(records: List<WakeRecord>, dureesMillis: List<Long>, zone: ZoneId): DayOfWeek? {
         val parJour = records.indices
             .filter { dureesMillis[it] in DUREE_MIN_VALIDE_MS..DUREE_MAX_VALIDE_MS }
             .groupBy(

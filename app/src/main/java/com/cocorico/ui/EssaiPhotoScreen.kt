@@ -44,8 +44,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cocorico.challenge.photo.CatalogueObjets
 import com.cocorico.challenge.photo.DiagnosticJuge
 import com.cocorico.challenge.photo.JugeGemini
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Banc d'essai du défi photo, **sans alarme**.

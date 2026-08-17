@@ -1,9 +1,9 @@
 package com.cocorico.ring
 
-import kotlin.math.sin
-import kotlin.random.Random
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.sin
+import kotlin.random.Random
 
 /**
  * Vérifie la propriété qui motive la séparation en deux canaux dans

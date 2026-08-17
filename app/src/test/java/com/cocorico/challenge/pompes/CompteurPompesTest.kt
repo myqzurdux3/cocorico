@@ -13,12 +13,7 @@ class CompteurPompesTest {
     }
 
     /** Téléphone à plat, immobile : la position est bonne. */
-    private fun echantillon(
-        proche: Boolean,
-        t: Long,
-        inclinaison: Float = 2f,
-        ecart: Float = 0.2f,
-    ) = EchantillonPompe(
+    private fun echantillon(proche: Boolean, t: Long, inclinaison: Float = 2f, ecart: Float = 0.2f) = EchantillonPompe(
         procheDuCapteur = proche,
         inclinaisonDegres = inclinaison,
         ecartGravite = ecart,

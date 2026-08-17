@@ -9,7 +9,6 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,8 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
@@ -97,8 +97,9 @@ fun ChallengeSettingsScreen(
             // autorise — on ne peut rien affirmer : on préfère laisser une
             // nouvelle demande possible plutôt que d'envoyer à tort dans les
             // réglages.
-            justificationPossible = activite == null || ActivityCompat
-                .shouldShowRequestPermissionRationale(activite, Manifest.permission.CAMERA),
+            justificationPossible = activite == null ||
+                ActivityCompat
+                    .shouldShowRequestPermissionRationale(activite, Manifest.permission.CAMERA),
         )
     }
 
@@ -254,13 +255,19 @@ fun ChallengeSettingsScreen(
                     // Pastille sélectionnée : fond primaire, donc couleur de
                     // texte primaire. La couleur de contenu par défaut est
                     // calibrée pour le fond de l'écran, pas pour cette pastille.
-                    color = if (niveau == config.difficulty) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurface,
+                    color = if (niveau == config.difficulty) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(
-                            if (niveau == config.difficulty) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surface,
+                            if (niveau == config.difficulty) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
                         )
                         .clickable { viewModel.majDifficulte(niveau) }
                         .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -307,10 +314,7 @@ private fun ouvrirFicheApplication(context: Context) {
 }
 
 @Composable
-private fun ReglagesJugePhoto(
-    cleApi: String,
-    onCleApiChange: (String) -> Unit,
-) {
+private fun ReglagesJugePhoto(cleApi: String, onCleApiChange: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -363,8 +367,11 @@ private fun Option(
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = if (selectionne) 2.dp else 1.dp,
-                color = if (selectionne) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surface,
+                color = if (selectionne) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
                 shape = RoundedCornerShape(12.dp),
             )
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)

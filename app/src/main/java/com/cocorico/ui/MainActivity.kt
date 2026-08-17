@@ -195,6 +195,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun consommerVictoire(intent: Intent): Boolean {
         val victorieux = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+
         @Suppress("DEPRECATION")
         val jeton = intent.getParcelableExtra<PendingIntent>(EXTRA_JETON)
         intent.removeExtra(EXTRA_VICTOIRE)
@@ -257,11 +258,8 @@ class MainActivity : ComponentActivity() {
  * chemin visible vers l'écran qui arrête la sonnerie : la retenir sur un intent
  * forgé revient à cacher ce chemin pendant que l'alarme hurle.
  */
-internal fun victoireLegitime(
-    demandee: Boolean,
-    paquetCreateurJeton: String?,
-    paquetApplication: String,
-): Boolean = demandee && paquetCreateurJeton == paquetApplication
+internal fun victoireLegitime(demandee: Boolean, paquetCreateurJeton: String?, paquetApplication: String): Boolean =
+    demandee && paquetCreateurJeton == paquetApplication
 
 /**
  * Passe avant tout le reste, onboarding compris : tant que la sonnerie tourne,
@@ -298,9 +296,8 @@ private fun EcranReprise(challengeId: ChallengeId, difficulty: Difficulty, onRep
  * juste dans le cas courant — capteurs et caméra présents — vaut mieux que
  * mentir sur les trois.
  */
-private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): String =
-    when (challengeId) {
-        ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
-        ChallengeId.PHOTO -> "${PhotoChallenge.nombrePour(difficulty)} photos et elle se tait."
-        ChallengeId.MATHS -> "Trois calculs et elle se tait."
-    }
+private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): String = when (challengeId) {
+    ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
+    ChallengeId.PHOTO -> "${PhotoChallenge.nombrePour(difficulty)} photos et elle se tait."
+    ChallengeId.MATHS -> "Trois calculs et elle se tait."
+}

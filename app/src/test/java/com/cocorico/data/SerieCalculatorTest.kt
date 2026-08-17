@@ -1,10 +1,10 @@
 package com.cocorico.data
 
+import org.junit.Assert.assertEquals
+import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import org.junit.Assert.assertEquals
-import org.junit.Test
 
 /**
  * `serie` prend un jour de référence depuis qu'une suite ancienne ne compte

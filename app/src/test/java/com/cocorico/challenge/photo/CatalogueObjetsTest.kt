@@ -1,9 +1,9 @@
 package com.cocorico.challenge.photo
 
-import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 class CatalogueObjetsTest {
     @Test fun `le tirage rend le nombre demande`() {

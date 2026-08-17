@@ -2,8 +2,6 @@ package com.cocorico.ui
 
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,18 +29,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
-import com.cocorico.ring.CapteurPompes
 import com.cocorico.data.ChallengeId
-import com.cocorico.ring.Sonneries
+import com.cocorico.ring.CapteurPompes
 import com.cocorico.ring.SonneriePersonnaliseeStore
+import com.cocorico.ring.Sonneries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -99,7 +99,8 @@ fun HomeScreen(
             capteurPompesDisponible = CapteurPompes(contexte) {}.capteurDisponible(),
             permissionCameraAccordee = PermissionChecker.etat(contexte).camera,
             camerasDisponibles = contexte.packageManager
-                .hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) && config.cleApi.isNotBlank(),
+                .hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) &&
+                config.cleApi.isNotBlank(),
         )
     }
 
@@ -253,8 +254,11 @@ private fun RowScope.PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -
                 .defaultMinSize(minWidth = DIAMETRE_PASTILLE, minHeight = DIAMETRE_PASTILLE)
                 .clip(CircleShape)
                 .background(
-                    if (actif) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surface,
+                    if (actif) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -262,8 +266,11 @@ private fun RowScope.PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -
                 text = lettre,
                 fontSize = 15.sp,
                 maxLines = 1,
-                color = if (actif) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurface,
+                color = if (actif) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 // Marge intérieure : c'est elle qui fait grandir le disque avec
                 // la police plutôt que de laisser la lettre en déborder.
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -289,4 +296,3 @@ private fun Ligne(titre: String, valeur: String, onClick: () -> Unit) {
         Text(valeur, fontSize = 17.sp)
     }
 }
-

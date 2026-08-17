@@ -20,8 +20,7 @@ object SonneriePersonnaliseeStore {
     private const val CLE_URI = "uri"
     private const val CLE_NOM = "nom"
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
 
     /** `null` si l'utilisateur n'a jamais importé de fichier. */
     fun lireUri(context: Context): String? = prefs(context).getString(CLE_URI, null)

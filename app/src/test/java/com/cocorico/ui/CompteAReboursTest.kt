@@ -1,10 +1,10 @@
 package com.cocorico.ui
 
-import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
 
 class CompteAReboursTest {
 
@@ -14,7 +14,6 @@ class CompteAReboursTest {
      * nuits de bascule, qui ont leur propre fichier de tests.
      */
     private val zone: java.time.ZoneId = java.time.ZoneId.of("UTC")
-
 
     private val maintenant = LocalDateTime.of(2026, 8, 16, 22, 30)
 

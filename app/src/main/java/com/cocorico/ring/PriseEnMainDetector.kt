@@ -99,8 +99,12 @@ class PriseEnMainDetector(
         // partiraient de zéro et l'écart de norme initial (9,81) déclencherait
         // l'énergie à coup sûr.
         if (!amorce) {
-            graviteX = x; graviteY = y; graviteZ = z
-            lisseX = x; lisseY = y; lisseZ = z
+            graviteX = x
+            graviteY = y
+            graviteZ = z
+            lisseX = x
+            lisseY = y
+            lisseZ = z
             amorce = true
             dernierMs = nowMillis
             majInclinaison(nowMillis)

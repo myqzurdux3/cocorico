@@ -1,9 +1,9 @@
 package com.cocorico.data
 
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * La migration ne peut pas s'exécuter sans appareil, mais son SQL doit rester
@@ -25,19 +25,10 @@ import org.junit.Test
 class MigrationTest {
 
     /** Une colonne ajoutée par une instruction `ALTER TABLE ... ADD COLUMN`. */
-    private data class ColonneAjoutee(
-        val nom: String,
-        val type: String,
-        val nonNulle: Boolean,
-        val defaut: String?,
-    )
+    private data class ColonneAjoutee(val nom: String, val type: String, val nonNulle: Boolean, val defaut: String?)
 
     /** La même colonne, telle que décrite par le schéma JSON exporté par Room. */
-    private data class ColonneAttendue(
-        val type: String,
-        val nonNulle: Boolean,
-        val defaut: String?,
-    )
+    private data class ColonneAttendue(val type: String, val nonNulle: Boolean, val defaut: String?)
 
     @Test
     fun `la migration ajoute exactement les deux colonnes gagnees par l entite`() {
@@ -55,7 +46,7 @@ class MigrationTest {
                 ?: throw AssertionError(
                     "La colonne '${colonne.nom}' ajoutée par SQL_MIGRATION_1_2 n'existe pas " +
                         "dans le schéma exporté app/schemas/com.cocorico.data.CocoricoDatabase/2.json " +
-                        "(colonnes connues : ${colonnesAttendues.keys})."
+                        "(colonnes connues : ${colonnesAttendues.keys}).",
                 )
             assertEquals("type de la colonne '${colonne.nom}'", attendue.type, colonne.type)
             assertEquals("nullabilité de la colonne '${colonne.nom}'", attendue.nonNulle, colonne.nonNulle)
@@ -167,7 +158,7 @@ class MigrationTest {
         throw AssertionError(
             "Schéma Room introuvable. Essayé, depuis ${System.getProperty("user.dir")} et ses parents :\n" +
                 essais.joinToString("\n") + "\n" +
-                "Génère-le avec `./gradlew :app:assembleDebug` (il est ensuite versionné dans app/schemas/)."
+                "Génère-le avec `./gradlew :app:assembleDebug` (il est ensuite versionné dans app/schemas/).",
         )
     }
 }
@@ -195,9 +186,18 @@ private object JsonSimple {
                 '{' -> lireObjet()
                 '[' -> lireTableau()
                 '"' -> lireChaine()
-                't' -> { attendre("true"); true }
-                'f' -> { attendre("false"); false }
-                'n' -> { attendre("null"); null }
+                't' -> {
+                    attendre("true")
+                    true
+                }
+                'f' -> {
+                    attendre("false")
+                    false
+                }
+                'n' -> {
+                    attendre("null")
+                    null
+                }
                 else -> lireNombre()
             }
         }
@@ -225,7 +225,10 @@ private object JsonSimple {
                 sauterEspaces()
                 when (texte[pos]) {
                     ',' -> pos++
-                    '}' -> { pos++; return resultat }
+                    '}' -> {
+                        pos++
+                        return resultat
+                    }
                     else -> error("JSON invalide à la position $pos, ',' ou '}' attendu")
                 }
             }
@@ -244,7 +247,10 @@ private object JsonSimple {
                 sauterEspaces()
                 when (texte[pos]) {
                     ',' -> pos++
-                    ']' -> { pos++; return resultat }
+                    ']' -> {
+                        pos++
+                        return resultat
+                    }
                     else -> error("JSON invalide à la position $pos, ',' ou ']' attendu")
                 }
             }

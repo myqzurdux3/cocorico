@@ -44,16 +44,14 @@ object SelectionObjets {
      * effectivement à un objet du catalogue — un identifiant devenu invalide
      * n'est compté nulle part, sans qu'il faille le filtrer en amont.
      */
-    fun compterParPiece(selection: Set<String>): List<ComptagePiece> =
-        Piece.entries.map { piece ->
-            val objetsDeLaPiece = CatalogueObjets.tous.filter { it.piece == piece }
-            val coches = objetsDeLaPiece.count { it.id in selection }
-            ComptagePiece(piece, coches, objetsDeLaPiece.size)
-        }
+    fun compterParPiece(selection: Set<String>): List<ComptagePiece> = Piece.entries.map { piece ->
+        val objetsDeLaPiece = CatalogueObjets.tous.filter { it.piece == piece }
+        val coches = objetsDeLaPiece.count { it.id in selection }
+        ComptagePiece(piece, coches, objetsDeLaPiece.size)
+    }
 
     /** Le nombre total d'objets cochés, toutes pièces confondues, identifiants inconnus ignorés. */
-    fun totalCoche(selection: Set<String>): Int =
-        CatalogueObjets.tous.count { it.id in selection }
+    fun totalCoche(selection: Set<String>): Int = CatalogueObjets.tous.count { it.id in selection }
 
     /** Coche [id] s'il ne l'était pas, le décoche sinon. */
     fun basculerObjet(selection: Set<String>, id: String): Set<String> =

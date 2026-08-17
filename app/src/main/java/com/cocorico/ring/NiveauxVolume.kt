@@ -77,8 +77,7 @@ object NiveauxVolume {
      * plus juste que l'ancien « 30 % » figé, qui se rapportait à un maximum
      * d'appareil que l'utilisateur venait justement de refuser.
      */
-    fun pourcentAfficheBaisse(pourcent: Int): Int =
-        (normaliser(pourcent) * FRACTION_BAISSE).roundToInt()
+    fun pourcentAfficheBaisse(pourcent: Int): Int = (normaliser(pourcent) * FRACTION_BAISSE).roundToInt()
 
     /** Assez bas pour se sentir, assez haut pour rester audible d'un lit. */
     private const val FRACTION_BAISSE = 0.3f

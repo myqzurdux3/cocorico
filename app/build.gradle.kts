@@ -33,8 +33,9 @@ android {
      * qui est le cas de tous les contributeurs sauf le mainteneur.
      */
     val proprietesSignature = rootProject.file("keystore.properties")
-    val signatureDisponible = proprietesSignature.exists() ||
-        System.getenv("COCORICO_KEYSTORE") != null
+    val signatureDisponible =
+        proprietesSignature.exists() ||
+            System.getenv("COCORICO_KEYSTORE") != null
 
     signingConfigs {
         if (signatureDisponible) {
@@ -43,9 +44,10 @@ android {
                 if (proprietesSignature.exists()) {
                     proprietesSignature.inputStream().use { flux -> props.load(flux) }
                 }
-                storeFile = file(
-                    props.getProperty("storeFile") ?: System.getenv("COCORICO_KEYSTORE"),
-                )
+                storeFile =
+                    file(
+                        props.getProperty("storeFile") ?: System.getenv("COCORICO_KEYSTORE"),
+                    )
                 storePassword = props.getProperty("storePassword")
                     ?: System.getenv("COCORICO_KEYSTORE_PASSWORD")
                 keyAlias = props.getProperty("keyAlias") ?: System.getenv("COCORICO_KEY_ALIAS")
@@ -132,4 +134,7 @@ ksp {
 // `MigrationTestHelper` lit les schémas depuis les ressources du test
 // instrumenté : sans cette ligne, il ne trouve pas `1.json` et échoue avec un
 // message qui n'a rien à voir avec la migration.
-android.sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
+android.sourceSets
+    .getByName("androidTest")
+    .assets
+    .srcDir("$projectDir/schemas")

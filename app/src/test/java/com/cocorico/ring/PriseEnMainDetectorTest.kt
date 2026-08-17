@@ -1,11 +1,11 @@
 package com.cocorico.ring
 
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.random.Random
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
 
 /**
  * Séquences synthétiques d'accéléromètre, horodatées explicitement : la classe
@@ -126,11 +126,7 @@ class PriseEnMainDetectorTest {
      * Joue [duree] millisecondes d'échantillons au pas de 20 ms, en avançant
      * une horloge explicite : aucune dépendance à l'heure réelle.
      */
-    private fun jouer(
-        duree: Long,
-        bruit: Float = 0.05f,
-        echantillon: (t: Long) -> Triple<Float, Float, Float>,
-    ) {
+    private fun jouer(duree: Long, bruit: Float = 0.05f, echantillon: (t: Long) -> Triple<Float, Float, Float>) {
         val fin = horloge + duree
         var t = horloge
         while (t < fin) {

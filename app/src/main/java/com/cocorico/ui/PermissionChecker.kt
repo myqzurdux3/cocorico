@@ -79,11 +79,10 @@ object PermissionChecker {
     )
 
     /** Permission caméra du défi photo. Voir la KDoc de [EtatPermissions.camera]. */
-    private fun cameraAccordee(context: Context): Boolean =
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA,
-        ) == PackageManager.PERMISSION_GRANTED
+    private fun cameraAccordee(context: Context): Boolean = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.CAMERA,
+    ) == PackageManager.PERMISSION_GRANTED
 
     /**
      * Depuis Android 14, USE_FULL_SCREEN_INTENT n'est plus accordée à
@@ -119,15 +118,19 @@ object PermissionChecker {
 object Constructeurs {
 
     fun reglageBatterie(fabricant: String): String? = when (fabricant.lowercase()) {
-        "samsung" -> "Réglages › Batterie › Limites d'utilisation en arrière-plan : " +
-            "retirer Cocorico des applications en veille."
-        "xiaomi", "redmi", "poco" -> "Réglages › Applications › Cocorico › " +
-            "Économiseur de batterie : choisir « Aucune restriction », et activer " +
-            "« Démarrage automatique »."
-        "oppo", "realme", "oneplus" -> "Réglages › Batterie › Utilisation en arrière-plan : " +
-            "autoriser Cocorico à fonctionner en arrière-plan."
-        "huawei", "honor" -> "Réglages › Batterie › Lancement d'applications : " +
-            "gérer Cocorico manuellement et tout autoriser."
+        "samsung" ->
+            "Réglages › Batterie › Limites d'utilisation en arrière-plan : " +
+                "retirer Cocorico des applications en veille."
+        "xiaomi", "redmi", "poco" ->
+            "Réglages › Applications › Cocorico › " +
+                "Économiseur de batterie : choisir « Aucune restriction », et activer " +
+                "« Démarrage automatique »."
+        "oppo", "realme", "oneplus" ->
+            "Réglages › Batterie › Utilisation en arrière-plan : " +
+                "autoriser Cocorico à fonctionner en arrière-plan."
+        "huawei", "honor" ->
+            "Réglages › Batterie › Lancement d'applications : " +
+                "gérer Cocorico manuellement et tout autoriser."
         "vivo" -> "Réglages › Batterie › Consommation en arrière-plan : autoriser Cocorico."
         else -> null
     }

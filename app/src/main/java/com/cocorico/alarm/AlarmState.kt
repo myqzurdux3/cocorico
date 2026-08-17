@@ -33,8 +33,7 @@ object AlarmState {
      */
     const val FENETRE_VALIDITE_MS = 60 * 60 * 1000L
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
 
     /**
      * Décision pure, testable sans Android : le drapeau est-il encore crédible ?
@@ -81,8 +80,7 @@ object AlarmState {
     }
 
     /** L'instant du déclenchement en cours, ou 0 si aucune alarme ne sonne. */
-    fun instantDeclenchement(context: Context): Long =
-        prefs(context).getLong(CLE_DECLENCHEMENT, 0L)
+    fun instantDeclenchement(context: Context): Long = prefs(context).getLong(CLE_DECLENCHEMENT, 0L)
 
     /**
      * Décision pure derrière [marquerDeclenchement] : on garde le premier
@@ -92,8 +90,7 @@ object AlarmState {
      * ne peut venir que d'un fichier abîmé et donnerait des durées de plusieurs
      * décennies dans les statistiques.
      */
-    fun instantARetenir(existant: Long, maintenant: Long): Long =
-        if (existant > 0L) existant else maintenant
+    fun instantARetenir(existant: Long, maintenant: Long): Long = if (existant > 0L) existant else maintenant
 
     /** Arrêt délibéré : défi résolu. Le drapeau et ses horodatages disparaissent. */
     fun marquerTerminee(context: Context) {

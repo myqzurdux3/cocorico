@@ -48,13 +48,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cocorico.challenge.Challenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.random.Random
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.random.Random
 
 /**
  * Ce que le défi fait d'un essai que le juge n'a pas pu trancher. Voir
@@ -327,8 +327,9 @@ class PhotoChallenge(
             )
             Text(
                 text = when {
-                    echecCamera -> "Caméra indisponible. Appuie longuement sur le bouton " +
-                        "ci-dessous pour passer aux calculs."
+                    echecCamera ->
+                        "Caméra indisponible. Appuie longuement sur le bouton " +
+                            "ci-dessous pour passer aux calculs."
                     // La cause du dernier échec passe avant la consigne : sans
                     // elle, un échec qui n'est pas un refus s'affichait comme
                     // « Pas encore reconnu », et l'utilisateur recommençait.
@@ -656,8 +657,7 @@ private object ExclusionObjets {
     private const val FICHIER = "cocorico_photo_exclusion"
     private const val CLE = "objets_precedents"
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
 
     /** Les identifiants tirés au réveil précédent, vide s'il n'y en a pas encore eu. */
     fun lire(context: Context): Set<String> = prefs(context).getStringSet(CLE, emptySet()).orEmpty()

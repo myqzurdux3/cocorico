@@ -26,10 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.cocorico.data.ChallengeId
 import kotlinx.coroutines.flow.StateFlow
 
-class MathChallenge(
-    private val engine: MathChallengeEngine,
-    private val onInteraction: () -> Unit,
-) : Challenge {
+class MathChallenge(private val engine: MathChallengeEngine, private val onInteraction: () -> Unit) : Challenge {
 
     override val id = ChallengeId.MATHS
     override val isSolved: StateFlow<Boolean> = engine.isSolved
@@ -115,11 +112,7 @@ class MathChallenge(
 }
 
 @Composable
-private fun Pave(
-    onChiffre: (String) -> Unit,
-    onEffacer: () -> Unit,
-    onValider: () -> Unit,
-) {
+private fun Pave(onChiffre: (String) -> Unit, onEffacer: () -> Unit, onValider: () -> Unit) {
     val lignes = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),

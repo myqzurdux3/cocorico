@@ -11,14 +11,14 @@ import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import com.cocorico.ring.NiveauxVolume
-import java.time.DayOfWeek
-import java.time.LocalDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDateTime
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -74,9 +74,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * finit sur le disque, et rien ne doit pouvoir y déposer un plafond qui
      * rendrait l'alarme inaudible.
      */
-    fun majVolumeMax(pourcent: Int) =
-        modifier { it.copy(volumeMaxPourcent = NiveauxVolume.normaliser(pourcent)) }
-
+    fun majVolumeMax(pourcent: Int) = modifier { it.copy(volumeMaxPourcent = NiveauxVolume.normaliser(pourcent)) }
 
     fun majCleApi(cle: String) = modifier { it.copy(cleApi = cle) }
 

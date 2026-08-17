@@ -1,11 +1,11 @@
 package com.cocorico.alarm
 
-import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
 
 /**
  * `schedule()` renvoyait `null` pour cinq situations très différentes, dont

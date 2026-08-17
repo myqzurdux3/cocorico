@@ -2,12 +2,12 @@ package com.cocorico.challenge.photo
 
 import android.graphics.Bitmap
 import android.util.Base64
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Ce qui est arrivé à un essai, au-delà du verdict.
@@ -70,13 +70,9 @@ data class DiagnosticJuge(
  *
  * Contrat de [JugePhoto] : aucune exception ne sort de [juger].
  */
-class JugeGemini(
-    private val cle: String,
-    private val timeoutMs: Long = DELAI_MAX_MS,
-) : JugePhoto {
+class JugeGemini(private val cle: String, private val timeoutMs: Long = DELAI_MAX_MS) : JugePhoto {
 
-    override suspend fun juger(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge =
-        diagnostiquer(image, objet)
+    override suspend fun juger(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge = diagnostiquer(image, objet)
 
     /**
      * Même chemin exact que [juger] : le banc d'essai passe par ce nom, le
@@ -200,8 +196,7 @@ class JugeGemini(
      * message d'erreur n'est pas sous notre contrôle, et une clé affichée est
      * une clé qui fuite.
      */
-    internal fun masquer(texte: String): String =
-        if (cle.isBlank()) texte else texte.replace(cle, MASQUE)
+    internal fun masquer(texte: String): String = if (cle.isBlank()) texte else texte.replace(cle, MASQUE)
 
     /** Encodage en mémoire : aucune image n'atteint le disque. */
     private fun encoder(image: Bitmap): String {
@@ -230,8 +225,7 @@ class JugeGemini(
          * essai de plus — insister ne ferait que consommer les secondes
          * pendant lesquelles l'alarme sonne.
          */
-        internal fun estReessayable(code: Int): Boolean =
-            code == 408 || code == 429 || code in 500..599
+        internal fun estReessayable(code: Int): Boolean = code == 408 || code == 429 || code in 500..599
 
         /**
          * La cause à montrer pour un code HTTP. Formulée pour quelqu'un qui

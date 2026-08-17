@@ -35,8 +35,7 @@ interface JugePhoto {
     suspend fun juger(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge
 
     /** Le seul verdict, pour les appelants que la cause n'intéresse pas. */
-    suspend fun accepte(image: Bitmap, objet: ObjetPhoto): Boolean =
-        juger(image, objet).accepte
+    suspend fun accepte(image: Bitmap, objet: ObjetPhoto): Boolean = juger(image, objet).accepte
 
     /**
      * Libère ce que l'implémentation détient. Vide par défaut : un juge sans

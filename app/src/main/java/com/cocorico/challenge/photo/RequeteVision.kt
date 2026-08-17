@@ -152,7 +152,12 @@ object RequeteVision {
                 'u' -> {
                     val hexa = brut.substring(i + 2, (i + 6).coerceAtMost(brut.length))
                     val code = if (hexa.length == 4) hexa.toIntOrNull(16) else null
-                    if (code == null) sb.append(echappe) else { sb.append(code.toChar()); i += 4 }
+                    if (code == null) {
+                        sb.append(echappe)
+                    } else {
+                        sb.append(code.toChar())
+                        i += 4
+                    }
                 }
                 else -> sb.append(echappe)
             }

@@ -5,8 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +13,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,25 +26,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Slider
-import androidx.compose.ui.text.font.FontFamily
-import kotlin.math.roundToInt
 import com.cocorico.ring.ApercuSonnerie
 import com.cocorico.ring.NiveauxVolume
+import com.cocorico.ring.SondeSonnerie
 import com.cocorico.ring.SonneriePersonnaliseeLogique
 import com.cocorico.ring.SonneriePersonnaliseeStore
 import com.cocorico.ring.Sonneries
-import com.cocorico.ring.SondeSonnerie
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 /**
  * Déplacé hors de `ChallengeSettingsScreen.kt` : cet écran a grandi avec
@@ -108,9 +108,10 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
         // reviennent sur le fil principal, à la reprise de la coroutine.
         verificationEnCours = true
         portee.launch {
-            val lisible = permissionAccordee && withContext(Dispatchers.IO) {
-                SondeSonnerie.estLisible(context, uri)
-            }
+            val lisible = permissionAccordee &&
+                withContext(Dispatchers.IO) {
+                    SondeSonnerie.estLisible(context, uri)
+                }
             if (lisible) {
                 val nom = withContext(Dispatchers.IO) {
                     SonneriePersonnaliseeLogique.nomAffichable(

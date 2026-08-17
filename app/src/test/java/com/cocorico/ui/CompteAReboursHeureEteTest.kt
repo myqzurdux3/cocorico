@@ -1,10 +1,10 @@
 package com.cocorico.ui
 
-import java.time.LocalDateTime
-import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Le compte à rebours soustrayait deux `LocalDateTime`, ce qui ignore le

@@ -27,9 +27,7 @@ class InactivityTracker(private val timeoutMillis: Long = 10_000L) {
         derniereInteraction = nowMillis
     }
 
-    fun isExpired(nowMillis: Long): Boolean =
-        nowMillis - derniereInteraction >= timeoutMillis
+    fun isExpired(nowMillis: Long): Boolean = nowMillis - derniereInteraction >= timeoutMillis
 
-    fun millisRestantes(nowMillis: Long): Long =
-        (derniereInteraction + timeoutMillis - nowMillis).coerceAtLeast(0L)
+    fun millisRestantes(nowMillis: Long): Long = (derniereInteraction + timeoutMillis - nowMillis).coerceAtLeast(0L)
 }

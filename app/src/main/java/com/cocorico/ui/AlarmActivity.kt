@@ -58,14 +58,12 @@ import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
-import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.InactivityTracker
 import com.cocorico.ring.NiveauxVolume
+import com.cocorico.ring.RingtonePlayer
 import com.cocorico.ring.VolumeState
 import com.cocorico.ring.VolumeStateMachine
 import com.cocorico.ui.theme.CocoricoTheme
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -74,6 +72,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 /**
  * L'écran plein sur lequel l'utilisateur se réveille. Il pilote le volume mais
@@ -87,6 +87,7 @@ class AlarmActivity : ComponentActivity() {
     private lateinit var detector: HandDetector
     private lateinit var retourNeutralise: OnBackPressedCallback
     private val inactivite = InactivityTracker(SECONDES_INACTIVITE * 1_000L)
+
     /**
      * Instant du déclenchement, lu chez le service et non horodaté ici.
      * L'activité peut mourir et être relancée en cours d'alarme ; horodater sa
@@ -603,8 +604,11 @@ private fun Jauge(volume: VolumeState, secondes: Int, plafondPourcent: Int) {
             // pas au maximum de l'appareil : afficher « 100 % » en dur
             // contredisait ouvertement un plafond réglé plus bas.
             text = "Volume — ${
-                if (volume == VolumeState.PLEIN) NiveauxVolume.pourcentAffichePlein(plafondPourcent)
-                else NiveauxVolume.pourcentAfficheBaisse(plafondPourcent)
+                if (volume == VolumeState.PLEIN) {
+                    NiveauxVolume.pourcentAffichePlein(plafondPourcent)
+                } else {
+                    NiveauxVolume.pourcentAfficheBaisse(plafondPourcent)
+                }
             } %",
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,

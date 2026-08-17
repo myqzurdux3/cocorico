@@ -188,12 +188,7 @@ object CatalogueObjets {
      * déjà résolu et l'alarme s'arrêterait sans qu'aucune photo n'ait été
      * prise.
      */
-    fun tirer(
-        nombre: Int,
-        exclus: Set<String>,
-        alea: Random,
-        selection: Set<String> = emptySet(),
-    ): List<ObjetPhoto> {
+    fun tirer(nombre: Int, exclus: Set<String>, alea: Random, selection: Set<String> = emptySet()): List<ObjetPhoto> {
         // Au moins un objet, toujours. Un zéro — ou un nombre négatif venu
         // d'un appelant fautif — rendait une liste vide, que
         // [PhotoChallengeEtat] refuse désormais de prendre : une liste sans

@@ -70,21 +70,20 @@ class RingtonePlayer(private val context: Context) {
      * grossier. Une alarme silencieuse est le seul échec que cette application
      * n'a pas le droit de produire.
      */
-    private fun creerLecteur(sonnerie: Sonneries.Sonnerie): MediaPlayer? =
-        creerSource(sonnerie)
-            // Source illisible : ressource embarquée introuvable, ou sonnerie
-            // personnalisée disparue, corrompue, permission expirée. Le repli
-            // est la sonnerie la PLUS FORTE, pas la première de la liste :
-            // quelqu'un qui a choisi la sirène l'a choisie parce que le coq ne
-            // le réveille pas. Et la substitution est tracée, sinon personne
-            // n'apprend jamais que sa sonnerie a été remplacée.
-            ?: creerRepli(sonnerie, "source illisible")
-            // Dernier recours : si `generateAudioSessionId()` est lui-même en
-            // échec, les deux tentatives précédentes, qui partagent le même
-            // overload de `MediaPlayer.create`, échouent à l'identique. La
-            // voie historique sans session explicite en est indépendante.
-            ?: creerDernierRecours(Sonneries.repliLaPlusForte.resId)
-                .also { if (it != null) tracerRepli(sonnerie, "session audio indisponible") }
+    private fun creerLecteur(sonnerie: Sonneries.Sonnerie): MediaPlayer? = creerSource(sonnerie)
+        // Source illisible : ressource embarquée introuvable, ou sonnerie
+        // personnalisée disparue, corrompue, permission expirée. Le repli
+        // est la sonnerie la PLUS FORTE, pas la première de la liste :
+        // quelqu'un qui a choisi la sirène l'a choisie parce que le coq ne
+        // le réveille pas. Et la substitution est tracée, sinon personne
+        // n'apprend jamais que sa sonnerie a été remplacée.
+        ?: creerRepli(sonnerie, "source illisible")
+        // Dernier recours : si `generateAudioSessionId()` est lui-même en
+        // échec, les deux tentatives précédentes, qui partagent le même
+        // overload de `MediaPlayer.create`, échouent à l'identique. La
+        // voie historique sans session explicite en est indépendante.
+        ?: creerDernierRecours(Sonneries.repliLaPlusForte.resId)
+            .also { if (it != null) tracerRepli(sonnerie, "session audio indisponible") }
 
     private fun creerRepli(sonnerie: Sonneries.Sonnerie, cause: String): MediaPlayer? =
         creer(Sonneries.repliLaPlusForte.resId)?.also { tracerRepli(sonnerie, cause) }
@@ -195,15 +194,14 @@ class RingtonePlayer(private val context: Context) {
      * `generateAudioSessionId()`. Les attributs d'alarme sont posés après coup,
      * comme avant l'unification sur le nouvel overload.
      */
-    private fun creerDernierRecours(resId: Int): MediaPlayer? =
-        MediaPlayer.create(context, resId)?.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-        }
+    private fun creerDernierRecours(resId: Int): MediaPlayer? = MediaPlayer.create(context, resId)?.apply {
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+        )
+    }
 
     private fun libererLecteur() {
         player?.run {
@@ -280,9 +278,10 @@ class RingtonePlayer(private val context: Context) {
     fun arreter() {
         libererLecteur()
         val origine = volumeOrigine ?: VolumeOrigine.lire(context)
-        val restaure = origine == null || runCatching {
-            audio.setStreamVolume(AudioManager.STREAM_ALARM, origine, 0)
-        }.onFailure { Log.w(TAG, "Volume d'origine non restauré : $it") }.isSuccess
+        val restaure = origine == null ||
+            runCatching {
+                audio.setStreamVolume(AudioManager.STREAM_ALARM, origine, 0)
+            }.onFailure { Log.w(TAG, "Volume d'origine non restauré : $it") }.isSuccess
         volumeOrigine = null
         if (restaure) VolumeOrigine.effacer(context)
     }
@@ -305,11 +304,9 @@ private object VolumeOrigine {
     private const val FICHIER = "cocorico_volume"
     private const val CLE = "volume_origine"
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(FICHIER, Context.MODE_PRIVATE)
 
-    fun lire(context: Context): Int? =
-        prefs(context).getInt(CLE, -1).takeIf { it >= 0 }
+    fun lire(context: Context): Int? = prefs(context).getInt(CLE, -1).takeIf { it >= 0 }
 
     fun ecrire(context: Context, volume: Int) {
         prefs(context).edit().putInt(CLE, volume).commit()
