@@ -36,7 +36,9 @@ import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
+import com.cocorico.ring.AttenuationDebug
 import com.cocorico.ui.theme.CocoricoTheme
+import kotlinx.coroutines.delay
 
 private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, ESSAI_PHOTO, SELECTION_OBJETS, VICTOIRE }
 
@@ -73,6 +75,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         victoire.value = consommerVictoire(intent)
+        // Lue ici uniquement pour qu'elle apparaisse dans `adb logcat` **avant**
+        // de faire sonner quoi que ce soit : une consigne d'essai qu'on croit
+        // active alors qu'elle ne l'est pas, c'est un essai à plein volume.
+        // Sans effet en version publiée, où la fonction rend toujours `null`.
+        AttenuationDebug.consigne(this)
 
         // Le `targetSdk 35` impose le bord-à-bord : autant le déclarer nous-mêmes
         // pour obtenir des barres système transparentes et des icônes lisibles.
@@ -93,6 +100,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun Contenu() {
+        SurveillerAlarme()
         // Lu une seule fois ici, pas dans chaque branche qui en a besoin :
         // la reprise en a besoin pour annoncer le bon défi, et l'accueil des
         // permissions pour ne réclamer la caméra que si la photo est choisie.
@@ -174,6 +182,33 @@ class MainActivity : ComponentActivity() {
         if (!victoire.value) alarmeEnCours.value = AlarmState.estEnCours(this)
     }
 
+    /**
+     * Surveille le démarrage d'une alarme **pendant** que cet écran est déjà
+     * affiché.
+     *
+     * Constaté sur appareil : `onResume` ne suffit pas. Quand l'alarme part
+     * alors que l'accueil est déjà au premier plan — cas courant si l'on
+     * consulte l'application juste avant l'heure — l'activité n'est ni recréée
+     * ni reprise, donc [alarmeEnCours] restait faux. L'accueil continuait
+     * d'afficher « Désarmer » pendant que la sonnerie tournait, **sans aucun
+     * chemin visible vers le défi** : seule la notification permettait encore
+     * d'atteindre l'écran d'alarme.
+     *
+     * Scrutation plutôt qu'observateur : l'état vit dans des `SharedPreferences`
+     * écrites par un autre processus, que rien ne rend observable. Une lecture
+     * par seconde sur un fichier déjà en mémoire est sans conséquence, et cet
+     * écran n'est visible que quelques secondes à la fois.
+     */
+    @Composable
+    private fun SurveillerAlarme() {
+        LaunchedEffect(victoire.value) {
+            while (!victoire.value) {
+                alarmeEnCours.value = AlarmState.estEnCours(this@MainActivity)
+                delay(INTERVALLE_SURVEILLANCE_MS)
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -222,6 +257,13 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        /**
+         * Assez court pour qu'une alarme qui démarre sous les yeux de
+         * l'utilisateur soit visible tout de suite, assez long pour que la
+         * lecture reste anecdotique.
+         */
+        private const val INTERVALLE_SURVEILLANCE_MS = 1_000L
+
         const val EXTRA_VICTOIRE = "com.cocorico.EXTRA_VICTOIRE"
         const val EXTRA_JETON = "com.cocorico.EXTRA_JETON"
 

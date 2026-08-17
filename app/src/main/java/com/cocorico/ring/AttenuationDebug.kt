@@ -29,15 +29,24 @@ import kotlin.math.roundToInt
  * niveau est calculé exactement comme en production, puis atténué en dernier.
  * Ce qui est mis à l'épreuve pendant l'essai reste donc le vrai code.
  *
+ * Le fichier vit dans le stockage **interne** de l'application, et pas dans
+ * `getExternalFilesDir`. Première tentative faite ainsi, première leçon : ce
+ * répertoire externe n'est créé qu'au premier accès de l'application, c'est-à-dire
+ * pendant l'alarme elle-même — un fichier déposé avant l'installation atterrit
+ * donc à côté, la consigne n'est jamais lue, et l'essai se fait à plein volume.
+ * Le stockage interne, lui, existe dès l'installation et est accessible par
+ * `run-as` sur une version de débogage.
+ *
  * Pour l'activer, appareil branché :
  * ```
- * adb shell "mkdir -p /sdcard/Android/data/com.cocorico/files"
- * adb shell "echo 10 > /sdcard/Android/data/com.cocorico/files/attenuation_essai"
+ * adb shell "run-as com.cocorico sh -c 'echo 10 > files/attenuation_essai'"
  * ```
  * Pour revenir à la normale :
  * ```
- * adb shell "rm /sdcard/Android/data/com.cocorico/files/attenuation_essai"
+ * adb shell "run-as com.cocorico rm -f files/attenuation_essai"
  * ```
+ * L'application journalise la consigne à chaque lecture : vérifier dans
+ * `adb logcat` avant de compter dessus.
  */
 object AttenuationDebug {
 
@@ -66,7 +75,7 @@ object AttenuationDebug {
     fun consigne(context: Context): Int? {
         if (!BuildConfig.DEBUG) return null
         val consigne = runCatching {
-            val fichier = File(context.getExternalFilesDir(null), FICHIER)
+            val fichier = File(context.filesDir, FICHIER)
             if (fichier.exists()) lireConsigne(fichier.readText()) else null
         }.getOrNull()
         if (consigne != null) {

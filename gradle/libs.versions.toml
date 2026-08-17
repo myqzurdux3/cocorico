@@ -12,7 +12,7 @@ testExtJunit = "1.2.1"
 testRunner = "1.6.2"
 spotless = "6.25.0"
 ktlint = "1.3.1"
-cameraX = "1.3.4"
+cameraX = "1.4.2"
 # Version déjà résolue par transitivité aujourd'hui : la déclarer ne change
 # rien à ce qui tourne, elle empêche seulement la dépendance de disparaître.
 coroutines = "1.7.3"
