@@ -38,6 +38,11 @@ android {
 }
 
 dependencies {
+    // Importée directement par le code de production (`AlarmService`,
+    // `BootReceiver`) mais jamais déclarée : la compilation reposait sur une
+    // remontée transitive de lifecycle/room/datastore, qu'une montée de
+    // version de l'une d'elles pouvait retirer sans prévenir.
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
