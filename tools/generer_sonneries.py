@@ -12,8 +12,9 @@ Le nom de ressource Android ignore l'extension : `klaxon.wav` reste bien
 `R.raw.klaxon`, donc `Sonneries.kt` n'a besoin d'aucun changement.
 
 Ce sont des sonneries de remplacement, sans prétention artistique : à
-substituer par de vrais enregistrements avant toute publication (voir
-`docs/sonneries-placeholder.md`).
+substituer par de vrais enregistrements avant toute publication.
+
+Dépend de `numpy`, seule dépendance externe du dépôt hors Gradle.
 
 Usage : `python3 tools/generer_sonneries.py`
 """

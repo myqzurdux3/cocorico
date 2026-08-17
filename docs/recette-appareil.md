@@ -222,18 +222,26 @@ d'un modèle de reconnaissance et parfois d'un réseau. Aucun de ses réglages n
       plantage.
 - [ ] Bouton « Je ne peux pas », appui long : bascule sur le calcul mental,
       renoncement enregistré dans l'historique.
-- [ ] Mode avion, mode en ligne activé : le juge embarqué décide seul, sans
-      attente perceptible. Le défi ne doit jamais rester suspendu au réseau.
+- [ ] Sans clé d'API renseignée : le défi photo n'est pas proposé du tout, et
+      l'accueil comme les réglages annoncent le défi qui sonnera réellement.
+- [ ] Mode avion, clé renseignée : le défi ne doit jamais rester suspendu au
+      réseau. L'écran doit dire que le juge ne répond pas — et non « pas encore
+      reconnu » — et le repli calculs doit rester atteignable.
 
-### Mode en ligne
+### Le juge distant
 
-- [ ] À l'installation, l'interrupteur est **éteint**. Personne ne l'a allumé.
-- [ ] Le texte de consentement est lisible **avant** l'interrupteur, et dit ce
-      qui part, dans quel cas, et que rien n'est conservé.
-- [ ] Interrupteur allumé sans clé : l'écran dit que le mode reste inactif.
-- [ ] Avec clé valide, sur une photo que l'embarqué refuse : le second avis
-      arrive, ou le délai de huit secondes expire proprement en refus.
-- [ ] Vérifier sur un réseau lent que huit secondes suffisent.
+Il n'existe qu'un juge, l'API Gemini, et il exige une clé fournie par
+l'utilisateur. La reconnaissance embarquée a été retirée : les points qui
+testaient un interrupteur « mode en ligne », un consentement préalable et un
+second avis n'ont plus d'objet.
+
+- [ ] Clé absente ou invalide : message explicite, jamais un refus déguisé.
+- [ ] La clé n'apparaît **jamais** à l'écran, ni dans un message d'erreur, ni
+      dans une trace. Vérifier avec une clé volontairement fausse.
+- [ ] Quota dépassé (HTTP 429) : l'écran distingue la panne du refus.
+- [ ] Vérifier sur un réseau lent que le budget de huit secondes suffit.
+- [ ] Banc d'essai « Essayer la reconnaissance » : même chaîne que le défi réel,
+      sans faire sonner l'alarme. C'est par là qu'on commence.
 
 ### Anti-triche
 
@@ -242,8 +250,8 @@ d'un modèle de reconnaissance et parfois d'un réseau. Aucun de ses réglages n
       ouvrir l'application appareil photo du système, ce qui offrirait un chemin
       vers les réglages du téléphone pendant que l'alarme sonne.
 - [ ] **Triche connue, à constater.** Photographier l'objet affiché sur un écran
-      d'ordinateur : ce sera accepté. Aucun des deux juges ne distingue de façon
-      fiable un objet de son image. Décision assumée, au même titre que la
+      d'ordinateur : ce sera accepté. Le juge ne distingue pas de façon fiable
+      un objet de son image. Décision assumée, au même titre que la
       triche à la paume des pompes : trouver l'image suppose d'être réveillé.
 
 ### Vie privée

@@ -12,6 +12,9 @@ captures/
 *.keystore
 !debug.keystore
 
+# Cache du compilateur Kotlin, créé à la racine par les versions récentes.
+.kotlin/
+
 # OS
 .DS_Store
 Thumbs.db

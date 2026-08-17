@@ -1,0 +1,54 @@
+name: CI
+
+# Le dépôt n'avait aucune vérification automatique : ni la compilation ni les
+# tests n'étaient rejoués avant une fusion. Ce workflow tient ce rôle et rien
+# de plus — pas de publication, pas de signature, pas d'appareil.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une nouvelle poussée annule la vérification précédente de la même branche :
+# seul le dernier état compte.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le jar du wrapper est versionné : cette action vérifie son empreinte
+      # contre celles publiées par Gradle, un jar substitué exécuterait du code
+      # arbitraire sur le coureur.
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Met en cache les dépendances et l'état de configuration de Gradle.
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests unitaires
+        run: ./gradlew testDebugUnitTest --console=plain
+
+      - name: Analyse Lint
+        run: ./gradlew lintDebug --console=plain
+
+      - name: APK de débogage
+        run: ./gradlew assembleDebug --console=plain
+
+      # Les rapports servent surtout quand la vérification échoue.
+      - name: Rapports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 14

@@ -2,14 +2,18 @@
 
 Réveil Android à alarme unique, sans snooze. La sonnerie part à plein volume sur
 `STREAM_ALARM` derrière un écran plein qui passe par-dessus le verrouillage, et
-ne s'arrête qu'une fois le défi résolu — calcul mental, ou dix pompes comptées
-au capteur de proximité. Prendre le téléphone en main baisse le volume ; dix
-secondes sans rien faire le remontent.
+ne s'arrête qu'une fois le défi résolu — calcul mental, dix pompes comptées au
+capteur de proximité, ou la photo d'un objet tiré au sort, jugée par l'API
+Gemini. Prendre le téléphone en main baisse le volume ; dix secondes sans rien
+faire le remontent. Le plafond sonore est réglable, jamais sous 50 % du maximum
+de l'appareil.
 
 **Documents de référence**
 - Spec V1 : `superpowers/specs/2026-08-16-cocorico-design.md`
 - Spec pompes : `superpowers/specs/2026-08-17-pompes-design.md`
+- Spec photo : `superpowers/specs/2026-08-17-photo-design.md`
 - Recette sur appareil : `recette-appareil.md`
+- Audit complet du dépôt : `../AUDIT.md`
 
 Le plan d'implémentation V1 a été retiré de l'arbre de travail : il est
 entièrement exécuté et ses blocs de code ne correspondent plus au code livré,
@@ -29,6 +33,7 @@ Trois briques indépendantes, plus la persistance et l'interface.
 | `ring/` | Lecture de la sonnerie, volume système, détection de prise en main, lecture des capteurs de pompes |
 | `challenge/` | Défis derrière l'interface `Challenge` — le service ne connaît que `isSolved` |
 | `challenge/pompes/` | Comptage des pompes : machine à états pure et règles anti-triche |
+| `challenge/photo/` | Défi photo : catalogue d'objets par pièce, tirage, capture CameraX, juge distant |
 | `data/` | Configuration unique (DataStore), historique des réveils (Room) |
 | `ui/` | Écrans Compose, onboarding des permissions |
 
@@ -113,14 +118,23 @@ Pixel 9a, Android 17, le 16 août 2026 :
   recette. Détail dans `recette-appareil.md`.
 - La migration de la base n'est jamais jouée sur une base peuplée : ni
   `room-testing` ni Robolectric ne sont configurés. Seule la recette la couvre.
-- `Challenge.progress` et `Challenge.onUserInteraction` ne sont lus nulle part —
-  deux membres morts de l'interface.
+
+**Relevés par l'audit du 17 août 2026, non corrigés** — le détail, la sévérité
+et le niveau de confiance de chacun sont dans `../AUDIT.md`, qui fait foi.
+- L'écran d'alarme ne défile pas tant que le défi est fermé : à taille de police
+  maximale, « Faire taire ce coq » pourrait être rogné. Rendre le défilement
+  inconditionnel supprimerait le centrage vertical — arbitrage qui demande un
+  rendu sur appareil.
+- Le schéma Room `1.json` n'est pas versionné, donc `MIGRATION_1_2` n'est jamais
+  jouée contre un vrai SQLite : le test ne compare que des chaînes.
+- La clé d'API Gemini est stockée en clair dans le DataStore.
+- La configuration de `release` n'a ni signature ni R8.
 
 **Ouverts**
 - `VolumeStateMachine` a deux paliers là où la spec en décrit trois avec rampe
   progressive. La jauge rend l'écart visible.
-- La jauge annonce « 30 % » nominal alors que l'application arrondit au cran
-  inférieur du flux d'alarme.
+- La jauge annonce un pourcentage nominal du plafond choisi, alors que
+  l'application arrondit au cran du flux d'alarme, qui est quantifié.
 - « Aucun jour actif. Le coq dort. » s'affiche aussi quand des jours sont cochés
   mais l'alarme désarmée. Trompeur.
 - Le sélecteur d'heure est en thème système, sans rapport avec la charte.
@@ -129,7 +143,6 @@ Pixel 9a, Android 17, le 16 août 2026 :
   conséquence.
 - Pas de direct boot : un téléphone qui redémarre la nuit et reste verrouillé ne
   reprogramme pas l'alarme avant le premier déverrouillage.
-- L'import d'une sonnerie personnelle n'est pas implémenté.
 
 ---
 
