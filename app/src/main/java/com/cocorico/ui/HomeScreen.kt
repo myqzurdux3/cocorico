@@ -1,5 +1,6 @@
 package com.cocorico.ui
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
+import com.cocorico.ring.CapteurPompes
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.Sonneries
 import com.cocorico.ring.SonneriePersonnaliseeStore
@@ -69,6 +71,21 @@ fun HomeScreen(
     val contexte = LocalContext.current
     val nomSonneriePersonnalisee = remember(config.ringtoneId) {
         SonneriePersonnaliseeStore.lireNom(contexte)
+    }
+
+    // L'accueil annonçait le défi *choisi*, pas celui qui sonnera. Sans capteur,
+    // sans permission caméra ou sans clé d'API, `AlarmActivity` se rabat sur les
+    // calculs — et l'utilisateur ne l'apprenait qu'au réveil, devant la sirène.
+    // Mêmes critères que `challengeEffectif`, qui décide pour de vrai : deux
+    // listes de conditions séparées finiraient par diverger.
+    val defiEffectif = remember(config.challengeId, config.cleApi) {
+        challengeEffectif(
+            challengeId = config.challengeId,
+            capteurPompesDisponible = CapteurPompes(contexte) {}.capteurDisponible(),
+            permissionCameraAccordee = PermissionChecker.etat(contexte).camera,
+            camerasDisponibles = contexte.packageManager
+                .hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) && config.cleApi.isNotBlank(),
+        )
     }
 
     var maintenant by remember { mutableStateOf(LocalDateTime.now()) }
@@ -153,7 +170,7 @@ fun HomeScreen(
                     "Photo — ${PhotoChallenge.nombrePour(config.difficulty)} objets, " +
                         config.difficulty.name.lowercase()
                 ChallengeId.MATHS -> "Maths — ${config.difficulty.name.lowercase()}"
-            },
+            } + if (defiEffectif != config.challengeId) " · se rabattra sur les calculs" else "",
             onClick = onOuvrirDefi,
         )
         Ligne(
