@@ -10,6 +10,15 @@ class CatalogueObjetsTest {
         assertEquals(3, CatalogueObjets.tirer(3, emptySet(), Random(1)).size)
     }
 
+    @Test fun `un nombre nul ou negatif tire quand meme un objet`() {
+        // Un tirage vide alimente le pire scénario du défi : une liste sans
+        // objet, un défi considéré comme déjà résolu, et l'alarme qui s'arrête
+        // sans qu'aucune photo n'ait été prise. Mieux vaut un objet de trop
+        // qu'un réveil qui se coupe tout seul.
+        assertEquals(1, CatalogueObjets.tirer(0, emptySet(), Random(6)).size)
+        assertEquals(1, CatalogueObjets.tirer(-3, emptySet(), Random(7)).size)
+    }
+
     @Test fun `le tirage ne repete jamais un objet`() {
         val tires = CatalogueObjets.tirer(5, emptySet(), Random(2))
         assertEquals(5, tires.map { it.id }.toSet().size)

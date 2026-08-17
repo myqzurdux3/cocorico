@@ -1,5 +1,7 @@
 package com.cocorico.challenge.photo
 
+import com.cocorico.data.Difficulty
+
 /**
  * Logique décidable de l'écran de sélection des objets du défi photo : le
  * comptage par pièce affiché à l'écran, et l'effet d'un geste de
@@ -17,12 +19,18 @@ package com.cocorico.challenge.photo
 object SelectionObjets {
 
     /**
-     * Nombre d'objets que la difficulté la plus exigeante peut demander (voir
-     * `PhotoChallenge.nombrePour(Difficulty.DIFFICILE)`). En dessous de ce
-     * seuil, le tirage peut devoir compléter hors de la sélection de
-     * l'utilisateur : l'écran en avertit sans jamais empêcher la sélection.
+     * Nombre d'objets que la difficulté la plus exigeante peut demander. En
+     * dessous de ce seuil, le tirage peut devoir compléter hors de la
+     * sélection de l'utilisateur : l'écran en avertit sans jamais empêcher la
+     * sélection.
+     *
+     * Dérivé de [PhotoChallenge.nombrePour], et non recopié : les deux
+     * valeurs coïncidaient sans qu'aucun lien de code ne l'impose, et un
+     * changement de difficulté aurait laissé l'écran avertir au mauvais
+     * seuil — donc promettre un tirage dans la seule sélection alors qu'il en
+     * sortirait.
      */
-    const val SEUIL_AVERTISSEMENT = 3
+    val SEUIL_AVERTISSEMENT = PhotoChallenge.nombrePour(Difficulty.DIFFICILE)
 
     /** Le comptage d'une pièce : combien de ses objets sont cochés, sur combien au total. */
     data class ComptagePiece(val piece: Piece, val coches: Int, val total: Int) {

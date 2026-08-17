@@ -48,11 +48,28 @@ import androidx.core.content.ContextCompat
 import com.cocorico.challenge.Challenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/**
+ * Ce que le défi fait d'un essai que le juge n'a pas pu trancher. Voir
+ * [PhotoChallenge.suiteApresPanne].
+ */
+internal enum class SuiteApresPanne {
+    /** Incident isolé : l'utilisateur reprend une photo. */
+    REESSAYER,
+
+    /** Le repli calculs est affiché comme la sortie, à un seul appui. */
+    PROPOSER_REPLI,
+
+    /** Plus rien à attendre du juge : on bascule sur les calculs. */
+    BASCULER,
+}
 
 /**
  * Défi photo. Le catalogue tire les objets, [PhotoChallengeEtat] décide de la
@@ -88,30 +105,50 @@ class PhotoChallenge(
     private val total = nombrePour(difficulty)
 
     /**
-     * Tirage figé à la construction, en excluant les objets du réveil
-     * précédent. Les identifiants tirés sont aussitôt persistés — au moment du
-     * tirage, pas de la résolution du défi — pour qu'un réveil abandonné en
-     * cours de route change quand même les objets proposés le lendemain.
+     * Tirage figé au **premier usage** du défi, en excluant les objets du
+     * réveil précédent. Les identifiants tirés sont aussitôt persistés — au
+     * moment du tirage, pas de la résolution du défi — pour qu'un réveil
+     * abandonné en cours de route change quand même les objets proposés le
+     * lendemain.
+     *
+     * Paresseux, et non calculé dans le constructeur, pour deux raisons.
+     * L'appelant construit ce défi *puis* consulte [camerasDisponibles] pour
+     * décider de s'en servir : tirer d'emblée écrivait l'exclusion d'objets
+     * que personne n'allait voir, et le lendemain les écartait pour rien. Et
+     * ce constructeur s'exécute sur le thread principal, juste avant
+     * l'affichage de l'écran d'alarme, alors que la sonnerie a déjà commencé.
+     *
+     * Le résultat ne peut pas être vide : [PhotoChallengeEtat] refuserait une
+     * liste sans objet, et surtout un défi sans objet arrêterait l'alarme sans
+     * qu'aucune photo n'ait été prise.
      */
-    private val objets: List<ObjetPhoto> =
-        CatalogueObjets.tirer(
-            total,
-            // Une exclusion illisible ne doit pas empêcher le tirage : ce
-            // constructeur s'exécute avant que l'écran d'alarme ne s'affiche,
-            // et une exception y laisserait un écran noir par-dessus le
-            // verrouillage, sonnerie à fond, sans aucun moyen de l'arrêter.
-            // Au pire, un objet du réveil précédent est proposé à nouveau.
-            runCatching { ExclusionObjets.lire(contexteApp) }.getOrDefault(emptySet()),
-            Random.Default,
-            objetsSelectionnes,
-        ).also {
-            runCatching { ExclusionObjets.ecrire(contexteApp, it.map(ObjetPhoto::id).toSet()) }
-        }
+    private val objets: List<ObjetPhoto> by lazy {
+        // Ni le tirage ni la lecture de l'exclusion ne doivent lever : ce code
+        // s'exécute pendant la composition de l'écran d'alarme, et une
+        // exception y laisserait un écran noir par-dessus le verrouillage,
+        // sonnerie à fond, sans aucun moyen de l'arrêter. Au pire, un objet du
+        // réveil précédent est proposé à nouveau.
+        val tirage = runCatching {
+            CatalogueObjets.tirer(
+                total,
+                runCatching { ExclusionObjets.lire(contexteApp) }.getOrDefault(emptySet()),
+                Random.Default,
+                objetsSelectionnes,
+            )
+        }.getOrDefault(emptyList())
+        val retenus = tirage.ifEmpty { CatalogueObjets.tous.take(total.coerceAtLeast(1)) }
+        runCatching { ExclusionObjets.ecrire(contexteApp, retenus.map(ObjetPhoto::id).toSet()) }
+        retenus
+    }
 
-    private val etat = PhotoChallengeEtat(objets)
+    private val etat: PhotoChallengeEtat by lazy { PhotoChallengeEtat(objets) }
 
     override val id = ChallengeId.PHOTO
-    override val isSolved: StateFlow<Boolean> = etat.isSolved
+
+    // `get()` et non une valeur : lire ce flux avant le premier affichage
+    // déclencherait le tirage, que cette classe repousse justement au premier
+    // usage réel du défi.
+    override val isSolved: StateFlow<Boolean> get() = etat.isSolved
 
     /**
      * Essais ratés sur tout le réveil, pour l'historique. Exposé ici parce que
@@ -119,7 +156,7 @@ class PhotoChallenge(
      * elle transtype pour lire ce compteur, comme elle le fait déjà pour les
      * fautes du défi de calcul mental.
      */
-    val essaisTotal: StateFlow<Int> = etat.essaisTotal
+    val essaisTotal: StateFlow<Int> get() = etat.essaisTotal
 
     /**
      * Exposé pour que l'appelant refuse le défi photo sur un appareil sans
@@ -131,12 +168,20 @@ class PhotoChallenge(
             cleApi.isNotBlank()
 
     /**
-     * Un seul juge depuis le retrait de la reconnaissance embarquée. Toute
-     * exception y vaut déjà refus, imposé par le contrat de [JugePhoto] :
-     * rien ici ne doit planter devant la sirène.
+     * Un seul juge depuis le retrait de la reconnaissance embarquée. Le
+     * contrat de [JugePhoto] interdit déjà toute exception ; le `runCatching`
+     * est la ceinture qui va avec les bretelles, et il traite une exception
+     * imprévue comme une panne du juge, jamais comme un refus de la photo —
+     * l'utilisateur n'y est pour rien.
      */
-    private suspend fun verdict(image: Bitmap, objet: ObjetPhoto): Boolean =
-        juge.accepte(image, objet)
+    private suspend fun verdict(image: Bitmap, objet: ObjetPhoto): DiagnosticJuge =
+        runCatching { juge.juger(image, objet) }.getOrElse { erreur ->
+            DiagnosticJuge(
+                accepte = false,
+                resume = "erreur inattendue du juge (${erreur.javaClass.simpleName})",
+                issue = IssueJuge.JUGE_INDISPONIBLE,
+            )
+        }
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
@@ -154,6 +199,28 @@ class PhotoChallenge(
         // attente : sans cette garde, deux verdicts pourraient se croiser et
         // fausser la progression.
         var enAttenteVerdict by remember { mutableStateOf(false) }
+
+        // Ce qui a empêché le dernier essai d'aboutir, quand ce n'est pas le
+        // modèle qui a répondu « non ». Nul le reste du temps. Sans ce
+        // message, une capture ratée, une photo illisible ou un juge en panne
+        // se traduisaient tous par un bouton qui redevient actif sans un mot :
+        // l'utilisateur appuyait, rien ne se passait, indéfiniment.
+        var messageEchec by remember { mutableStateOf<String?>(null) }
+
+        // Échecs d'affilée non imputables au modèle. Au-delà d'un seuil, rien
+        // ne sert de continuer à photographier : c'est le repli calculs qu'il
+        // faut proposer, puis prendre.
+        var pannesJuge by remember { mutableStateOf(0) }
+
+        // La capture et la conversion de l'image quittent le thread principal :
+        // décoder, réduire et pivoter une photo de 12 Mpx gèle sinon l'écran
+        // d'alarme plusieurs centaines de millisecondes à chaque essai.
+        val executeurPhoto = remember { Executors.newSingleThreadExecutor() }
+
+        // Filet autour de `takePicture` : si aucun rappel n'arrive, le bouton
+        // resterait sur « Vérification… » pour toujours, et il n'y aurait plus
+        // aucun moyen d'arrêter l'alarme par le défi.
+        var veilleCapture by remember { mutableStateOf<Job?>(null) }
 
         // Le compte à rebours d'inactivité fait remonter le volume au bout de
         // dix secondes sans geste. Or l'attente d'un verdict peut durer jusqu'à
@@ -192,6 +259,9 @@ class PhotoChallenge(
                 libere.set(true)
                 juge.fermer()
                 runCatching { fournisseurCamera?.unbindAll() }
+                // Le thread de conversion vivrait autrement aussi longtemps
+                // que le processus, une fois par réveil.
+                runCatching { executeurPhoto.shutdown() }
             }
         }
 
@@ -256,11 +326,14 @@ class PhotoChallenge(
                 },
             )
             Text(
-                text = if (echecCamera) {
-                    "Caméra indisponible. Appuie longuement sur le bouton " +
+                text = when {
+                    echecCamera -> "Caméra indisponible. Appuie longuement sur le bouton " +
                         "ci-dessous pour passer aux calculs."
-                } else {
-                    consigne(objetCourant, essais, enAttenteVerdict)
+                    // La cause du dernier échec passe avant la consigne : sans
+                    // elle, un échec qui n'est pas un refus s'affichait comme
+                    // « Pas encore reconnu », et l'utilisateur recommençait.
+                    messageEchec != null && !enAttenteVerdict -> messageEchec.orEmpty()
+                    else -> consigne(objetCourant, essais, enAttenteVerdict)
                 },
                 color = MaterialTheme.colorScheme.onError,
                 fontSize = 18.sp,
@@ -276,31 +349,73 @@ class PhotoChallenge(
                     if (enAttenteVerdict) return@click
                     val objet = objetCourant ?: return@click
                     onInteraction()
+                    messageEchec = null
                     enAttenteVerdict = true
+                    veilleCapture = scope.launch {
+                        delay(DELAI_MAX_CAPTURE_MS)
+                        // Aucun rappel n'est arrivé : la caméra est muette.
+                        // Rendre le bouton plutôt que laisser « Vérification… »
+                        // indéfiniment, seul état dont l'utilisateur ne peut
+                        // plus sortir.
+                        enAttenteVerdict = false
+                        messageEchec = "La caméra n'a pas répondu en " +
+                            "${DELAI_MAX_CAPTURE_MS / 1000} s. Réessaie, ou appui long " +
+                            "ci-dessous pour passer aux calculs."
+                    }
                     imageCapture.takePicture(
-                        ContextCompat.getMainExecutor(contexteApp),
+                        // Hors thread principal, contrairement à l'ancien
+                        // `getMainExecutor` : tout ce qui suit dans
+                        // `onCaptureSuccess` est du décodage d'image.
+                        executeurPhoto,
                         object : ImageCapture.OnImageCapturedCallback() {
                             override fun onCaptureSuccess(image: ImageProxy) {
                                 // Conversion et redressement entièrement en
                                 // mémoire, avant fermeture de l'ImageProxy :
                                 // aucun fichier n'est créé, à aucun moment.
                                 val bitmap = runCatching { image.versBitmapRedresse() }.getOrNull()
-                                image.close()
-                                if (bitmap == null) {
-                                    enAttenteVerdict = false
-                                    return
-                                }
+                                runCatching { image.close() }
+                                // `scope` appartient à la composition : ce
+                                // lancement ramène sur le thread principal,
+                                // seul endroit où l'état d'écran se modifie.
                                 scope.launch {
-                                    val accepte = runCatching { verdict(bitmap, objet) }.getOrDefault(false)
-                                    if (etat.soumettre(accepte)) onInteraction()
-                                    enAttenteVerdict = false
+                                    veilleCapture?.cancel()
+                                    if (bitmap == null) {
+                                        enAttenteVerdict = false
+                                        messageEchec = "Photo illisible. Réessaie, ou appui " +
+                                            "long ci-dessous pour passer aux calculs."
+                                        return@launch
+                                    }
+                                    val diagnostic = verdict(bitmap, objet)
+                                    if (diagnostic.issue == IssueJuge.JUGE_INDISPONIBLE) {
+                                        // Le modèle n'a pas vu la photo : ce
+                                        // n'est pas un refus, et le compter
+                                        // comme tel ferait rephotographier un
+                                        // objet correct sans fin.
+                                        pannesJuge += 1
+                                        messageEchec = messagePanne(diagnostic.resume, pannesJuge)
+                                        enAttenteVerdict = false
+                                        if (suiteApresPanne(pannesJuge) == SuiteApresPanne.BASCULER) {
+                                            onRenoncer()
+                                        }
+                                    } else {
+                                        pannesJuge = 0
+                                        if (etat.soumettre(diagnostic.accepte)) onInteraction()
+                                        enAttenteVerdict = false
+                                    }
                                 }
                             }
 
                             override fun onError(exception: ImageCaptureException) {
-                                // Capture ratée : refus silencieux, l'écran
-                                // reste et l'utilisateur réessaie.
-                                enAttenteVerdict = false
+                                scope.launch {
+                                    veilleCapture?.cancel()
+                                    enAttenteVerdict = false
+                                    // L'exception était avalée : l'utilisateur
+                                    // appuyait et rien ne se passait, sans
+                                    // qu'aucune cause ne soit affichée.
+                                    messageEchec = "La photo n'a pas pu être prise " +
+                                        "(erreur ${exception.imageCaptureError}). Réessaie, ou " +
+                                        "appui long ci-dessous pour passer aux calculs."
+                                }
                             }
                         },
                     )
@@ -324,8 +439,13 @@ class PhotoChallenge(
                     onInteraction()
                     onRenoncer()
                 }
+                // Le repli n'est proposé d'un simple appui que lorsqu'il est
+                // devenu la bonne réponse : caméra hors service, ou juge qui
+                // ne répond plus. Voir le commentaire d'`onClick` ci-dessous.
+                val replieAPortee = echecCamera ||
+                    suiteApresPanne(pannesJuge) != SuiteApresPanne.REESSAYER
                 Text(
-                    text = if (echecCamera) "Passer aux calculs" else "Je ne peux pas — appui long",
+                    text = if (replieAPortee) "Passer aux calculs" else "Je ne peux pas — appui long",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center,
@@ -339,13 +459,13 @@ class PhotoChallenge(
                             // qui cadre la photo déclencherait par accident, et
                             // la progression serait perdue.
                             //
-                            // Caméra en échec, l'arbitrage s'inverse : il n'y a
-                            // plus de progression à protéger, plus rien à
-                            // déclencher par accident, et laisser quelqu'un
-                            // chercher un appui long devant une sirène pour
-                            // sortir d'un écran qui ne fonctionne pas serait
-                            // gratuitement hostile.
-                            onClick = if (echecCamera) renoncer else ({}),
+                            // Caméra en échec — ou juge muet plusieurs fois de
+                            // suite — l'arbitrage s'inverse : la progression
+                            // ne peut de toute façon plus avancer, et laisser
+                            // quelqu'un chercher un appui long devant une
+                            // sirène pour sortir d'un écran qui ne fonctionne
+                            // pas serait gratuitement hostile.
+                            onClick = if (replieAPortee) renoncer else ({}),
                             onLongClick = renoncer,
                         )
                         .padding(vertical = 14.dp),
@@ -384,25 +504,55 @@ class PhotoChallenge(
         val tampon = planes[0].buffer
         val octets = ByteArray(tampon.remaining())
         tampon.get(octets)
-        val brut = BitmapFactory.decodeByteArray(octets, 0, octets.size)
+
+        // Les dimensions d'abord, sans allouer un seul pixel : décoder en
+        // pleine résolution pour réduire ensuite demandait quelque 48 Mo pour
+        // une photo de 12 Mpx, alors que l'image utile en fait moins de 10.
+        // C'est le genre d'allocation qui fait tuer le processus par le
+        // système — donc l'écran d'alarme — pendant que la sirène sonne.
+        val bornes = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(octets, 0, octets.size, bornes)
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = echantillonnage(bornes.outWidth, bornes.outHeight)
+        }
+        val brut = BitmapFactory.decodeByteArray(octets, 0, octets.size, options)
+            ?: error("Photo indécodable")
+
         val reduit = reduire(brut)
         val rotation = imageInfo.rotationDegrees
         if (rotation == 0) return reduit
         val matrice = Matrix().apply { postRotate(rotation.toFloat()) }
-        return Bitmap.createBitmap(reduit, 0, 0, reduit.width, reduit.height, matrice, true)
+        val pivote = Bitmap.createBitmap(reduit, 0, 0, reduit.width, reduit.height, matrice, true)
+        // `createBitmap` peut rendre la source telle quelle si la matrice se
+        // révèle sans effet : ne recycler qu'un intermédiaire réellement
+        // distinct, jamais l'image rendue.
+        if (pivote !== reduit) recycler(reduit)
+        return pivote
     }
 
-    /** Ramène le côté long à [COTE_MAX_PX], en conservant les proportions. */
+    /**
+     * Ramène le côté long à [COTE_MAX_PX], en conservant les proportions, et
+     * recycle la source dès qu'une copie réduite l'a remplacée : sans cela,
+     * l'image de départ et sa copie cohabitaient jusqu'au prochain passage du
+     * ramasse-miettes, à chaque photo.
+     */
     private fun reduire(image: Bitmap): Bitmap {
         val coteLong = maxOf(image.width, image.height)
         if (coteLong <= COTE_MAX_PX) return image
         val facteur = COTE_MAX_PX.toFloat() / coteLong
-        return Bitmap.createScaledBitmap(
+        val reduit = Bitmap.createScaledBitmap(
             image,
             (image.width * facteur).toInt().coerceAtLeast(1),
             (image.height * facteur).toInt().coerceAtLeast(1),
             true,
         )
+        if (reduit !== image) recycler(image)
+        return reduit
+    }
+
+    /** Un recyclage raté ne vaut pas de faire échouer une photo. */
+    private fun recycler(image: Bitmap) {
+        runCatching { image.recycle() }
     }
 
     companion object {
@@ -427,6 +577,69 @@ class PhotoChallenge(
          * qu'un réarmement manqué ne suffise jamais à faire remonter le son.
          */
         private const val RYTHME_REARMEMENT_MS = 2_000L
+
+        /**
+         * Au-delà, on considère que `takePicture` ne rappellera jamais. Large
+         * par rapport à une capture ordinaire (moins d'une seconde) : ce délai
+         * n'est pas une exigence de rapidité, seulement le filet qui empêche
+         * le bouton de rester bloqué sur « Vérification… » à vie.
+         */
+        private const val DELAI_MAX_CAPTURE_MS = 10_000L
+
+        /** Échecs d'affilée du juge avant de proposer le repli calculs. */
+        private const val PANNES_AVANT_PROPOSITION = 2
+
+        /** Échecs d'affilée du juge avant d'y basculer sans plus attendre. */
+        private const val PANNES_AVANT_BASCULE = 3
+
+        /**
+         * Ce qu'il faut faire après [pannesConsecutives] essais que le juge
+         * n'a pas pu trancher. Rester bloqué devant une sirène est le pire
+         * échec possible : passé un ou deux incidents, insister n'a plus de
+         * sens, puisque aucune photo ne peut aboutir tant que le juge ne
+         * répond pas.
+         */
+        internal fun suiteApresPanne(pannesConsecutives: Int): SuiteApresPanne = when {
+            pannesConsecutives >= PANNES_AVANT_BASCULE -> SuiteApresPanne.BASCULER
+            pannesConsecutives >= PANNES_AVANT_PROPOSITION -> SuiteApresPanne.PROPOSER_REPLI
+            else -> SuiteApresPanne.REESSAYER
+        }
+
+        /**
+         * Le texte affiché après un essai que le juge n'a pas pu trancher. Il
+         * doit dire deux choses qu'un « Pas encore reconnu. Réessaie » ne
+         * disait pas : que la photo n'est pas en cause, et par où sortir.
+         */
+        internal fun messagePanne(resume: String, pannesConsecutives: Int): String =
+            if (suiteApresPanne(pannesConsecutives) == SuiteApresPanne.REESSAYER) {
+                "Le juge n'a pas rendu de verdict — $resume. Ta photo n'est pas en cause : " +
+                    "réessaie."
+            } else {
+                "Le juge ne répond toujours pas — $resume. Ta photo n'est pas en cause, et " +
+                    "aucune photo ne pourra aboutir tant que c'est le cas : passe aux calculs " +
+                    "avec le bouton ci-dessous."
+            }
+
+        /**
+         * Facteur de sous-échantillonnage à demander au décodeur pour obtenir
+         * une image encore au moins aussi grande que [coteMax] sur son côté
+         * long — le redimensionnement exact reste à `reduire`, qui ne perdra
+         * donc aucun détail utile.
+         *
+         * `BitmapFactory` n'accepte que des puissances de deux ; en donner une
+         * autre le ferait arrondir en silence.
+         */
+        internal fun echantillonnage(largeur: Int, hauteur: Int, coteMax: Int = COTE_MAX_PX): Int {
+            val coteLong = maxOf(largeur, hauteur)
+            // Dimensions inconnues (décodage des bornes en échec) : on décode
+            // en pleine résolution plutôt que de risquer une image inutilisable.
+            if (coteLong <= 0 || coteMax <= 0) return 1
+            var facteur = 1
+            while (coteLong / (facteur * 2) >= coteMax) {
+                facteur *= 2
+            }
+            return facteur
+        }
     }
 }
 

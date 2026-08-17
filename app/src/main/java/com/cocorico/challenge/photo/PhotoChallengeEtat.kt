@@ -9,11 +9,22 @@ import kotlinx.coroutines.flow.asStateFlow
  * combien ont été validés, combien d'essais ratés. Pure, sans caméra ni juge —
  * l'appelant lui fournit déjà le verdict via [soumettre].
  *
- * Une liste vide résout le défi d'emblée plutôt que de bloquer l'utilisateur
- * devant un écran sans objet à photographier : c'est le repli si le catalogue
- * venait, par accident, à ne rien fournir.
+ * **Au moins un objet est exigé.** Une liste vide était auparavant lue comme
+ * un défi déjà résolu : l'alarme s'arrêtait sans qu'aucune photo n'ait été
+ * prise, c'est-à-dire exactement ce que ce défi existe pour empêcher. Aucun
+ * appelant ne peut plus en produire une — [CatalogueObjets.tirer] rend
+ * toujours au moins un objet — mais rien ne le maintenait, et le refus
+ * ci-dessous le maintient. Le repli qui protège l'utilisateur d'un écran sans
+ * objet ne vit pas ici : il vit dans [PhotoChallenge], qui garantit une liste
+ * non vide et laisse de toute façon basculer sur le calcul mental.
  */
 class PhotoChallengeEtat(private val objets: List<ObjetPhoto>) {
+
+    init {
+        require(objets.isNotEmpty()) {
+            "Un défi photo sans objet s'arrêterait sans qu'aucune photo soit prise."
+        }
+    }
 
     private var index = 0
 
@@ -37,7 +48,9 @@ class PhotoChallengeEtat(private val objets: List<ObjetPhoto>) {
     private val _essaisTotal = MutableStateFlow(0)
     val essaisTotal: StateFlow<Int> = _essaisTotal.asStateFlow()
 
-    private val _isSolved = MutableStateFlow(objets.isEmpty())
+    // Faux d'emblée, sans condition : la liste ne peut pas être vide, et rien
+    // ne doit pouvoir déclarer le défi résolu avant une première soumission.
+    private val _isSolved = MutableStateFlow(false)
     val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
 
     /**

@@ -57,8 +57,10 @@ class RequeteVisionTest {
         assertFalse(url.contains("key="))
     }
 
-    @Test fun `l image passee se retrouve exactement dans les donnees, meme avec des caracteres a echapper`() {
-        val image = "AA\"BB\\CC"
+    @Test fun `l image passee se retrouve exactement dans les donnees`() {
+        // Tout l'alphabet que `Base64.NO_WRAP` peut produire, remplissage
+        // compris : c'est le seul contenu que ce champ verra jamais.
+        val image = "ABCXYZabcxyz0189+/=="
         @Suppress("UNCHECKED_CAST")
         val json = MiniJson.parse(RequeteVision.corps("Tasse", image)) as Map<String, Any?>
         @Suppress("UNCHECKED_CAST")
@@ -68,6 +70,17 @@ class RequeteVisionTest {
         @Suppress("UNCHECKED_CAST")
         val inline = parts[0]["inline_data"] as Map<String, Any?>
         assertEquals(image, inline["data"])
+    }
+
+    @Test fun `l image est recopiee telle quelle, sans passer par l echappement`() {
+        // L'échappement de l'image parcourait les ~400 000 caractères du base64
+        // d'une photo pour n'en changer aucun, et allouait environ un mégaoctet
+        // à chaque essai, pendant que la sirène sonne. Ce test fige ce qui rend
+        // ce parcours inutile : sur l'alphabet base64, le corps produit est
+        // exactement le corps où l'image est recopiée telle quelle.
+        val image = "ABCXYZabcxyz0189+/=".repeat(200)
+        val corps = RequeteVision.corps("Tasse", image)
+        assertTrue(corps.contains("\"data\":\"$image\""))
     }
 
     @Test fun `un nom d objet avec des guillemets ne casse pas la structure`() {
@@ -151,6 +164,91 @@ class RequeteVisionTest {
                 """{"content":[{"type":"text","text":"Je ne suis pas certain, donc je ne dirai pas oui."}]}"""
             )
         )
+    }
+
+    // --- Forme réelle des réponses de `generateContent` ------------------
+    //
+    // Les tests ci-dessus emploient une enveloppe `content[].type` qui
+    // n'existe pas dans l'API visée : ils prouvent que le verdict se lit dans
+    // *un* JSON, pas dans celui que Google renvoie. Ceux qui suivent partent
+    // de la forme réellement documentée,
+    // `{"candidates":[{"content":{"parts":[{"text":"…"}],"role":"model"}}]}`,
+    // et de ses cas de bord observables : erreur, réflexion, réponse vide.
+
+    private fun reponseReelle(vararg parties: String): String =
+        """{"candidates":[{"content":{"parts":[${parties.joinToString(",")}],"role":"model"},""" +
+            """"finishReason":"STOP"}],"modelVersion":"gemini-3.5-flash-lite"}"""
+
+    @Test fun `la forme reelle de generateContent est lue`() {
+        assertTrue(RequeteVision.lireVerdict(reponseReelle("""{"text":"OUI"}""")))
+        assertFalse(RequeteVision.lireVerdict(reponseReelle("""{"text":"NON"}""")))
+    }
+
+    @Test fun `une reponse d erreur de l API vaut refus`() {
+        val quota = """{"error":{"code":429,"message":"Quota exceeded for quota metric""" +
+            """ 'Generate requests'","status":"RESOURCE_EXHAUSTED"}}"""
+        assertFalse(RequeteVision.lireVerdict(quota))
+    }
+
+    @Test fun `une partie de reflexion ne peut pas tenir lieu de verdict`() {
+        // Les parties marquées `"thought": true` sont le raisonnement du
+        // modèle, pas sa réponse. Les lire comme un verdict rendrait le défi
+        // franchissable par une photo quelconque, dès que la réflexion
+        // contient le mot « oui » — c'est-à-dire dès qu'elle hésite.
+        assertFalse(
+            RequeteVision.lireVerdict(
+                reponseReelle("""{"text":"Je dirais oui, mais vérifions la forme","thought":true}"""),
+            ),
+        )
+        // La réflexion précède la réponse : c'est la réponse qui décide.
+        assertTrue(
+            RequeteVision.lireVerdict(
+                reponseReelle(
+                    """{"text":"Ce n'est peut-être pas une tasse","thought":true}""",
+                    """{"text":"OUI"}""",
+                ),
+            ),
+        )
+    }
+
+    @Test fun `une reponse vide ou sans candidat vaut refus`() {
+        assertFalse(RequeteVision.lireVerdict(""))
+        assertFalse(RequeteVision.lireVerdict("{}"))
+        assertFalse(RequeteVision.lireVerdict("""{"candidates":[]}"""))
+        // Réponse bloquée en amont : aucun candidat, seulement le motif.
+        assertFalse(
+            RequeteVision.lireVerdict("""{"promptFeedback":{"blockReason":"SAFETY"}}"""),
+        )
+        // Candidat sans partie de texte (coupé sur le budget de jetons).
+        assertFalse(
+            RequeteVision.lireVerdict(
+                """{"candidates":[{"content":{"role":"model"},"finishReason":"MAX_TOKENS"}]}""",
+            ),
+        )
+    }
+
+    @Test fun `un verdict en anglais est compris comme un verdict`() {
+        // La consigne demande OUI ou NON, mais un modèle qui répond « Yes »
+        // n'a pas refusé la photo. Ne reconnaître que le français faisait
+        // rejeter *toutes* les photos sans qu'aucun message ne l'explique.
+        assertTrue(RequeteVision.lireVerdict(reponseReelle("""{"text":"Yes"}""")))
+        assertTrue(RequeteVision.lireVerdict(reponseReelle("""{"text":"Yes, the photo shows a mug."}""")))
+        assertFalse(RequeteVision.lireVerdict(reponseReelle("""{"text":"No"}""")))
+        assertFalse(RequeteVision.lireVerdict(reponseReelle("""{"text":"No, this is not a mug."}""")))
+    }
+
+    @Test fun `une negation anglaise n est pas lue comme un accord`() {
+        assertFalse(RequeteVision.lireVerdict(reponseReelle("""{"text":"I cannot say yes with certainty."}""")))
+        assertFalse(RequeteVision.lireVerdict(reponseReelle("""{"text":"I would not say yes."}""")))
+    }
+
+    @Test fun `un saut de ligne echappe separe bien les phrases`() {
+        // Le texte arrive échappé dans le JSON : `\n` y est la suite des deux
+        // caractères `\` et `n`. Sans dé-échappement, la fin de phrase n'est
+        // pas vue, la négation de la ligne précédente est lue comme portant
+        // sur le « Oui » final, et un accord franc devient un refus.
+        val reponse = reponseReelle("""{"text":"Je ne vois aucun flou sur l'image\nOui"}""")
+        assertTrue(RequeteVision.lireVerdict(reponse))
     }
 }
 

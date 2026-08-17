@@ -44,12 +44,18 @@ class PhotoChallengeEtatTest {
         assertEquals(1, etat.progression.value.first)
     }
 
-    @Test fun `une liste vide est resolue et n affiche aucun objet`() {
-        // Cas de repli : si le catalogue rendait une liste vide, le défi doit
-        // se résoudre plutôt que bloquer l'utilisateur devant une sirène.
-        val etat = PhotoChallengeEtat(emptyList())
-        assertTrue(etat.isSolved.value)
-        assertNull(etat.objetCourant.value)
+    @Test fun `une liste vide est refusee a la construction`() {
+        // Une liste vide valait « défi déjà résolu » : l'alarme s'arrêtait sans
+        // qu'aucune photo n'ait été prise, et rien dans le code ne maintenait
+        // l'invariant qui rend ce cas inatteignable. Le refus le maintient
+        // ici ; le repli qui garantit une liste non vide vit dans
+        // `CatalogueObjets.tirer` et dans `PhotoChallenge`, où il reste
+        // possible de se rabattre sur les calculs plutôt que de bloquer.
+        assertTrue(runCatching { PhotoChallengeEtat(emptyList()) }.isFailure)
+    }
+
+    @Test fun `un defi neuf n est jamais deja resolu`() {
+        assertFalse(PhotoChallengeEtat(listOf(a)).isSolved.value)
     }
 
     @Test fun `la progression suit les objets valides`() {

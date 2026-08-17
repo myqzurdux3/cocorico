@@ -1,11 +1,23 @@
 package com.cocorico.challenge.photo
 
+import com.cocorico.data.Difficulty
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SelectionObjetsTest {
+
+    @Test fun `le seuil d avertissement suit le nombre d objets de la difficulte la plus exigeante`() {
+        // Le seuil n'avertit correctement que s'il vaut exactement ce que la
+        // difficulté la plus exigeante peut demander. Recopié à la main, il
+        // survivait à un changement de `nombrePour` sans rien signaler :
+        // l'écran aurait alors cessé d'avertir, ou averti à tort.
+        assertEquals(
+            PhotoChallenge.nombrePour(Difficulty.DIFFICILE),
+            SelectionObjets.SEUIL_AVERTISSEMENT,
+        )
+    }
 
     @Test fun `compterParPiece rend une entree par piece du decoupage`() {
         val comptage = SelectionObjets.compterParPiece(emptySet())

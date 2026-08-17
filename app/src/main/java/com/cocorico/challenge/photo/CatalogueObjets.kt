@@ -181,9 +181,12 @@ object CatalogueObjets {
      * sélection — c'est le même repli que celui déjà appliqué à l'exclusion,
      * étendu d'un niveau.
      *
-     * Garde-fou : le nombre rendu est toujours borné à la taille du
-     * catalogue, jamais de boucle sans fin à chercher un objet de plus qui
-     * n'existe pas.
+     * Garde-fous : le nombre rendu est toujours borné à la taille du
+     * catalogue — jamais de boucle sans fin à chercher un objet de plus qui
+     * n'existe pas — et vaut **au moins un**, quel que soit [nombre]. Rendre
+     * une liste vide serait le pire des résultats : le défi la lirait comme
+     * déjà résolu et l'alarme s'arrêterait sans qu'aucune photo n'ait été
+     * prise.
      */
     fun tirer(
         nombre: Int,
@@ -191,7 +194,15 @@ object CatalogueObjets {
         alea: Random,
         selection: Set<String> = emptySet(),
     ): List<ObjetPhoto> {
-        val nombreBorne = nombre.coerceIn(0, tous.size)
+        // Au moins un objet, toujours. Un zéro — ou un nombre négatif venu
+        // d'un appelant fautif — rendait une liste vide, que
+        // [PhotoChallengeEtat] refuse désormais de prendre : une liste sans
+        // objet n'a jamais voulu dire « défi terminé », mais « alarme arrêtée
+        // sans qu'aucune photo n'ait été prise ».
+        // `coerceAtLeast` puis `coerceAtMost`, et non `coerceIn` : sur un
+        // catalogue vide, `coerceIn(1, 0)` lèverait une exception au moment
+        // exact où l'écran d'alarme se construit.
+        val nombreBorne = nombre.coerceAtLeast(1).coerceAtMost(tous.size)
         if (nombreBorne == 0) return emptyList()
 
         val poolSelectionne = if (selection.isEmpty()) tous else tous.filter { it.id in selection }
