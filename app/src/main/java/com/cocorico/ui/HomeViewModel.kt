@@ -38,6 +38,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // Sans ça, l'accueil afficherait « Aucun jour actif » au lancement, même
         // alarme armée : `prochaine` ne serait renseignée qu'au premier réglage.
         viewModelScope.launch {
+            // Chiffre une clé d'API héritée d'une version qui l'écrivait en
+            // clair. Ne fait rien si elle l'est déjà, ou s'il n'y en a pas.
+            runCatching { repo.migrerCleApi() }
             _prochaine.value = planifier()
         }
     }

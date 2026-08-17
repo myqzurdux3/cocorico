@@ -438,9 +438,27 @@ mesurer ; mesuré, le reformatage vaut 51 fichiers et ~320 lignes, presque
 uniquement de l'ordre d'imports. Fait, en un commit isolé qui ne cache aucun
 correctif, et `spotlessCheck` passe en premier dans l'intégration continue.
 
+### Chiffrement de la clé d'API
+
+Dernier point de la liste, fermé et vérifié sur appareil. La clé est chiffrée
+en AES/GCM par une clé de l'`AndroidKeyStore`, non extractible et absente des
+sauvegardes. Aucune dépendance ajoutée : `javax.crypto` suffit.
+
+Vérifié sur le disque du téléphone, pas seulement en test : après saisie d'une
+clé factice, celle-ci apparaît **zéro fois** dans le fichier DataStore, qui
+contient à la place `cocorico-cle:v1:<vecteur>:<chiffré>`. L'application la
+relit correctement, et l'effacement laisse le champ vide.
+
+Aucune fonction du coffre ne lève : une clé illisible — Keystore réinitialisé
+après restauration — rend « pas de clé », ce que l'application traite déjà comme
+« défi photo non proposé ». Une exception à cet endroit ferait disparaître
+l'alarme, ce qui serait bien pire que redemander une clé.
+
+Migration : une clé héritée en clair reste lisible et est rechiffrée au premier
+démarrage suivant.
+
 ### Ce qui reste ouvert
 
-- **La clé d'API est stockée en clair** sur l'appareil. Exclue de la sauvegarde, masquée à l'affichage, jamais journalisée — mais lisible par un accès root. Le chiffrement demande une migration des clés déjà enregistrées.
 - **L'écran d'alarme ne défile pas tant que le défi est fermé.** Trancher demande de l'afficher à taille de police maximale, donc de forcer le volume du flux d'alarme sur le téléphone de l'utilisateur : non fait sans son accord.
 - **Aucun seuil de capteur n'a été mesuré sur un vrai geste.** Même raison : la mesure exige l'écran d'alarme.
 - **La recette d'appareil complète** (`docs/recette-appareil.md`) n'a pas été jouée : elle fait sonner.

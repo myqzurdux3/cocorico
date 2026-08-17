@@ -17,10 +17,10 @@ d'utilisateurs. Trois choses méritent quand même de l'attention.
 **La clé d'API Gemini.** Elle est fournie par l'utilisateur, stockée sur
 l'appareil, et exclue de la sauvegarde Android
 (`app/src/main/res/xml/regles_extraction.xml`). Elle est masquée avant tout
-affichage — voir `JugeGemini.masquer`, couvert par des tests. **Elle est stockée
-en clair** : quiconque a un accès root ou une extraction du répertoire de
-données peut la lire. C'est une dette connue, consignée dans
-[`AUDIT.md`](AUDIT.md).
+affichage — voir `JugeGemini.masquer`, couvert par des tests — et **chiffrée sur
+le disque** en AES/GCM par une clé de l'`AndroidKeyStore`, qui n'est pas
+extractible et ne part dans aucune sauvegarde. Une extraction du répertoire de
+données ne rend donc que l'enveloppe chiffrée.
 
 Si tu signales quoi que ce soit : **ne colle jamais ta propre clé** dans une
 issue, un log ou une capture d'écran.

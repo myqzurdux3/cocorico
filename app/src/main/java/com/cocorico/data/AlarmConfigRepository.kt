@@ -80,7 +80,9 @@ class AlarmConfigRepository(private val context: Context) {
                 ?: default.difficulty,
             armed = prefs[Keys.ARMED] ?: default.armed,
             volumeMaxPourcent = prefs[Keys.VOLUME_MAX] ?: default.volumeMaxPourcent,
-            cleApi = prefs[Keys.CLE_API] ?: default.cleApi,
+            // Déchiffrée à la lecture, et rendue telle quelle si elle vient
+            // d'une version qui l'écrivait en clair. Voir [CoffreCle].
+            cleApi = CoffreCle.lire(prefs[Keys.CLE_API] ?: default.cleApi),
             // Un identifiant persisté qui n'existe plus dans le catalogue —
             // objet retiré depuis une mise à jour — est ignoré par
             // `idsValides` plutôt que de fausser le tirage ou l'écran de
@@ -94,6 +96,21 @@ class AlarmConfigRepository(private val context: Context) {
     val config: Flow<AlarmConfig> = context.dataStore.data.map(::lire)
 
     suspend fun current(): AlarmConfig = config.first()
+
+    /**
+     * Réécrit la configuration à l'identique, ce qui suffit à faire chiffrer une
+     * clé d'API héritée : [update] repasse tous les champs par [CoffreCle].
+     *
+     * Nécessaire parce que la lecture ne peut pas écrire, et qu'un utilisateur
+     * qui ne touche plus jamais à ses réglages garderait sa clé en clair
+     * indéfiniment. Sans effet — et sans écriture inutile — si la clé est déjà
+     * chiffrée ou absente.
+     */
+    suspend fun migrerCleApi() {
+        val stockee = context.dataStore.data.first()[Keys.CLE_API].orEmpty()
+        if (stockee.isEmpty() || EnveloppeCle.estEnveloppe(stockee)) return
+        update { it }
+    }
 
     /**
      * Lecture et écriture dans la même transaction `edit` : deux mises à jour
@@ -110,7 +127,7 @@ class AlarmConfigRepository(private val context: Context) {
             prefs[Keys.DIFFICULTY] = updated.difficulty.name
             prefs[Keys.ARMED] = updated.armed
             prefs[Keys.VOLUME_MAX] = updated.volumeMaxPourcent
-            prefs[Keys.CLE_API] = updated.cleApi
+            prefs[Keys.CLE_API] = CoffreCle.ecrire(updated.cleApi)
             prefs[Keys.OBJETS_SELECTIONNES] = updated.objetsSelectionnes
         }
     }

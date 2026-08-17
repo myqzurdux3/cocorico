@@ -126,7 +126,6 @@ et le niveau de confiance de chacun sont dans `../AUDIT.md`, qui fait foi.
   maximale, « Faire taire ce coq » pourrait être rogné. Rendre le défilement
   inconditionnel supprimerait le centrage vertical — arbitrage qui demande un
   rendu sur appareil.
-- La clé d'API Gemini est stockée en clair dans le DataStore.
 
 **Ouverts**
 - `VolumeStateMachine` a deux paliers là où la spec en décrit trois avec rampe
