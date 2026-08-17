@@ -15,6 +15,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        // Exigé par les tests instrumentés, qui sont le seul moyen de jouer
+        // une migration Room contre un vrai SQLite.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -60,6 +63,11 @@ dependencies {
     implementation(libs.androidx.camera.view)
 
     testImplementation(libs.junit)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
 }
 
 // Room écrit le schéma généré dans `app/schemas/`, et ce dossier est versionné.
@@ -71,3 +79,8 @@ dependencies {
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
+
+// `MigrationTestHelper` lit les schémas depuis les ressources du test
+// instrumenté : sans cette ligne, il ne trouve pas `1.json` et échoue avec un
+// message qui n'a rien à voir avec la migration.
+android.sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
