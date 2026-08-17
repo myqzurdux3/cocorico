@@ -22,6 +22,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,16 @@ import com.cocorico.data.Difficulty
 import com.cocorico.ui.theme.CocoricoTheme
 
 private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, ESSAI_PHOTO, SELECTION_OBJETS, VICTOIRE }
+
+/**
+ * Sauvegarde l'écran courant par son nom : un `Bundle` ne sait pas ranger une
+ * énumération sans aide, et l'index ordinal se déplacerait sous les pieds
+ * d'une sauvegarde existante si on ajoutait un écran au milieu de la liste.
+ */
+private val sauveurEcran = Saver<Ecran, String>(
+    save = { it.name },
+    restore = { runCatching { Ecran.valueOf(it) }.getOrDefault(Ecran.ACCUEIL) },
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -59,7 +71,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        victoire.value = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+        victoire.value = consommerVictoire(intent)
 
         // Le `targetSdk 35` impose le bord-à-bord : autant le déclarer nous-mêmes
         // pour obtenir des barres système transparentes et des icônes lisibles.
@@ -102,7 +114,13 @@ class MainActivity : ComponentActivity() {
             OnboardingScreen(etat, config.challengeId) { etat = PermissionChecker.etat(this) }
             return
         }
-        var ecran by remember {
+        // `rememberSaveable` et non `remember` : une rotation détruit et
+        // recrée l'activité, et l'état de navigation partait avec elle —
+        // l'utilisateur revenait à l'accueil, ayant perdu les stats, la
+        // sonnerie ou la sélection d'objets qu'il était en train de régler.
+        // L'énumération est sauvegardée par son nom, seule forme qu'un
+        // `Bundle` accepte sans sérialiseur dédié.
+        var ecran by rememberSaveable(stateSaver = sauveurEcran) {
             mutableStateOf(if (victoire.value) Ecran.VICTOIRE else Ecran.ACCUEIL)
         }
         LaunchedEffect(victoire.value) {
@@ -153,8 +171,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        victoire.value = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+        victoire.value = consommerVictoire(intent)
         if (victoire.value) alarmeEnCours.value = false
+    }
+
+    /**
+     * Lit l'indicateur de victoire **et le retire de l'intent**. Sans cette
+     * consommation, chaque recréation de l'activité — une rotation, un
+     * changement de thème — relisait le même intent et ramenait l'écran de
+     * victoire que l'utilisateur venait de fermer, indéfiniment.
+     */
+    private fun consommerVictoire(intent: Intent): Boolean {
+        val victorieux = intent.getBooleanExtra(EXTRA_VICTOIRE, false)
+        intent.removeExtra(EXTRA_VICTOIRE)
+        return victorieux
     }
 
     private fun demarrerAlarme() {

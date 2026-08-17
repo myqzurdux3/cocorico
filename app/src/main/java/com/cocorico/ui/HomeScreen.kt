@@ -1,6 +1,8 @@
 package com.cocorico.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,6 +87,12 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .zoneSure()
+            // L'horloge occupe 68 sp. À grande taille de police, « Armer le
+            // coq », dernier élément, sortait de l'écran : l'alarme ne pouvait
+            // plus être armée du tout.
+            // L'alignement en haut rend ce défilement invisible tant que le
+            // contenu tient : rien ne bouge dans le cas courant.
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {

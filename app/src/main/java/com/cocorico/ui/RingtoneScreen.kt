@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -102,6 +104,12 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .zoneSure()
+            // Curseur de volume, quatre sonneries, ligne personnalisée, lien de
+            // remplacement et message d'erreur d'import : le bas de l'écran,
+            // message d'erreur compris, devenait inatteignable.
+            // L'alignement en haut rend ce défilement invisible tant que le
+            // contenu tient : rien ne bouge dans le cas courant.
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {

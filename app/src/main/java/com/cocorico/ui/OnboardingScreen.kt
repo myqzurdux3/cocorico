@@ -9,6 +9,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +45,13 @@ fun OnboardingScreen(etat: EtatPermissions, challengeId: ChallengeId, onRafraich
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .zoneSure()
+            // Un premier lancement empile quatre à cinq cartes d'autorisation.
+            // Sans défilement, « J'ai tout autorisé » — le seul chemin qui
+            // sorte de cet écran — passe sous le bord et l'utilisateur reste
+            // enfermé dans l'onboarding.
+            // L'alignement en haut rend ce défilement invisible tant que le
+            // contenu tient : rien ne bouge dans le cas courant.
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

@@ -145,6 +145,25 @@ class AlarmActivity : ComponentActivity() {
         )
         detector.demarrer()
 
+        // Posé ici et non dans la coroutine : la composition observe `defi`,
+        // qui est un état, et se met à jour toute seule dès qu'il arrive. Le
+        // faire depuis la coroutine laissait la fenêtre vide par-dessus le
+        // verrouillage le temps de la lecture disque, et permettait d'appeler
+        // `setContent` après la destruction de l'activité.
+        setContent {
+            CocoricoTheme(darkTheme = true) {
+                val challengeActuel by defi
+                challengeActuel?.let { challenge ->
+                    EcranAlarme(
+                        plafondPourcent = plafondVolume.value,
+                        challenge = challenge,
+                        volume = volumeAffiche.value,
+                        secondes = secondesAvantRemontee.value,
+                    )
+                }
+            }
+        }
+
         lifecycleScope.launch {
             // Le défi doit s'afficher même si la persistance est cassée. Une
             // exception ici laissait un écran noir par-dessus le verrouillage,
@@ -158,20 +177,6 @@ class AlarmActivity : ComponentActivity() {
             player.volumeMaxPourcent = config.volumeMaxPourcent
             plafondVolume.value = config.volumeMaxPourcent
             defi.value = construireDefi(config)
-
-            setContent {
-                CocoricoTheme(darkTheme = true) {
-                    val challengeActuel by defi
-                    challengeActuel?.let { challenge ->
-                        EcranAlarme(
-                            plafondPourcent = plafondVolume.value,
-                            challenge = challenge,
-                            volume = volumeAffiche.value,
-                            secondes = secondesAvantRemontee.value,
-                        )
-                    }
-                }
-            }
 
             // Surveillance de l'inactivité : réveille le volume si l'utilisateur décroche.
             // On relit `defi.value` à chaque tour : un renoncement en cours de
@@ -410,6 +415,12 @@ private fun EcranAlarme(
             // Énoncé, saisie et pavé numérique dépassent la hauteur d'un petit
             // écran dès que la police système est agrandie. Sans défilement, la
             // touche de validation devient inatteignable : alarme inarrêtable.
+            // Écart connu, non corrigé : défi fermé, il n'y a pas de
+            // défilement, et à taille de police maximale l'horloge à 68 sp
+            // pourrait rogner « Faire taire ce coq ». Rendre le défilement
+            // inconditionnel supprime le centrage vertical de cet état — une
+            // régression visuelle certaine contre un débordement supposé, que
+            // seul un rendu sur appareil peut trancher. Voir AUDIT.md.
             // La zone sûre est appliquée **avant** le défilement : la fenêtre de
             // défilement s'arrête donc au-dessus de la barre de navigation au
             // lieu de passer dessous. La dernière rangée du pavé (dont la touche
