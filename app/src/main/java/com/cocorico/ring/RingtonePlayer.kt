@@ -138,7 +138,6 @@ class RingtonePlayer(private val context: Context) {
         player = null
     }
 
-    /** PLEIN = maximum du flux alarme ; BAISSE = 30 % de ce maximum. */
     /**
      * Plafond sonore choisi par l'utilisateur, en pourcentage du maximum de
      * l'appareil. Réglé par l'appelant dès qu'il a lu la configuration ;

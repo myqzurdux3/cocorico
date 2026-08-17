@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -276,7 +275,6 @@ private fun Option(
     titre: String,
     detail: String,
     selectionne: Boolean = false,
-    bientot: Boolean = false,
     indisponible: Boolean = false,
     avertissement: String? = null,
     onClick: (() -> Unit)? = null,
@@ -296,7 +294,6 @@ private fun Option(
     ) {
         Text(
             text = when {
-                bientot -> "$titre — bientôt"
                 indisponible -> "$titre — indisponible sur ce téléphone"
                 else -> titre
             },
@@ -315,5 +312,3 @@ private fun Option(
         }
     }
 }
-
-// RingtoneScreen a déménagé dans son propre fichier : ui/RingtoneScreen.kt.

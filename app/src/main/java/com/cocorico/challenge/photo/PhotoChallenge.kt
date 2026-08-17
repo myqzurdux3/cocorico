@@ -46,14 +46,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.cocorico.challenge.Challenge
-import com.cocorico.challenge.ChallengeProgress
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -113,9 +110,6 @@ class PhotoChallenge(
 
     private val etat = PhotoChallengeEtat(objets)
 
-    private val _progress = MutableStateFlow(ChallengeProgress(done = 0, total = objets.size))
-    override val progress: StateFlow<ChallengeProgress> = _progress.asStateFlow()
-
     override val id = ChallengeId.PHOTO
     override val isSolved: StateFlow<Boolean> = etat.isSolved
 
@@ -126,8 +120,6 @@ class PhotoChallenge(
      * fautes du défi de calcul mental.
      */
     val essaisTotal: StateFlow<Int> = etat.essaisTotal
-
-    override fun onUserInteraction() = onInteraction()
 
     /**
      * Exposé pour que l'appelant refuse le défi photo sur un appareil sans
@@ -152,7 +144,6 @@ class PhotoChallenge(
         val objetCourant by etat.objetCourant.collectAsState()
         val essais by etat.essais.collectAsState()
         val progression by etat.progression.collectAsState()
-        _progress.value = ChallengeProgress(done = progression.first, total = progression.second)
 
         val lifecycleOwner = LocalLifecycleOwner.current
         val scope = rememberCoroutineScope()
@@ -371,24 +362,17 @@ class PhotoChallenge(
     }
 
     /**
-     * Convertit cette capture en [Bitmap], redressé selon la rotation portée
-     * par [ImageProxy.getImageInfo] : sur un téléphone tenu en portrait, cette
-     * rotation vaut couramment 90°, et l'ignorer enverrait une image couchée
-     * au juge — la reconnaissance tolère mal une image pivotée et le taux de
-     * refus grimperait sans raison visible à l'écran. Tout se fait en
-     * mémoire : aucun fichier n'est créé.
-     */
-    /**
      * Décode la capture, la redresse selon l'orientation du capteur, et la
      * réduit. Tout se passe en mémoire : aucune image n'atteint le disque.
      *
-     * Le redressement n'est pas cosmétique. [JugeEmbarque] déclare une rotation
-     * nulle à la reconnaissance — il reçoit un bitmap déjà constitué et ne peut
-     * pas connaître l'orientation de la prise de vue. Sans ce redressement, le
-     * modèle recevrait une image couchée de 90° en portrait et refuserait
-     * beaucoup plus souvent, **sans qu'aucun seuil ne paraisse en cause**.
+     * Le redressement n'est pas cosmétique : le juge reçoit un bitmap déjà
+     * constitué et ne peut pas connaître l'orientation de la prise de vue.
+     * Sur un téléphone tenu en portrait, la rotation du capteur vaut
+     * couramment 90° ; sans ce redressement le modèle recevrait une image
+     * couchée et refuserait beaucoup plus souvent, **sans qu'aucun seuil ne
+     * paraisse en cause**.
      *
-     * La réduction sert le juge distant : la capture sort en pleine résolution
+     * La réduction sert l'appel réseau : la capture sort en pleine résolution
      * du capteur, l'encodage en base64 l'alourdit encore d'un tiers, et le tout
      * doit tenir dans les huit secondes du budget réseau, à six heures du matin
      * sur le réseau d'une chambre. Au-delà de [COTE_MAX_PX], la résolution
@@ -428,13 +412,6 @@ class PhotoChallenge(
             Difficulty.DIFFICILE -> 3
         }
 
-        /**
-         * Décide s'il faut payer un appel au juge distant après le verdict de
-         * l'embarqué. Un accord de l'embarqué n'est jamais soumis au distant —
-         * c'est gratuit et instantané, il n'y a aucune raison de le
-         * contredire à prix d'appel réseau. Pure, sans import `android.*` :
-         * testable sans caméra, sans réseau et sans modèle.
-         */
         /** Durée d'appui exigée par le bouton de renoncement. Voir sa KDoc. */
         private const val SEUIL_APPUI_LONG_MS = 600L
 

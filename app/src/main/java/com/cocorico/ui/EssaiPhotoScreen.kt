@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,7 +44,6 @@ import androidx.core.content.ContextCompat
 import com.cocorico.challenge.photo.CatalogueObjets
 import com.cocorico.challenge.photo.DiagnosticJuge
 import com.cocorico.challenge.photo.JugeGemini
-import com.cocorico.challenge.photo.ObjetPhoto
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 

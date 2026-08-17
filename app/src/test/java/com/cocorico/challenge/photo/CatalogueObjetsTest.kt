@@ -92,9 +92,8 @@ class CatalogueObjetsTest {
     }
 
     @Test fun `tous les objets du catalogue sont repartis sur une piece`() {
-        // Le catalogue ne rend pas de piece par defaut discrètement : chaque
-        // objet reel du catalogue precise la sienne.
-        assertEquals(CatalogueObjets.tous.size, CatalogueObjets.tous.map { it.piece }.size)
+        // Chaque piece du decoupage porte au moins un objet : une piece vide
+        // s'afficherait dans l'ecran de selection sans rien a cocher.
         Piece.entries.forEach { piece -> assertTrue(CatalogueObjets.tous.any { it.piece == piece }) }
     }
 

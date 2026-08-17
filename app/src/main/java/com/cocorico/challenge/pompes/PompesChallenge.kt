@@ -26,13 +26,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.challenge.Challenge
-import com.cocorico.challenge.ChallengeProgress
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import com.cocorico.ring.CapteurPompes
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Défi pompes. Le compteur décide, cette classe ne fait que relier les capteurs
@@ -61,13 +58,8 @@ class PompesChallenge(
         if (compteur.onEchantillon(echantillon)) onInteraction()
     }
 
-    private val _progress = MutableStateFlow(ChallengeProgress(done = 0, total = total))
-    override val progress: StateFlow<ChallengeProgress> = _progress.asStateFlow()
-
     override val id = ChallengeId.POMPES
     override val isSolved: StateFlow<Boolean> = compteur.isSolved
-
-    override fun onUserInteraction() = onInteraction()
 
     /**
      * Exposé pour que l'appelant refuse le défi pompes sur un téléphone sans
@@ -80,7 +72,6 @@ class PompesChallenge(
     override fun Content(modifier: Modifier) {
         val comptees by compteur.comptees.collectAsState()
         val etat by compteur.etat.collectAsState()
-        _progress.value = ChallengeProgress(done = comptees, total = total)
 
         // Libère les capteurs quand le composable quitte la composition : sans
         // ce ménage, ils continuent de tourner après la fin du défi et vident

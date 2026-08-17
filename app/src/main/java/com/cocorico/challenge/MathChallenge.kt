@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
@@ -33,13 +32,10 @@ class MathChallenge(
 ) : Challenge {
 
     override val id = ChallengeId.MATHS
-    override val progress: StateFlow<ChallengeProgress> = engine.progress
     override val isSolved: StateFlow<Boolean> = engine.isSolved
 
-    /** Exposé pour l'enregistrement du réveil (tâche 10). */
+    /** Exposé pour l'enregistrement du réveil dans l'historique. */
     val erreurs: StateFlow<Int> = engine.erreurs
-
-    override fun onUserInteraction() = onInteraction()
 
     @Composable
     override fun Content(modifier: Modifier) {

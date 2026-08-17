@@ -14,11 +14,7 @@ data class ChallengeProgress(val done: Int, val total: Int)
  */
 interface Challenge {
     val id: ChallengeId
-    val progress: StateFlow<ChallengeProgress>
     val isSolved: StateFlow<Boolean>
-
-    /** Appelé à chaque geste de l'utilisateur : réarme le compte à rebours d'inactivité. */
-    fun onUserInteraction()
 
     @Composable
     fun Content(modifier: Modifier)
