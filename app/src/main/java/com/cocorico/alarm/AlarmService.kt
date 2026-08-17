@@ -17,6 +17,7 @@ import com.cocorico.ring.Sonneries
 import com.cocorico.ui.AlarmActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -40,6 +41,13 @@ class AlarmService : Service() {
     /** Vrai entre le premier démarrage effectif et [terminer]. Voir [onStartCommand]. */
     private var alarmeActive = false
 
+    /**
+     * Démarrage de sonnerie en vol. Le lecteur ne se déclare « en lecture »
+     * qu'à la fin de la lecture asynchrone de la configuration : ce Job est la
+     * seule chose qui distingue « rien ne sonne » de « rien ne sonne encore ».
+     */
+    private var lectureJob: Job? = null
+
     override fun onCreate() {
         super.onCreate()
         player = RingtonePlayer(this)
@@ -50,35 +58,59 @@ class AlarmService : Service() {
      * Le filet de secours retombe sur ce service toutes les 30 s tant que le défi
      * n'est pas résolu : `onStartCommand` est donc rappelé pendant que l'alarme
      * sonne déjà. Ce chemin doit être idempotent tant que la sonnerie tourne
-     * réellement : la relancer empilerait des MediaPlayer irrécupérables,
-     * remettrait le volume à fond alors que l'utilisateur a le téléphone en main,
-     * et écraserait le WakeLock précédent sans le relâcher. La seule exception
-     * est la lecture : si elle s'est éteinte (échec de création au tout premier
-     * démarrage), on la relance seule, sans toucher au WakeLock ni au volume.
+     * réellement : la relancer empilerait des MediaPlayer irrécupérables et
+     * remettrait le volume à fond alors que l'utilisateur a le téléphone en
+     * main. La seule exception est la lecture : si elle s'est éteinte (échec de
+     * création au tout premier démarrage), on la relance seule, sans toucher au
+     * volume. Le WakeLock, lui, est réarmé à chaque passage : voir
+     * [assurerWakeLock].
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Chaque startForegroundService exige un startForeground, y compris quand
+        // le service est déjà au premier plan : la notification est simplement
+        // republiée à l'identique.
+        //
+        // Avant tout test d'action, y compris ACTION_DEFI_RESOLU : ce chemin
+        // sortait d'ici sans jamais passer au premier plan, et s'il était traité
+        // pendant qu'un startForegroundService du filet de secours attendait
+        // encore sa promesse, le système levait une
+        // ForegroundServiceDidNotStartInTimeException — un plantage à la
+        // seconde même où l'utilisateur vient de résoudre son défi.
+        //
+        // Cette republication est aussi le chemin de récupération de l'écran
+        // d'alarme : la notification porte un full-screen intent, et le système
+        // le réévalue à chaque publication.
+        startForeground(NOTIF_ID, construireNotification())
+
         if (intent?.action == ACTION_DEFI_RESOLU) {
             terminer()
             return START_NOT_STICKY
         }
 
-        // Chaque startForegroundService exige un startForeground, y compris quand
-        // le service est déjà au premier plan : la notification est simplement
-        // republiée à l'identique.
-        startForeground(NOTIF_ID, construireNotification())
-
         if (alarmeActive) {
             secours.armer()
+            // Réarme le verrou : le filet de secours peut faire durer la
+            // sonnerie bien au-delà de sa durée initiale.
+            assurerWakeLock()
             // L'écran d'alarme est le seul composant capable d'arrêter la
-            // sonnerie : s'il a été tué, il faut le ramener. En singleInstance,
-            // l'instance vivante reçoit onNewIntent et ne perd pas sa progression.
-            demarrerActivitePleinEcran()
+            // sonnerie : s'il a été tué, il faut le ramener. C'est le
+            // `startForeground` ci-dessus qui s'en charge, via le full-screen
+            // intent de la notification. En singleInstance, l'instance vivante
+            // reçoit onNewIntent et ne perd pas sa progression.
+            //
             // Le tout premier démarrage a pu échouer à créer un lecteur (sonnerie
             // choisie ET repli embarqué introuvables) : sans nouvelle tentative
             // ici, `alarmeActive` resterait vrai et l'alarme serait silencieuse
-            // pour le reste du passage du filet de secours. On ne relance que la
-            // lecture : ni le WakeLock ni le volume ne sont retouchés.
-            if (!player.estEnLecture()) {
+            // pour le reste du passage du filet de secours.
+            val doitRelancer = RelanceLecture.doitRelancer(
+                // Le lecteur n'annonce sa lecture qu'après la lecture
+                // asynchrone de la configuration : sans ce premier terme, un
+                // secours tombant dans cette fenêtre démarrait un second
+                // MediaPlayer que plus personne ne pouvait arrêter.
+                demarrageEnCours = lectureJob?.isActive == true,
+                sonneEffectivement = player.estEnLecture(),
+            )
+            if (doitRelancer) {
                 // Le volume n'est pas retouché : la machine à états l'a
                 // peut-être déjà baissé parce que l'utilisateur a le téléphone
                 // en main, et elle ne renotifierait jamais une baisse qu'elle
@@ -91,12 +123,13 @@ class AlarmService : Service() {
         alarmeActive = true
 
         AlarmState.marquerDemarree(this)
-        acquerirWakeLock()
+        AlarmState.marquerDeclenchement(this)
+        assurerWakeLock()
         secours.armer()
+        replanifierEnFond()
 
         demarrerLecture()
 
-        demarrerActivitePleinEcran()
         return START_STICKY
     }
 
@@ -107,7 +140,7 @@ class AlarmService : Service() {
      * pousse le volume à plein, le filet de secours ne relance que la lecture.
      */
     private fun demarrerLecture(appliquerVolume: Boolean = true) {
-        scope.launch {
+        lectureJob = scope.launch {
             // Une lecture de configuration qui échoue ne doit pas laisser le
             // réveil muet : on sonne avec la sonnerie par défaut.
             val config = runCatching { AlarmConfigRepository(applicationContext).current() }
@@ -149,39 +182,71 @@ class AlarmService : Service() {
         wakeLock = null
         scope.launch {
             withContext(NonCancellable) {
-                // Le résultat était jeté : un `null` signifiait « plus jamais
-                // d'alarme » et passait inaperçu au moment le plus critique du
-                // cycle — juste après un réveil réussi, quand plus rien ne
-                // repassera par ici avant le lendemain.
-                val resultat = runCatching {
-                    val repo = AlarmConfigRepository(applicationContext)
-                    AlarmScheduler(applicationContext).schedule(repo.current())
-                }.getOrDefault(ResultatPlanification.EchecSysteme)
-                if (resultat.doitAlerter) {
-                    AlerteReplanification.publier(applicationContext)
-                } else {
-                    AlerteReplanification.retirer(applicationContext)
-                }
+                replanifierEtAlerter()
             }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
-    private fun demarrerActivitePleinEcran() {
-        startActivity(
-            Intent(this, AlarmActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            },
-        )
+    /**
+     * Replanifie dès le déclenchement, sans attendre la résolution du défi.
+     *
+     * [terminer] replanifie déjà, mais seulement si l'utilisateur va au bout.
+     * Une mort du service sans résolution — arrêt forcé, tueur de tâches d'un
+     * constructeur, plantage — laissait le réveil du lendemain **non
+     * programmé** jusqu'à un redémarrage ou une ouverture de l'application. La
+     * programmation est idempotente : la faire deux fois ne coûte rien, ne pas
+     * la faire du tout coûte un réveil.
+     *
+     * `NonCancellable` pour la même raison que dans [terminer], et plus encore
+     * ici : ce filet existe précisément pour le cas où le service est arrêté
+     * sans prévenir, et `onDestroy` annule le scope. Une replanification
+     * abandonnée à mi-chemin ne protégerait de rien.
+     */
+    private fun replanifierEnFond() {
+        scope.launch { withContext(NonCancellable) { replanifierEtAlerter() } }
     }
 
-    private fun acquerirWakeLock() {
-        val power = getSystemService(PowerManager::class.java)
-        wakeLock = power.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "cocorico:alarme",
-        ).apply { acquire(30 * 60 * 1000L) }
+    /**
+     * Le résultat était jeté : un `null` signifiait « plus jamais d'alarme » et
+     * passait inaperçu au moment le plus critique du cycle — juste après un
+     * réveil réussi, quand plus rien ne repassera par ici avant le lendemain.
+     */
+    private suspend fun replanifierEtAlerter() {
+        val resultat = runCatching {
+            val repo = AlarmConfigRepository(applicationContext)
+            AlarmScheduler(applicationContext).schedule(repo.current())
+        }.getOrDefault(ResultatPlanification.EchecSysteme)
+        if (resultat.doitAlerter) {
+            AlerteReplanification.publier(applicationContext)
+        } else {
+            AlerteReplanification.retirer(applicationContext)
+        }
+    }
+
+    /**
+     * Acquiert le verrou, ou réarme son délai s'il est déjà là.
+     *
+     * Il était pris une fois pour trente minutes et jamais renouvelé, alors que
+     * le filet de secours peut faire durer la sonnerie sans limite : passé ce
+     * délai, plus rien ne retenait le CPU côté service. Chaque passage du
+     * secours repasse donc ici.
+     *
+     * Le verrou n'est pas compté par référence : les acquisitions successives ne
+     * font que repousser l'échéance, et le `release` unique de [terminer] suffit
+     * toujours à le rendre.
+     */
+    private fun assurerWakeLock() {
+        val verrou = wakeLock ?: getSystemService(PowerManager::class.java)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cocorico:alarme")
+            .also { it.setReferenceCounted(false) }
+            .also { wakeLock = it }
+        verrou.acquire(DUREE_VERROU_MS)
+        // Le relais du récepteur a rempli son rôle : le service tient désormais
+        // son propre verrou. Relâché ici et pas plus tôt, pour qu'il n'existe
+        // aucun instant sans verrou entre les deux composants.
+        VerrouDemarrage.relacher()
     }
 
     private fun creerCanal() {
@@ -232,6 +297,10 @@ class AlarmService : Service() {
         player.arreter()
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
+        // Cas où le service meurt avant d'avoir acquis son propre verrou : sans
+        // ça, le relais du récepteur tiendrait l'appareil éveillé jusqu'à son
+        // délai d'expiration.
+        VerrouDemarrage.relacher()
         scope.cancel()
         super.onDestroy()
     }
@@ -242,6 +311,13 @@ class AlarmService : Service() {
         const val ACTION_DEFI_RESOLU = "com.cocorico.DEFI_RESOLU"
         private const val CANAL_ID = "cocorico_alarme"
         private const val NOTIF_ID = 1
+
+        /**
+         * Durée d'un verrou, pas de l'alarme : elle est réarmée à chaque passage
+         * du filet de secours. Ce délai ne sert qu'à borner un verrou orphelin
+         * si le service meurt sans passer par `onDestroy`.
+         */
+        private const val DUREE_VERROU_MS = 30 * 60 * 1000L
 
         /** Le défi est résolu : coupe la sonnerie et replanifie. */
         fun arreter(context: Context) {

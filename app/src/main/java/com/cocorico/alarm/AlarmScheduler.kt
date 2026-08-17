@@ -37,7 +37,10 @@ class AlarmScheduler(private val context: Context) {
             cancel()
             return ResultatPlanification.AucunJourActif
         }
-        val epochMillis = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        // `atZone` résolvait seul les deux jours de bascule de l'heure d'été, et
+        // sonnait une heure trop tard dans le trou du printemps. Voir
+        // [InstantSonnerie] : la règle est désormais écrite et testée.
+        val epochMillis = InstantSonnerie.resoudre(next, ZoneId.systemDefault()).toEpochMilli()
         return try {
             manager.setAlarmClock(
                 AlarmManager.AlarmClockInfo(epochMillis, pendingShowIntent()),
