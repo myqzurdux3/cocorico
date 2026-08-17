@@ -10,6 +10,10 @@ le couper ; dix secondes d'inactivité le font remonter.
 Il faut un JDK 17 et le SDK Android 35. Le wrapper Gradle est versionné, rien
 d'autre à installer.
 
+Gradle doit savoir où est le SDK : soit la variable `ANDROID_HOME`, soit un
+fichier `local.properties` à la racine contenant `sdk.dir=/chemin/vers/Sdk`. Ce
+fichier n'est pas versionné — il contient un chemin propre à ta machine.
+
 ```bash
 ./gradlew testDebugUnitTest    # tests unitaires
 ./gradlew assembleDebug        # APK de débogage
