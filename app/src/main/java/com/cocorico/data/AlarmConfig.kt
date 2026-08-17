@@ -1,6 +1,7 @@
 package com.cocorico.data
 
 import com.cocorico.challenge.photo.CatalogueObjets
+import com.cocorico.ring.NiveauxVolume
 import java.time.DayOfWeek
 
 enum class ChallengeId { MATHS, POMPES, PHOTO }
@@ -49,6 +50,23 @@ data class AlarmConfig(
      */
     val objetsSelectionnes: Set<String> = emptySet(),
 ) {
+    /**
+     * Ramène les trois champs numériques dans leur plage utilisable, et ne
+     * touche à rien d'autre.
+     *
+     * Pourquoi corriger plutôt que refuser : cette configuration est relue
+     * depuis le disque, donc telle qu'une version antérieure ou un fichier
+     * abîmé l'a laissée. Un `require` ferait lever au fond de
+     * `NextOccurrenceCalculator`, à l'intérieur de `AlarmScheduler.schedule`,
+     * dont tous les appelants avalent les exceptions — l'alarme disparaîtrait
+     * sans un mot. Un réveil approximatif vaut mieux qu'un réveil absent.
+     */
+    fun assaini(): AlarmConfig = copy(
+        hour = hour.coerceIn(0, 23),
+        minute = minute.coerceIn(0, 59),
+        volumeMaxPourcent = NiveauxVolume.normaliser(volumeMaxPourcent),
+    )
+
     companion object {
         val DEFAULT = AlarmConfig(
             hour = 6,

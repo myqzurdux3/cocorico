@@ -1,9 +1,11 @@
 package com.cocorico.data
 
 import android.content.Context
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -14,7 +16,21 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "cocorico_alarm")
+/**
+ * Sans `corruptionHandler`, un fichier de préférences tronqué — batterie vide
+ * en pleine écriture, système à court d'espace — fait échouer **toutes** les
+ * lectures à venir, définitivement. Les trois appelants de `current()` avalent
+ * l'exception : l'alarme ne serait alors plus jamais reprogrammée, et l'accueil
+ * continuerait d'annoncer l'heure du prochain réveil.
+ *
+ * Repartir des valeurs par défaut perd la configuration de l'utilisateur, ce
+ * qui se voit et se répare en dix secondes. Le silence, lui, ne se répare
+ * qu'après avoir raté un réveil.
+ */
+private val Context.dataStore by preferencesDataStore(
+    name = "cocorico_alarm",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /** Encodage des jours en chaîne, isolé pour être testable sans appareil. */
 object AlarmConfigCodec {
@@ -72,7 +88,7 @@ class AlarmConfigRepository(private val context: Context) {
             objetsSelectionnes = prefs[Keys.OBJETS_SELECTIONNES]
                 ?.let(CatalogueObjets::idsValides)
                 ?: default.objetsSelectionnes,
-        )
+        ).assaini()
     }
 
     val config: Flow<AlarmConfig> = context.dataStore.data.map(::lire)
