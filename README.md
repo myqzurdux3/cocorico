@@ -1,18 +1,55 @@
-# Cocorico
+<p align="center">
+  <img src="assets/brand/cocorico-mark.svg" alt="Cocorico" width="128" height="128">
+</p>
 
-Réveil Android à alarme unique, sans snooze, qui ne s'arrête qu'une fois un
-défi accompli — calcul mental, dix pompes comptées au capteur, ou la photo d'un
-objet tiré au sort. Prendre le téléphone en main baisse le volume, sans jamais
-le couper ; dix secondes d'inactivité le font remonter.
+<h1 align="center">Cocorico</h1>
+
+<p align="center">
+  <strong>Le réveil qu'on ne peut pas faire taire en dormant.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/myqzurdux3/wake-up/actions/workflows/ci.yml"><img src="https://github.com/myqzurdux3/wake-up/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
+  <img src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.0">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
+</p>
+
+---
+
+Réveil Android à **alarme unique**, sans snooze, qui ne s'arrête qu'une fois un
+défi accompli. Prendre le téléphone en main baisse le volume sans jamais le
+couper ; dix secondes d'inactivité le font remonter — le marché est affiché en
+clair à l'écran du début à la fin.
+
+## Les trois défis
+
+| | Défi | Ce qu'il faut vraiment faire pour le passer |
+|---|---|---|
+| 🔢 | **Calcul mental** | Résoudre des opérations, sur trois niveaux de difficulté. Toujours disponible : c'est le repli de tous les autres. |
+| 💪 | **Pompes** | Dix pompes comptées au capteur de proximité, avec une garde qui refuse de compter si le téléphone bouge. |
+| 📷 | **Photo** | Photographier un objet tiré au sort dans ta maison, pièce par pièce. Un modèle de vision juge l'image. |
+
+Un défi n'est jamais un cul-de-sac : sans capteur, sans caméra, sans réseau ou
+sans clé d'API, l'application se replie sur le calcul mental **avant** d'afficher
+quoi que ce soit. Rester bloqué devant une sirène serait pire que tout.
+
+## Ce qui rend l'alarme fiable
+
+- **`setAlarmClock`, et rien d'autre** — la seule API Android exemptée du Doze mode.
+- **Replanification au démarrage, à la mise à jour, au changement d'heure et de fuseau.** Chacun de ces quatre événements efface ou périme une alarme programmée.
+- **Filet de secours toutes les 30 secondes** tant que le défi n'est pas résolu : tuer l'application ne suffit pas.
+- **Le volume système d'origine est écrit sur disque**, pas gardé en mémoire : même un arrêt forcé pendant la sonnerie le restaure.
+- **Plafond sonore réglable**, jamais sous 50 % du maximum de l'appareil — le maximum d'un téléphone peut faire mal aux oreilles, mais un réveil doit réveiller.
 
 ## Construire
 
-Il faut un JDK 17 et le SDK Android 35. Le wrapper Gradle est versionné, rien
-d'autre à installer.
+Il faut un **JDK 17** et le **SDK Android 35**. Le wrapper Gradle est versionné,
+rien d'autre à installer.
 
 Gradle doit savoir où est le SDK : soit la variable `ANDROID_HOME`, soit un
 fichier `local.properties` à la racine contenant `sdk.dir=/chemin/vers/Sdk`. Ce
-fichier n'est pas versionné — il contient un chemin propre à ta machine.
+fichier n'est pas versionné, il contient un chemin propre à ta machine.
 
 ```bash
 ./gradlew testDebugUnitTest    # tests unitaires
@@ -22,22 +59,16 @@ fichier n'est pas versionné — il contient un chemin propre à ta machine.
 
 L'APK sort dans `app/build/outputs/apk/debug/`.
 
-## Utiliser
-
-Au premier lancement, l'application demande les autorisations dont dépend la
-fiabilité de l'alarme (alarmes exactes, notifications, plein écran). Régler
-l'heure, les jours, la sonnerie et le défi, puis armer.
-
-## Configuration
+## Configurer
 
 Tout se règle depuis l'application. Un seul réglage demande une donnée
 extérieure : le **défi photo**, qui a besoin d'une clé d'API Google Gemini,
 saisie dans *Réglages → Défi → Photo*.
 
-La clé reste sur l'appareil et n'est jamais livrée avec l'application. Sans
-elle, le défi photo n'est pas proposé et les autres défis fonctionnent
-normalement. Un banc d'essai (*Essayer la reconnaissance*) permet de vérifier la
-reconnaissance **sans déclencher l'alarme**.
+La clé reste sur l'appareil, n'est jamais livrée avec l'application, et est
+exclue de la sauvegarde Android. Sans elle, le défi photo n'est simplement pas
+proposé. Un banc d'essai — *Essayer la reconnaissance* — permet de vérifier que
+tout fonctionne **sans déclencher l'alarme**.
 
 ## Contribuer
 
@@ -46,16 +77,18 @@ sans import `android.*`, couverte par des tests unitaires**, et les composants
 Android ne font que du câblage. C'est ce qui permet de tout tester sans
 téléphone.
 
-Commentaires et KDoc en français, messages de commit en anglais. Les tests
-passent avant la relecture : `./gradlew testDebugUnitTest`.
+Le détail est dans [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Documentation
+## Aller plus loin
 
-- `docs/cocorico.md` — état du produit, décisions qui lient encore, écarts connus
-- `docs/reprise.md` — note de passation entre sessions de travail
-- `docs/recette-appareil.md` — recette manuelle sur téléphone
-- `AUDIT.md` — audit du dépôt, défauts relevés et dette restante
+| Document | Contenu |
+|---|---|
+| [`docs/cocorico.md`](docs/cocorico.md) | État du produit, décisions qui lient encore, écarts connus |
+| [`docs/recette-appareil.md`](docs/recette-appareil.md) | Recette manuelle sur téléphone |
+| [`docs/reprise.md`](docs/reprise.md) | Note de passation entre sessions de travail |
+| [`AUDIT.md`](AUDIT.md) | Audit du dépôt : défauts relevés, correctifs, dette restante |
 
 ## Licence
 
-Pas encore choisie.
+Pas encore choisie. Tant qu'aucune licence n'est déclarée, le code reste sous
+droit d'auteur exclusif et n'est pas réutilisable.
