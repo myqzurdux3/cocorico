@@ -276,3 +276,148 @@ suppression porte un risque ou demande une décision.
 - `app/schemas/…/2.json` — vivant et volontairement versionné. **`1.json` manque** (voir phase 1).
 
 ---
+
+## Phases 3 à 6 — ce qui a été corrigé
+
+Quatorze commits, du plus grave au plus bénin. Chaque correctif testable a eu
+son test écrit **avant** la correction, avec l'échec réel capturé — jamais une
+sortie prédite.
+
+| Commit | Ce qu'il ferme |
+|---|---|
+| `ad62391` | Code mort prouvé inatteignable (phase 2). |
+| `02e1133` | Replanification sur changement d'heure et de fuseau. `setAlarmClock` mémorise un instant absolu : un vol ou un réglage manuel de l'horloge faisait sonner au mauvais moment, ou sautait l'alarme. |
+| `e6c9ea4` | Le filet de secours à 30 s passait par une API throttlée à 9 min en Doze — inopérant dans le seul scénario qui le justifie. Passé sur `setAlarmClock`, avec garde et `runCatching` : une `SecurityException` tuait le service **pendant que l'alarme sonnait**. |
+| `b19e1ae` | Un DataStore corrompu, ou une heure hors bornes relue du disque, faisait disparaître l'alarme en silence. Gestionnaire de corruption + bornage à la lecture. |
+| `35675c0` | Trois statistiques fausses affichées comme vraies : série périmée toujours « en cours », retard moyen sans filtre de plausibilité, ligne de moyenne plaquée au sommet du graphe. |
+| `caaad3d` | La jauge annonçait « 100 % » en dur, contredisant le plafond réglé par l'utilisateur. |
+| `a77796b` | La ligne de moyenne du graphe **n'était jamais dessinée** : `padding` après `height(2.dp)` peignait un fond de hauteur nulle. |
+| `43fa2c8` | Quatre écrans sans défilement (dont l'onboarding, dont le seul bouton de sortie pouvait passer sous le bord), navigation perdue à la rotation, écran de victoire ressuscité indéfiniment, `setContent` appelé depuis une coroutine. |
+| `01ef70d` | Documentation fausse supprimée, README et CI ajoutés. |
+| `6c7105c` | La clé d'API Gemini partait dans la sauvegarde Google. |
+| `bd72333` | `kotlinx.coroutines`, importée en production, n'était pas déclarée. |
+| `b302948` | Le défi photo présentait toute panne du juge comme un refus : l'utilisateur photographiait en boucle un objet correct sans jamais apprendre que rien ne pouvait aboutir. Plus neuf autres défauts du même défi. |
+| `d355e1a` | Sonnerie, capteurs et horloges — voir ci-dessous. |
+| `8cdc81c` | Le README ne nommait pas la seule chose qui manque à un clone neuf. |
+
+### La mesure la plus importante de l'audit
+
+`CapteurPompes` échantillonnait l'accéléromètre à `SENSOR_DELAY_UI` (66,7 ms),
+la cadence exacte que `HandDetector` documente comme repliant les vibrations du
+haut-parleur dans la bande utile. Rejouée à cette cadence, une vibration de
+30 Hz à 2 m/s² produit un écart de gravité de **1,98** contre un seuil de
+**1,5** — là où la même vibration donne **0,21** à 20 ms.
+
+Autrement dit : alarme à fond sur une surface dure, la garde « téléphone posé
+et immobile » était franchie **en permanence**, et les pompes pouvaient cesser
+d'être comptées. Le test qui validait cette garde annonçait dans sa propre KDoc
+tourner à `SENSOR_DELAY_UI` alors qu'il tournait à `SENSOR_DELAY_GAME` : la
+protection était vérifiée à trois fois la cadence réelle du code.
+
+Nuance honnête : les pompes fonctionnaient lors du dernier essai sur ton
+téléphone. Le repliement dépend de la surface, du volume et du haut-parleur —
+ce constat dit qu'il *peut* échouer, pas qu'il échouait chez toi. Le test fige
+désormais le fait mesuré au lieu d'adoucir le seuil.
+
+---
+
+## Rapport final
+
+### 1. État initial contre état final
+
+| | Avant (`190d41c`) | Après (`8cdc81c`) |
+|---|---|---|
+| Tests | 203, 0 échec | **259, 0 échec** (24 → 29 classes) |
+| Lignes Kotlin (production) | 7 063 | 8 017 |
+| Lignes Kotlin (test) | 2 641 | 3 286 |
+| Avertissements du compilateur | 2 | 2 (identiques : `LocalLifecycleOwner` déprécié) |
+| Lint | jamais exécuté | 61 avertissements, **0 erreur** |
+| Dépendances déclarées | 20, dont 3 inutilisées et 1 manquante | 18, toutes utilisées et déclarées |
+| README / LICENCE / CI | aucun | README, CI ; licence toujours à choisir |
+| Build à froid | 39 s | 55 s (lint compris) |
+
+Vérifié depuis un **clone neuf** dans un répertoire vide, en suivant le seul
+README : 259 tests verts, APK produit.
+
+### 2. Ce qui n'a pas été fait, et pourquoi
+
+**C'est la section qui compte.**
+
+**Rien n'a été essayé sur un téléphone.** Tu as demandé qu'aucun test ne fasse
+sonner l'alarme, et je m'y suis tenu. Conséquence directe : les correctifs de
+`SecoursScheduler`, `RingtonePlayer`, `CapteurPompes`, `HandDetector` et de tous
+les écrans Compose **compilent et ne cassent aucun test — c'est tout ce que je
+peux affirmer**. Aucun n'a été observé en fonctionnement. Le dépôt n'a aucun
+test instrumenté Compose ni Android.
+
+**R8 et la signature de release.** `isMinifyEnabled = false`, aucun
+`proguard-rules.pro`, aucun `signingConfig` : `assembleRelease` produit un APK
+non signé. Activer la minification sans pouvoir vérifier sur appareil est le
+meilleur moyen de casser Room ou Compose à l'exécution, en silence.
+
+**La clé d'API reste en clair sur l'appareil.** Elle est désormais exclue de la
+sauvegarde, mais pas chiffrée. Le chiffrer demande une migration des clés déjà
+stockées : c'est un changement à part entière, pas un correctif d'audit.
+
+**Le schéma Room `1.json` n'est toujours pas versionné**, donc `MIGRATION_1_2`
+n'est jamais jouée contre un vrai SQLite. Le corriger demande d'ajouter
+`room-testing` et une source `androidTest`, donc un appareil ou un émulateur.
+
+**L'écran d'alarme ne défile toujours pas défi fermé.** Rendre le défilement
+inconditionnel supprime le centrage vertical de cet état : une régression
+visuelle **certaine** contre un débordement **supposé**. Seul un rendu tranche.
+
+**La licence n'est pas choisie.** C'est ta décision, pas la mienne.
+
+**Non corrigés, jugés trop peu rentables** : la permission
+`ACCESS_NOTIFICATION_POLICY` (change ce que l'application demande à
+l'installation), `foregroundServiceType="mediaPlayback"` (conformité Play, à
+trancher avec les règles à jour), les cibles tactiles sous 48 dp, la colonne
+morte `triches` (exige une migration v3), et les points d'injection jamais
+surchargés des détecteurs — ce sont les leviers de la calibration sur appareil,
+qui n'a pas eu lieu.
+
+### 3. Risques restants, par priorité
+
+1. **Aucun seuil de capteur n'a jamais été mesuré sur un vrai geste.** Ceux de
+   `CompteurPompes`, `PriseEnMainDetector`, `MouvementDetector` et
+   `EstimateurGravite` viennent tous de simulations. `MouvementDetector` est
+   documenté comme produisant une énergie nulle sur une prise en main molle : le
+   réarmement du compte à rebours par le mouvement n'a peut-être **jamais**
+   fonctionné sur appareil.
+2. **La migration de base de données n'est couverte que par comparaison de
+   chaînes.** Une migration cohérente en syntaxe mais fautive à l'exécution
+   partirait en production et planterait au démarrage après mise à jour.
+3. **Le juge distant n'a jamais répondu.** Aucun test n'a confronté
+   `RequeteVision` à l'API réelle ; les tests reproduisent la forme documentée
+   des réponses, pas des réponses observées.
+4. **Deux triches connues et acceptées** : la paume au-dessus du capteur de
+   proximité pour les pompes, la photo d'un écran pour le défi photo.
+5. **Pas de direct boot** : un téléphone qui redémarre la nuit et reste
+   verrouillé ne reprogramme pas l'alarme avant le premier déverrouillage.
+
+### 4. Ce que tu dois vérifier toi-même
+
+Rien de ceci n'est vérifiable sans toi.
+
+- **Les pompes comptent toujours**, maintenant que la cadence de
+  l'accéléromètre a changé. C'est le correctif au plus fort effet de bord.
+- **La sonnerie part toujours à plein volume**, et le volume système d'origine
+  est bien restauré après un arrêt forcé — `RingtonePlayer` a été le fichier le
+  plus remanié de l'audit.
+- **Le filet de secours relance bien le service** après un arrêt forcé de
+  l'application, maintenant qu'il passe par `setAlarmClock`.
+- **La ligne de moyenne apparaît enfin** sur le graphe des statistiques.
+- **La jauge affiche le bon pourcentage** quand tu baisses le plafond.
+- **Le défi photo dit « le juge ne répond pas »** en mode avion, au lieu de
+  « pas encore reconnu ».
+- **La reconnaissance Gemini sur une tasse**, via *Réglages → Défi → Photo →
+  Essayer la reconnaissance* — toujours en attente depuis avant l'audit.
+
+### 5. Ce que cet audit ne prouve pas
+
+Il n'a pas fait tourner l'application. Il a lu le code, exécuté 259 tests
+unitaires, un lint et un clone neuf. Les défauts marqués « à vérifier » dans la
+phase 1 le sont restés. La couverture n'est toujours pas mesurée : la surface
+non testée reste l'intégralité du câblage Android et Compose — exactement là où
+tous les défauts constatés sur téléphone réel sont apparus jusqu'ici.
