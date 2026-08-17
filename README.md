@@ -53,10 +53,14 @@ fichier `local.properties` à la racine contenant `sdk.dir=/chemin/vers/Sdk`. Ce
 fichier n'est pas versionné, il contient un chemin propre à ta machine.
 
 ```bash
-./gradlew testDebugUnitTest    # tests unitaires
-./gradlew assembleDebug        # APK de débogage
-./gradlew installDebug         # installer sur un appareil branché
+./gradlew testDebugUnitTest         # tests unitaires
+./gradlew connectedDebugAndroidTest # migrations de base, appareil branché
+./gradlew spotlessApply             # formatage
+./gradlew assembleDebug             # APK de débogage
+./gradlew installDebug              # installer sur un appareil branché
 ```
+
+Aucune de ces commandes ne fait sonner l'alarme.
 
 L'APK sort dans `app/build/outputs/apk/debug/`.
 

@@ -116,8 +116,9 @@ Pixel 9a, Android 17, le 16 août 2026 :
   secondes, téléphone posé. Limite acceptée pour l'instant ; la piste retenue
   est d'exiger un choc au sol pendant la phase basse, à calibrer après la
   recette. Détail dans `recette-appareil.md`.
-- La migration de la base n'est jamais jouée sur une base peuplée : ni
-  `room-testing` ni Robolectric ne sont configurés. Seule la recette la couvre.
+- **Résolu.** La migration est jouée sur base peuplée par `MigrationInstrumenteeTest`
+  (`room-testing`, `./gradlew connectedDebugAndroidTest`), qui couvre 1→2, 2→3 et
+  la chaîne complète.
 
 **Relevés par l'audit du 17 août 2026, non corrigés** — le détail, la sévérité
 et le niveau de confiance de chacun sont dans `../AUDIT.md`, qui fait foi.
@@ -125,10 +126,7 @@ et le niveau de confiance de chacun sont dans `../AUDIT.md`, qui fait foi.
   maximale, « Faire taire ce coq » pourrait être rogné. Rendre le défilement
   inconditionnel supprimerait le centrage vertical — arbitrage qui demande un
   rendu sur appareil.
-- Le schéma Room `1.json` n'est pas versionné, donc `MIGRATION_1_2` n'est jamais
-  jouée contre un vrai SQLite : le test ne compare que des chaînes.
 - La clé d'API Gemini est stockée en clair dans le DataStore.
-- La configuration de `release` n'a ni signature ni R8.
 
 **Ouverts**
 - `VolumeStateMachine` a deux paliers là où la spec en décrit trois avec rampe

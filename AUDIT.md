@@ -327,10 +327,10 @@ désormais le fait mesuré au lieu d'adoucir le seuil.
 
 | | Avant (`190d41c`) | Après (`8cdc81c`) |
 |---|---|---|
-| Tests | 203, 0 échec | **300, 0 échec** (24 → 37 classes) |
+| Tests | 203, 0 échec | **301 unitaires + 4 instrumentés**, 0 échec |
 | Lignes Kotlin (production) | 7 063 | 9 056 |
 | Lignes Kotlin (test) | 2 641 | 3 785 |
-| Avertissements du compilateur | 2 | 2 (identiques : `LocalLifecycleOwner` déprécié) |
+| Avertissements du compilateur | 2 | **0** |
 | Lint | jamais exécuté | 62 avertissements, **0 erreur** |
 | Dépendances déclarées | 20, dont 3 inutilisées et 1 manquante | 18, toutes utilisées et déclarées |
 | README / LICENCE / CI | aucun | README, CI, **Apache 2.0**, CONTRIBUTING, SECURITY, code de conduite, modèles d'issue et de PR |
@@ -400,15 +400,50 @@ générateur de calculs a été confronté à un générateur volontairement mut
 vérifier qu'il échouait bien, puis remis en état. Un test vert qui n'a jamais
 été rouge ne prouve rien.
 
-### Ce qui reste ouvert, sans exception
+### Troisième vague — sur appareil
 
-- **`app/schemas/1.json` n'est pas versionné**, donc `MIGRATION_1_2` n'est jamais jouée contre un vrai SQLite. Corriger demande `room-testing` et une source `androidTest`, donc un émulateur.
-- **La colonne `triches` est morte** : documentée comme telle, pas supprimée — l'enlever impose une migration Room v3.
-- **`release` n'a ni signature ni R8.** Activer la minification sans pouvoir vérifier sur appareil casserait Room ou Compose en silence.
-- **La clé d'API est stockée en clair** sur l'appareil. Elle est exclue de la sauvegarde, masquée à l'affichage, jamais journalisée — mais un accès root la lit. Le chiffrement demande une migration des clés déjà stockées.
-- **L'écran d'alarme ne défile pas tant que le défi est fermé.** Rendre le défilement inconditionnel supprime le centrage vertical : régression visuelle certaine contre débordement supposé.
-- **Aucun formateur automatique.** ktlint ou Spotless reformateraient aujourd'hui des milliers de lignes qui fonctionnent, ce qui noierait l'historique sans corriger un défaut — exactement ce que la première règle de cet audit interdit. `.editorconfig` fige les conventions pour la suite ; brancher un formateur reste à faire, en un commit isolé.
-- **Trois avertissements de dépréciation** (`LocalLifecycleOwner`) : les lever demande la dépendance `lifecycle-runtime-compose`, donc une décision sur le catalogue.
+Un Pixel 9a sous Android 17 a permis de fermer ce qui restait bloqué faute de
+matériel. **Aucune alarme n'a sonné.**
+
+**La migration de base est enfin jouée contre un vrai SQLite.** Le schéma `1.json`
+manquait : il a été **régénéré par Room** depuis un worktree temporaire au commit
+où la base était encore en version 1, et non écrit à la main — un schéma inventé
+n'aurait rien prouvé. Quatre tests instrumentés couvrent 1→2, 2→3 et la chaîne
+complète 1→3, sur base peuplée. Preuve qu'ils mordent : en changeant
+`DEFAULT 0` en `DEFAULT 1`, les deux échouent sur l'appareil avec
+`Migration didn't properly handle: wake_records`.
+
+**La colonne morte `triches` est supprimée**, ce qui n'était pas envisageable
+tant qu'aucune migration n'était vérifiable.
+
+**R8 et la signature sont activés — et une catastrophe a été évitée de peu.**
+`ChallengeId` et `Difficulty` sont écrits en toutes lettres sur le disque et
+relus par `valueOf`. Sans règle de conservation, R8 les renomme :
+
+```
+ChallengeId.MATHS -> MATHS      (règle présente)
+ChallengeId.MATHS -> H          (règle retirée)
+```
+
+À la première mise à jour minifiée, le défi choisi et **tout l'historique** de
+chaque utilisateur seraient devenus illisibles, en silence, avec retour aux
+valeurs par défaut. Les règles ont été retirées puis le build relancé pour
+observer le renommage, avant restauration. L'APK passe de 30,2 Mo à 4,9 Mo,
+signé en schéma v2, non debuggable, installé et lancé sans plantage.
+
+**Zéro avertissement de compilation**, pour la première fois.
+
+**Spotless et ktlint sont branchés.** L'audit avait refusé de le faire sans
+mesurer ; mesuré, le reformatage vaut 51 fichiers et ~320 lignes, presque
+uniquement de l'ordre d'imports. Fait, en un commit isolé qui ne cache aucun
+correctif, et `spotlessCheck` passe en premier dans l'intégration continue.
+
+### Ce qui reste ouvert
+
+- **La clé d'API est stockée en clair** sur l'appareil. Exclue de la sauvegarde, masquée à l'affichage, jamais journalisée — mais lisible par un accès root. Le chiffrement demande une migration des clés déjà enregistrées.
+- **L'écran d'alarme ne défile pas tant que le défi est fermé.** Trancher demande de l'afficher à taille de police maximale, donc de forcer le volume du flux d'alarme sur le téléphone de l'utilisateur : non fait sans son accord.
+- **Aucun seuil de capteur n'a été mesuré sur un vrai geste.** Même raison : la mesure exige l'écran d'alarme.
+- **La recette d'appareil complète** (`docs/recette-appareil.md`) n'a pas été jouée : elle fait sonner.
 
 ### 3. Risques restants, par priorité
 
@@ -449,8 +484,13 @@ Rien de ceci n'est vérifiable sans toi.
 
 ### 5. Ce que cet audit ne prouve pas
 
-Il n'a pas fait tourner l'application. Il a lu le code, exécuté 259 tests
-unitaires, un lint et un clone neuf. Les défauts marqués « à vérifier » dans la
-phase 1 le sont restés. La couverture n'est toujours pas mesurée : la surface
-non testée reste l'intégralité du câblage Android et Compose — exactement là où
-tous les défauts constatés sur téléphone réel sont apparus jusqu'ici.
+Il a exécuté 301 tests unitaires, 4 tests instrumentés sur un vrai téléphone, un
+lint, un formateur et un clone neuf. Il a installé et lancé la version
+minifiée. **Il n'a jamais fait sonner l'alarme.**
+
+Tout ce qui ne se constate qu'une sirène en marche reste donc non vérifié : la
+chaîne de déclenchement complète, la baisse de volume à la prise en main, le
+comptage des pompes, la reconnaissance photo, le filet de secours. La couverture
+n'est toujours pas mesurée, et la surface non testée reste le câblage Android et
+Compose — exactement là où tous les défauts constatés sur téléphone sont apparus
+jusqu'ici.
