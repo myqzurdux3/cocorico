@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -201,12 +202,16 @@ private fun GraphiqueReveils(reveils: List<ReveilRecent>, moyenneSecondes: Long?
             // au-dessus : elle doit rester visible même quand elle traverse une
             // barre, c'est justement cette intersection qui est instructive.
             echelle.positionMoyenne?.let { position ->
+                // `offset` et non `padding` : une marge est retranchée à
+                // l'intérieur de la taille du composant, donc appliquée après
+                // `height(2.dp)` elle laissait un fond de hauteur nulle — la
+                // ligne de moyenne n'apparaissait jamais à l'écran.
                 Box(
                     modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset(y = -hauteurMax * position)
                         .fillMaxWidth()
                         .height(2.dp)
-                        .align(Alignment.BottomStart)
-                        .padding(bottom = hauteurMax * position)
                         .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)),
                 )
             }
