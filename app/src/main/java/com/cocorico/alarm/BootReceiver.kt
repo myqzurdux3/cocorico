@@ -53,10 +53,18 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Un `try`/`finally` sans `catch` faisait planter le processus au
-                // démarrage si SCHEDULE_EXACT_ALARM avait été révoquée.
-                runCatching {
+                // démarrage si SCHEDULE_EXACT_ALARM avait été révoquée. L'échec
+                // était en revanche avalé sans trace : si le DataStore n'était
+                // pas prêt au boot, l'alarme disparaissait sans le moindre
+                // signal jusqu'au matin où elle ne sonnait pas.
+                val resultat = runCatching {
                     val config = AlarmConfigRepository(app).current()
                     AlarmScheduler(app).schedule(config)
+                }.getOrDefault(ResultatPlanification.EchecSysteme)
+                if (resultat.doitAlerter) {
+                    AlerteReplanification.publier(app)
+                } else {
+                    AlerteReplanification.retirer(app)
                 }
             } finally {
                 pending.finish()

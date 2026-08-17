@@ -149,9 +149,18 @@ class AlarmService : Service() {
         wakeLock = null
         scope.launch {
             withContext(NonCancellable) {
-                runCatching {
+                // Le résultat était jeté : un `null` signifiait « plus jamais
+                // d'alarme » et passait inaperçu au moment le plus critique du
+                // cycle — juste après un réveil réussi, quand plus rien ne
+                // repassera par ici avant le lendemain.
+                val resultat = runCatching {
                     val repo = AlarmConfigRepository(applicationContext)
                     AlarmScheduler(applicationContext).schedule(repo.current())
+                }.getOrDefault(ResultatPlanification.EchecSysteme)
+                if (resultat.doitAlerter) {
+                    AlerteReplanification.publier(applicationContext)
+                } else {
+                    AlerteReplanification.retirer(applicationContext)
                 }
             }
             stopForeground(STOP_FOREGROUND_REMOVE)

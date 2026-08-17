@@ -104,5 +104,5 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * la même autorisation.
      */
     private suspend fun planifier(): LocalDateTime? =
-        runCatching { scheduler.schedule(repo.current()) }.getOrNull()
+        runCatching { scheduler.schedule(repo.current()).prochaine }.getOrNull()
 }

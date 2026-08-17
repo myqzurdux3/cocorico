@@ -15,26 +15,27 @@ class AlarmScheduler(private val context: Context) {
     private val manager = context.getSystemService(AlarmManager::class.java)
 
     /**
-     * Programme la prochaine sonnerie et renvoie son instant, ou null si
-     * l'alarme est désarmée ou qu'aucun jour n'est actif.
+     * Programme la prochaine sonnerie et dit ce qui s'est passé.
      *
      * setAlarmClock est la seule API exemptée du Doze mode : ne pas la remplacer
      * par setExactAndAllowWhileIdle, qui est throttlé à une fois par 9 minutes.
      *
-     * Sur Android 12, l'utilisateur peut retirer SCHEDULE_EXACT_ALARM à tout
-     * moment après l'onboarding. `setAlarmClock` lève alors une SecurityException.
-     * On renvoie null au lieu de planter : l'accueil retombe sur l'onboarding,
-     * qui redemande l'autorisation.
+     * Cette fonction renvoyait `null` pour cinq situations différentes, et ses
+     * trois appelants jetaient ce `null`. Une permission retirée après
+     * l'onboarding faisait donc disparaître l'alarme sans un mot, pendant que
+     * l'accueil continuait d'annoncer l'heure du prochain réveil. Voir
+     * [ResultatPlanification] : la distinction qui compte est « l'utilisateur
+     * en attendait-il une », pas « une alarme a-t-elle été posée ».
      */
-    fun schedule(config: AlarmConfig): LocalDateTime? {
+    fun schedule(config: AlarmConfig): ResultatPlanification {
         if (!config.armed) {
             cancel()
-            return null
+            return ResultatPlanification.Desarmee
         }
-        if (!canScheduleExact()) return null
+        if (!canScheduleExact()) return ResultatPlanification.PermissionManquante
         val next = NextOccurrenceCalculator.next(config, LocalDateTime.now()) ?: run {
             cancel()
-            return null
+            return ResultatPlanification.AucunJourActif
         }
         val epochMillis = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         return try {
@@ -42,9 +43,11 @@ class AlarmScheduler(private val context: Context) {
                 AlarmManager.AlarmClockInfo(epochMillis, pendingShowIntent()),
                 pendingFireIntent(),
             )
-            next
+            ResultatPlanification.Programmee(next)
         } catch (_: SecurityException) {
-            null
+            ResultatPlanification.PermissionManquante
+        } catch (_: Exception) {
+            ResultatPlanification.EchecSysteme
         }
     }
 
