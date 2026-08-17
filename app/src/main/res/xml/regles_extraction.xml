@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    La clé d'API Gemini que l'utilisateur saisit est persistée dans le
+    DataStore de configuration. Sans ces règles, `allowBackup="true"` la fait
+    partir dans la sauvegarde Android et dans le transfert d'appareil à
+    appareil — ce que le commentaire des permissions de ce manifeste dément
+    explicitement.
+
+    Le reste de la configuration part avec : elle vit dans le même fichier, et
+    la séparer demanderait un second magasin. Perdre l'heure du réveil au
+    changement de téléphone se voit et se répare en dix secondes ; une clé
+    recopiée ailleurs sans qu'on le sache, non.
+
+    S'applique à partir d'Android 12 ; `regles_sauvegarde.xml` couvre les
+    versions antérieures.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore" />
+    </device-transfer>
+</data-extraction-rules>

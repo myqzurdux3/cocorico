@@ -10,9 +10,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Le défi photo est un choix parmi trois : sans caméra, l'application
+         fonctionne entièrement. Sans cette déclaration, le Play Store la
+         rendrait invisible aux appareils qui n'en ont pas. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <!-- Uniquement pour le défi photo, qui fait juger l'image par un modèle de
          vision distant. C'est la seule fonction de l'application qui sorte une
          donnée du téléphone ; tout le reste — alarme, sonneries, défis,
@@ -21,6 +25,8 @@
 
     <application
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/regles_extraction"
+        android:fullBackupContent="@xml/regles_sauvegarde"
         android:icon="@mipmap/ic_launcher"
         android:label="Cocorico"
         android:supportsRtl="false"
