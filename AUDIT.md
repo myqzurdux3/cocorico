@@ -327,13 +327,13 @@ désormais le fait mesuré au lieu d'adoucir le seuil.
 
 | | Avant (`190d41c`) | Après (`8cdc81c`) |
 |---|---|---|
-| Tests | 203, 0 échec | **266, 0 échec** (24 → 31 classes) |
-| Lignes Kotlin (production) | 7 063 | 8 017 |
-| Lignes Kotlin (test) | 2 641 | 3 286 |
+| Tests | 203, 0 échec | **300, 0 échec** (24 → 37 classes) |
+| Lignes Kotlin (production) | 7 063 | 9 056 |
+| Lignes Kotlin (test) | 2 641 | 3 785 |
 | Avertissements du compilateur | 2 | 2 (identiques : `LocalLifecycleOwner` déprécié) |
-| Lint | jamais exécuté | 61 avertissements, **0 erreur** |
+| Lint | jamais exécuté | 62 avertissements, **0 erreur** |
 | Dépendances déclarées | 20, dont 3 inutilisées et 1 manquante | 18, toutes utilisées et déclarées |
-| README / LICENCE / CI | aucun | README, CI ; licence toujours à choisir |
+| README / LICENCE / CI | aucun | README, CI, **Apache 2.0**, CONTRIBUTING, SECURITY, code de conduite, modèles d'issue et de PR |
 | Build à froid | 39 s | 55 s (lint compris) |
 
 Vérifié depuis un **clone neuf** dans un répertoire vide, en suivant le seul
@@ -370,57 +370,49 @@ visuelle **certaine** contre un débordement **supposé**. Seul un rendu tranche
 
 **La licence n'est pas choisie.** C'est ta décision, pas la mienne.
 
-### Inventaire complet de ce qui reste ouvert
+### Seconde vague — tout le reste de la phase 1
 
-Tous les **bloquants** de la phase 1 sont fermés. Voici, sans exception, les
-constats de sévérité inférieure qui ne l'ont pas été.
+Après le premier rapport, **tous** les constats de la phase 1 ont été traités,
+majeurs et mineurs compris : `AlarmService` (replanification au déclenchement,
+WakeLock renouvelé, course sur la relance, ordre de `startForeground`,
+suppression d'un chemin de récupération que Android bloque depuis la version 10),
+`AlarmReceiver` (écriture disque hors du thread principal, verrou de démarrage),
+les transitions d'heure d'été côté planification **et** côté compte à rebours,
+l'instant de déclenchement enfin lu chez le service, les statistiques « ce
+matin » et « jour le plus lent », le générateur de calculs, une dizaine de
+défauts d'écran dont un qui permettait à une application tierce de masquer le
+seul chemin vers l'alarme en cours, et l'empreinte de la distribution Gradle.
 
-**Majeurs**
+Deux pièges méritent d'être retenus, parce qu'ils auraient produit un correctif
+plausible et faux :
 
-- `alarm/AlarmService.kt:132` — la prochaine occurrence n'est reprogrammée qu'à la résolution du défi. Une mort du service sans résolution laisse le réveil du lendemain non programmé jusqu'à un redémarrage. *L'alerte de replanification ajoutée en `1799d3c` ne couvre pas ce chemin.*
-- `alarm/AlarmService.kt:152` — `startActivity` depuis un service en arrière-plan est bloqué depuis Android 10 : le chemin de récupération de l'écran d'alarme ne fonctionne probablement pas.
-- `alarm/AlarmService.kt:164` — le WakeLock est pris pour 30 min et jamais renouvelé, alors que le secours peut faire durer la sonnerie plus longtemps.
-- `alarm/AlarmService.kt:60` — `ACTION_DEFI_RESOLU` sort avant `startForeground`.
-- `alarm/AlarmState.kt:55` — `commit()`, écriture disque synchrone, sur le thread principal d'`onReceive`.
-- `alarm/AlarmScheduler.kt:39` — aucun traitement ni test des transitions d'heure d'été.
-- `alarm/AlarmReceiver.kt:22` — aucun WakeLock entre le retour d'`onReceive` et son acquisition par le service.
-- `app/schemas/1.json` absent — `MIGRATION_1_2` n'est jamais jouée contre un vrai SQLite.
-- `ui/AlarmActivity.kt:82` — `alarmeAt` est horodaté à la création de l'activité, pas au déclenchement : une relance de l'écran fausse la durée enregistrée.
-- Clé d'API stockée en clair ; `release` sans signature ni R8.
+- **`CLE_DERNIER_SIGNE` ne pouvait pas servir d'instant de déclenchement.**
+  C'est un signe de vie réécrit à chaque passage du filet de secours, donc
+  toutes les 30 secondes : tous les réveils auraient été enregistrés à une
+  demi-minute. Une clé distincte, posée une seule fois, a été ajoutée.
+- **`referrer` ne pouvait pas valider l'appelant de l'écran de victoire.** Il
+  est figé au lancement de l'activité, donc faux dans le cas courant où
+  `MainActivity` est déjà vivante et reçoit `onNewIntent` — la validation aurait
+  cassé le vrai chemin de victoire. C'est un `PendingIntent` qui sert de preuve.
 
-**Mineurs**
+Un test qui passait du premier coup a été traité comme suspect : celui du
+générateur de calculs a été confronté à un générateur volontairement muté pour
+vérifier qu'il échouait bien, puis remis en état. Un test vert qui n'a jamais
+été rouge ne prouve rien.
 
-- `data/StatsCalculator.kt:139` — `dureeCeMatinSecondes` est le dernier enregistrement quelle que soit sa date : après un jour sans réveil, l'écran étiquette « ce matin » une valeur de la veille.
-- `data/StatsCalculator.kt:170` — division entière et départage dépendant de l'ordre d'insertion.
-- `data/WakeRecord.kt:14` — colonne `triches` morte (retrait = migration v3).
-- `challenge/MathChallengeEngine.kt:15` — `total` non validé : à 0, `0/0` → `NaN` dans la jauge.
-- `challenge/MathProblemGenerator.kt` — contrat « réponse saisissable au pavé » toujours non testé.
-- `challenge/MathChallenge.kt:108` — « Non. Et le coq a entendu. » clignote sur une **bonne** réponse.
-- `ui/AlarmActivity.kt:280` — recomposition de tout l'écran deux fois par seconde, aperçu caméra compris.
-- `ui/AlarmActivity.kt:171` — résolution du défi constatée par scrutation (jusqu'à 500 ms de sonnerie en trop).
-- `ui/AlarmActivity.kt:287` — `onKeyUp` des touches de volume non consommé.
-- `ui/AlarmActivity.kt` défilement défi fermé — voir plus haut, arbitrage assumé.
-- `ui/StatsScreen.kt:50`, `ui/VictoryScreen.kt:45` — lectures de base non protégées.
-- `ui/VictoryScreen.kt:38` — « 0 réveil d'affilée » affiché pendant le chargement ; `:94` — valeur longue repliée caractère par caractère.
-- `ui/HomeScreen.kt:68` — `lireNom` en composition ; `:182` — pastilles de 38 dp, sous le minimum tactile de 48 dp.
-- `ui/StatsScreen.kt:63` et 4 autres écrans — « ‹ Retour » sans marge, cible de ~20 dp.
-- `ui/ChallengeSettingsScreen.kt:139` — après un refus définitif de la caméra, l'appui ne fait plus rien.
-- `ui/MainActivity.kt:100` — permissions relues seulement à la composition ; `:62` — l'extra de l'activité exportée est consommé mais l'appelant n'est pas validé.
-- `ui/RingtoneScreen.kt:59`, `ui/EssaiPhotoScreen.kt:72` — lectures en composition, `remember` sans clé.
-- `gradle-wrapper.properties` sans `distributionSha256Sum` ; pas de `verification-metadata.xml` ; version KSP en dur dans `[plugins]`.
-- `ACCESS_NOTIFICATION_POLICY` absente (change ce que l'application demande à l'installation) ; `foregroundServiceType="mediaPlayback"` à trancher avec les règles Play à jour.
-- Points d'injection jamais surchargés des détecteurs : ce sont les leviers de la calibration sur appareil, qui n'a pas eu lieu.
+### Ce qui reste ouvert, sans exception
 
-**Aucun formateur automatique n'a été branché.** ktlint ou Spotless
-reformateraient aujourd'hui des milliers de lignes qui fonctionnent, ce qui
-noierait l'historique sans corriger un seul défaut — exactement ce que la
-première règle de cet audit interdit. Un `.editorconfig` fige les conventions
-pour ce qui s'écrit ensuite ; brancher un formateur reste à faire, de
-préférence en un commit isolé et jamais mêlé à un correctif.
+- **`app/schemas/1.json` n'est pas versionné**, donc `MIGRATION_1_2` n'est jamais jouée contre un vrai SQLite. Corriger demande `room-testing` et une source `androidTest`, donc un émulateur.
+- **La colonne `triches` est morte** : documentée comme telle, pas supprimée — l'enlever impose une migration Room v3.
+- **`release` n'a ni signature ni R8.** Activer la minification sans pouvoir vérifier sur appareil casserait Room ou Compose en silence.
+- **La clé d'API est stockée en clair** sur l'appareil. Elle est exclue de la sauvegarde, masquée à l'affichage, jamais journalisée — mais un accès root la lit. Le chiffrement demande une migration des clés déjà stockées.
+- **L'écran d'alarme ne défile pas tant que le défi est fermé.** Rendre le défilement inconditionnel supprime le centrage vertical : régression visuelle certaine contre débordement supposé.
+- **Aucun formateur automatique.** ktlint ou Spotless reformateraient aujourd'hui des milliers de lignes qui fonctionnent, ce qui noierait l'historique sans corriger un défaut — exactement ce que la première règle de cet audit interdit. `.editorconfig` fige les conventions pour la suite ; brancher un formateur reste à faire, en un commit isolé.
+- **Trois avertissements de dépréciation** (`LocalLifecycleOwner`) : les lever demande la dépendance `lifecycle-runtime-compose`, donc une décision sur le catalogue.
 
 ### 3. Risques restants, par priorité
 
-1. **Aucun seuil de capteur n'a jamais été mesuré sur un vrai geste.** Ceux de
+1. **Presque aucun seuil de capteur n'a été mesuré sur un vrai geste.** L'audit en a mesuré un, par simulation : le repliement des vibrations à 66,7 ms (voir plus haut). Les autres restent des valeurs de simulation. Ceux de
    `CompteurPompes`, `PriseEnMainDetector`, `MouvementDetector` et
    `EstimateurGravite` viennent tous de simulations. `MouvementDetector` est
    documenté comme produisant une énergie nulle sur une prise en main molle : le
