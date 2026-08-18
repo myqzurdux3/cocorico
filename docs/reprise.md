@@ -61,7 +61,22 @@ volume bridé à **10 %**, et **tout remis à son état d'origine ensuite**.
 |---|---|
 | Volume du flux d'alarme | **5 sur 7** |
 | `font_scale` | **1.0** |
-| Application | installée, sur la liste blanche batterie |
+| Application | **pas installée** au 18 août 2026, 11 h 30 |
+
+L'application disparaît régulièrement du téléphone entre deux sessions —
+constaté trois fois. Vérifier avant d'agir plutôt que de le supposer :
+
+```bash
+adb shell pm list packages | grep cocorico
+```
+
+Il faut une version de **débogage** pour l'atténuation d'essai et pour
+`run-as` : la version publiée n'en contient pas une ligne, R8 la supprime
+entièrement.
+
+```bash
+./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
 ### Atténuation d'essai — sans elle, ça sonne à fond
 
