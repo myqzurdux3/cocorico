@@ -14,7 +14,7 @@ l'utilisateur veut qu'il le reste.
 **Pull request :** https://github.com/myqzurdux3/wake-up/pull/1 (ouverte).
 **Base :** `main`.
 
-**État mesuré** — 51 commits au-delà de `190d41c` :
+**État mesuré** — 52 commits au-delà de `190d41c` :
 
 | | |
 |---|---|
@@ -49,23 +49,24 @@ Le mode Sur mesure **a sonné pour de vrai**, à 1 sur 7, séquence
 corrigés depuis : nom du défi dans l'historique, distinction désarmé / aucun
 jour actif, comptage des fautes en Sur mesure, débordement de la carte « Défi ».
 
-### Ce que l'essai n'a pas pu couvrir
+### Ce que cet essai-là n'avait pas pu couvrir
 
-- **Une vraie pompe.** Le geste ne se simule pas par `adb` : l'épreuve a été
-  abandonnée pour tester le repli. La tenue basse à 100 ms **n'a toujours pas
-  été réessayée** sur l'appareil.
-- **Une vraie photo.** Pas de clé d'API sur cette installation.
-- **La version publiée.** La chaîne d'alarme n'a jamais tourné sous R8.
+- **Une vraie pompe** — le geste ne se simule pas par `adb` — et **une vraie
+  photo**, faute de clé d'API. **L'utilisateur les a essayées lui-même le même
+  jour, dans une séquence Sur mesure : les deux marchent.** La tenue basse à
+  100 ms est donc validée en conditions réelles.
+- **La version publiée.** La chaîne d'alarme n'a jamais tourné sous R8. Ses
+  invariants, eux, sont vérifiés sans bruit à chaque build : voir plus bas.
 
 ## LA CHOSE À FAIRE ENSUITE
 
-Refaire sonner le mode Sur mesure avec **de vraies pompes et une vraie photo**,
-clé d'API renseignée. C'est le seul morceau du mode que personne n'a encore vu
-fonctionner de bout en bout.
+**Rien d'obligatoire.** Le mode Sur mesure a été éprouvé de bout en bout, avec
+de vraies pompes et une vraie photo. Ce qui reste est listé plus bas et demande
+une décision de l'utilisateur, pas du travail de plus.
 
-**L'utilisateur a donné son accord pour faire sonner, à deux conditions :**
-volume bridé à **10 %**, et **tout remis à son état d'origine ensuite**.
-L'accord vaut pour l'occasion où il est donné, pas pour les suivantes.
+**Rappel : l'accord pour faire sonner vaut pour l'occasion où il est donné, pas
+pour les suivantes.** Volume bridé à **10 %**, et **tout remis à son état
+d'origine ensuite**.
 
 ---
 
@@ -244,13 +245,56 @@ adb shell dumpsys alarm | grep -E 'Next wakeup alarm|Next wake from idle'
 
 ## Ce que l'utilisateur a demandé et qui reste ouvert
 
-- **Essai des pompes en conditions réelles.** Il a testé et validé le comptage,
-  puis demandé la tenue basse à 100 ms — c'est fait, mais **pas réessayé
-  depuis**, et le geste ne se simule pas par `adb`.
-- **Essai de la photo en Sur mesure.** Jamais faite : sans clé d'API, l'épreuve
-  se replie sur des calculs.
 - La version **release n'a jamais sonné** : la chaîne d'alarme n'a été éprouvée
-  qu'en débogage, sans R8.
+  qu'en débogage, sans R8. **Et elle ne peut pas l'être à 10 %** :
+  [NiveauxVolume.POURCENT_MINIMAL] plancher le plafond utilisateur à 50 %, soit
+  4 crans sur 7 ici, et R8 retire l'atténuation d'essai. Un essai de la release
+  suppose donc d'accepter 4 sur 7 — c'est-à-dire moins fort que le réglage
+  d'alarme habituel du téléphone (5 sur 7), mais pas 10 %. **Demander avant.**
+- **L'écran de victoire n'a pas été revu après la correction de sa mise en
+  page** (valeur du défi ramenée à 17 sp) : il ne s'affiche qu'après une vraie
+  sonnerie.
+
+Réglé depuis :
+
+- **Pompes et photo en conditions réelles, dans une séquence Sur mesure** :
+  validé par l'utilisateur le 18 août 2026, avec de vraies pompes et une vraie
+  photo. C'était le dernier morceau du mode que personne n'avait vu tourner de
+  bout en bout.
+
+## Vérifier la version publiée sans la faire sonner
+
+Trois invariants qui, s'ils cassent, ne se voient pas à l'exécution avant qu'il
+ne soit trop tard. Refait le 18 août 2026, après les corrections : les trois
+tiennent.
+
+**Les noms des constantes doivent survivre à R8.** La configuration et
+l'historique rangent `ChallengeId.name` en clair. Si R8 les renomme, la
+première mise à jour minifiée rend illisibles le défi réglé et tout
+l'historique de l'utilisateur.
+
+```bash
+grep -E 'ChallengeId (MATHS|POMPES|PHOTO|COMBINE) ->' app/build/outputs/mapping/release/mapping.txt
+```
+
+Attendu : `COMBINE -> COMBINE`, et de même pour les trois autres.
+
+**L'atténuation d'essai ne doit pas exister en release.**
+
+```bash
+unzip -p app/build/outputs/apk/release/app-release.apk 'classes*.dex' | grep -c attenuation_essai
+```
+
+Attendu : **0**.
+
+**Les bibliothèques natives doivent être alignées sur 16 Ko**, sans quoi le Play
+Store refuse la publication.
+
+```bash
+for f in lib/*/*.so; do readelf -lW "$f" | awk '$1=="LOAD"{print $NF; exit}'; done
+```
+
+Attendu : `0x4000` partout.
 
 ## Dette connue, assumée
 
