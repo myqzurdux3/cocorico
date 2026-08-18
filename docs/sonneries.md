@@ -29,7 +29,7 @@ Ce fichier n'est **pas** une création de ce dépôt : c'est un enregistrement
 fourni par le propriétaire, dont la source et la licence d'origine n'ont pas
 été documentées.
 
-**`LICENSE` ne le couvre pas.** Apache 2.0 porte sur le code de ce dépôt. Un
+**`LICENSE` ne le couvre pas.** La licence MIT porte sur le code de ce dépôt. Un
 fichier audio tiers n'en relève pas automatiquement, et personne n'a vérifié
 que celui-ci autorise la redistribution.
 
@@ -41,7 +41,7 @@ surprise.
 
 ### Si tu réutilises ce dépôt
 
-**Ne considère pas `coq.wav` comme du contenu sous Apache 2.0.** Avant toute
+**Ne considère pas `coq.wav` comme du contenu sous licence MIT.** Avant toute
 redistribution, tout paquet publié ou tout usage commercial, remplace-le :
 
 - par un enregistrement dont la licence est connue (Freesound en CC0,

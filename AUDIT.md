@@ -333,7 +333,7 @@ désormais le fait mesuré au lieu d'adoucir le seuil.
 | Avertissements du compilateur | 2 | **0** |
 | Lint | jamais exécuté | 62 avertissements, **0 erreur** |
 | Dépendances déclarées | 20, dont 3 inutilisées et 1 manquante | 18, toutes utilisées et déclarées |
-| README / LICENCE / CI | aucun | README, CI, **Apache 2.0**, CONTRIBUTING, SECURITY, code de conduite, modèles d'issue et de PR |
+| README / LICENCE / CI | aucun | README, CI, **licence MIT**, CONTRIBUTING, SECURITY, code de conduite, modèles d'issue et de PR |
 | Build à froid | 39 s | 55 s (lint compris) |
 
 Vérifié depuis un **clone neuf** dans un répertoire vide, en suivant le seul
