@@ -113,7 +113,10 @@ Pixel 9a, Android 17, le 16 août 2026 :
   simulations. C'est le premier objet de la recette sur appareil.
 - **Le capteur de proximité ne distingue pas un torse d'une paume.** Tenir la
   main au-dessus du capteur au bon rythme valide le défi en une dizaine de
-  secondes, téléphone posé. Limite acceptée pour l'instant ; la piste retenue
+  secondes, téléphone posé. **Aggravé volontairement** : la tenue basse exigée
+  est passée de 600 ms à 100 ms après essai sur appareil, parce que 600 ms
+  obligeaient à marquer une pause en bas — ce qui n'est pas une pompe. Un vrai
+  geste compte enfin ; un balayage de main aussi, plus facilement. Limite acceptée pour l'instant ; la piste retenue
   est d'exiger un choc au sol pendant la phase basse, à calibrer après la
   recette. Détail dans `recette-appareil.md`.
 - **Résolu.** La migration est jouée sur base peuplée par `MigrationInstrumenteeTest`

@@ -120,12 +120,18 @@ class CompteurPompes(private val total: Int) {
          * compteur en continu (20 ms entre deux échantillons, voir
          * `CapteurPompes.demarrer`), donc la référence haute est au plus vieille
          * d'un échantillon quand la descente commence. La tenue basse réelle
-         * vaut toujours cette durée-ci à 20 ms près, et un seuil de 150 ms
-         * dessous n'aurait jamais pu se déclencher sur un vrai flux de capteurs
-         * — il ne rejetait quelque chose que dans des tests alimentés en
-         * échantillons épars, c'est-à-dire nulle part.
+         * vaut toujours cette durée-ci à 20 ms près.
+         *
+         * **Abaissée de 600 ms à 100 ms après essai sur appareil.** Six cents
+         * millisecondes obligeaient à marquer un temps d'arrêt en bas, ce qui
+         * n'est pas une pompe mais une pose : le geste naturel touche et
+         * repart. Contrepartie assumée, et elle est réelle — plus la borne est
+         * courte, plus un balayage rapide de la main au-dessus du capteur
+         * ressemble à une répétition. La triche à la paume était déjà connue et
+         * acceptée (voir `docs/cocorico.md`) ; ce réglage la rend un peu plus
+         * facile, en échange d'un geste honnête qui, lui, compte enfin.
          */
-        const val DUREE_DEPUIS_DERNIER_HAUT_MIN_MS = 600L
+        const val DUREE_DEPUIS_DERNIER_HAUT_MIN_MS = 100L
 
         /** Plus long, ce n'est plus une pompe. */
         const val DUREE_DEPUIS_DERNIER_HAUT_MAX_MS = 8_000L

@@ -47,13 +47,12 @@ class CompteurPompesTest {
     @Test
     fun `une main qui passe trop vite ne compte pas`() {
         val c = CompteurPompes(total = 10)
-        // 300 ms depuis le dernier echantillon haut (t=1_000) jusqu'a la
-        // remontee (t=1_300), sous la borne minimale de 600 ms — bien plus
-        // que les 200 ms reellement passees en position basse (1_100 a
-        // 1_300), mais la main repasse quand meme trop vite devant le capteur
+        // 60 ms depuis le dernier echantillon haut (t=1_000) jusqu'a la
+        // remontee (t=1_060), sous la borne minimale de 100 ms : la main
+        // repasse trop vite devant le capteur pour que ce soit une descente.
         c.onEchantillon(echantillon(proche = false, t = 1_000))
-        c.onEchantillon(echantillon(proche = true, t = 1_100))
-        c.onEchantillon(echantillon(proche = false, t = 1_300))
+        c.onEchantillon(echantillon(proche = true, t = 1_020))
+        c.onEchantillon(echantillon(proche = false, t = 1_060))
         assertEquals(0, c.comptees.value)
     }
 
@@ -73,29 +72,32 @@ class CompteurPompesTest {
     }
 
     @Test
-    fun `un effleurement du capteur ne compte pas`() {
+    fun `un effleurement tres bref ne compte pas`() {
         val c = CompteurPompes(total = 10)
-        // Une main qui passe 100 ms devant le capteur, sur un flux realiste :
-        // la reference haute a ete rafraichie jusqu'a 20 ms avant la descente,
+        // Une main qui passe 40 ms devant le capteur, sur un flux realiste : la
+        // reference haute a ete rafraichie jusqu'a 20 ms avant la descente,
         // donc la duree depuis le dernier haut vaut la tenue basse a un
-        // echantillon pres — 120 ms, tres en dessous des 600 ms exiges.
+        // echantillon pres — 60 ms, sous les 100 ms exiges.
+        //
+        // A dire franchement : depuis que la borne est passee de 600 a 100 ms,
+        // seul un effleurement **tres** bref est rejete. Un passage de main de
+        // 120 ms compte desormais comme une repetition. C'est le prix paye pour
+        // qu'une vraie pompe, qui touche et repart, compte enfin.
         val finHaut = c.fluxReel(depart = 1_000, proche = false, dureeMs = 1_000)
-        val finBas = c.fluxReel(depart = finHaut + PAS_CAPTEUR_MS, proche = true, dureeMs = 100)
+        val finBas = c.fluxReel(depart = finHaut + PAS_CAPTEUR_MS, proche = true, dureeMs = 40)
         c.onEchantillon(echantillon(proche = false, t = finBas + PAS_CAPTEUR_MS))
         assertEquals(0, c.comptees.value)
     }
 
     /**
-     * Caracterise ce qui remplace l'ancienne garde anti-effleurement de 150 ms,
-     * supprimee parce qu'elle etait inatteignable : sur un flux continu, la
-     * duree depuis le dernier echantillon haut vaut la tenue basse plus un
-     * echantillon, si bien que la borne de 600 ms interdit deja toute tenue
-     * basse inferieure a 580 ms. Un seuil a 150 ms ne pouvait donc jamais
-     * trancher quoi que ce soit sur l'appareil — il ne rejetait que des
-     * sequences que seuls des tests aux echantillons epars savaient produire.
+     * Caracterise la borne reellement appliquee sur un flux continu : la duree
+     * depuis le dernier echantillon haut vaut la tenue basse plus un
+     * echantillon, si bien que la borne de 100 ms interdit toute tenue basse
+     * inferieure a 80 ms. C'est ce chiffre-la que l'utilisateur ressent, pas
+     * la constante.
      */
     @Test
-    fun `sur un flux realiste la plus courte tenue basse comptee est de 580 ms`() {
+    fun `sur un flux realiste la plus courte tenue basse comptee est de 80 ms`() {
         val comptees = (20L..800L step PAS_CAPTEUR_MS).filter { tenueBasseMs ->
             val c = CompteurPompes(total = 10)
             val finHaut = c.fluxReel(depart = 1_000, proche = false, dureeMs = 1_000)
@@ -107,7 +109,7 @@ class CompteurPompesTest {
             c.onEchantillon(echantillon(proche = false, t = finBas + PAS_CAPTEUR_MS))
             c.comptees.value == 1
         }
-        assertEquals(580L, comptees.min())
+        assertEquals(80L, comptees.min())
     }
 
     @Test
@@ -220,10 +222,10 @@ class CompteurPompesTest {
     fun `une duree exactement a la borne basse compte`() {
         val c = CompteurPompes(total = 10)
         c.onEchantillon(echantillon(proche = false, t = 800)) // PRET, debutTenueHaute = 800
-        c.onEchantillon(echantillon(proche = true, t = 1_000)) // BAS
-        // exactement 600 ms depuis le dernier echantillon haut
+        c.onEchantillon(echantillon(proche = true, t = 850)) // BAS
+        // exactement 100 ms depuis le dernier echantillon haut
         // (DUREE_DEPUIS_DERNIER_HAUT_MIN_MS) : la borne est inclusive
-        assertTrue(c.onEchantillon(echantillon(proche = false, t = 1_400)))
+        assertTrue(c.onEchantillon(echantillon(proche = false, t = 900)))
         assertEquals(1, c.comptees.value)
     }
 
@@ -231,9 +233,9 @@ class CompteurPompesTest {
     fun `une duree juste sous la borne basse ne compte pas`() {
         val c = CompteurPompes(total = 10)
         c.onEchantillon(echantillon(proche = false, t = 800))
-        c.onEchantillon(echantillon(proche = true, t = 1_000))
-        // 599 ms depuis le dernier echantillon haut : un de moins que la borne
-        assertFalse(c.onEchantillon(echantillon(proche = false, t = 1_399)))
+        c.onEchantillon(echantillon(proche = true, t = 850))
+        // 99 ms depuis le dernier echantillon haut : un de moins que la borne
+        assertFalse(c.onEchantillon(echantillon(proche = false, t = 899)))
         assertEquals(0, c.comptees.value)
     }
 
