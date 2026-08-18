@@ -11,12 +11,14 @@ reprendre. Le produit lui-même est décrit dans `cocorico.md`, l'audit dans
 
 **Dépôt :** `myqzurdux3/cocorico` — renommé depuis `wake-up` le 18 août 2026,
 en même temps que le dossier local `~/Documents/cocorico`.
-**Branche :** `cocorico-v1`, poussée sur `origin`. Dépôt **privé**, et
-l'utilisateur veut qu'il le reste.
-**Pull request :** https://github.com/myqzurdux3/cocorico/pull/1 (ouverte).
-**Base :** `main`.
+**Branche de travail :** `main`. La V1 y a été fusionnée le 18 août 2026 par la
+[PR #1](https://github.com/myqzurdux3/cocorico/pull/1), en **commit de fusion**
+et non en `squash` : les 100 commits disent chacun pourquoi une décision a été
+prise, et cet historique vaut mieux qu'une ligne propre. `cocorico-v1` est
+conservée telle quelle, sans rien de plus que `main`.
+Dépôt **privé**, et l'utilisateur veut qu'il le reste.
 
-**État mesuré** — 57 commits au-delà de `190d41c` :
+**État mesuré** — 170 commits sur `main` :
 
 | | |
 |---|---|
@@ -24,7 +26,7 @@ l'utilisateur veut qu'il le reste.
 | Tests instrumentés | **10, 0 échec** (Pixel 9a / Android 17) |
 | Avertissements du compilateur | **0** |
 | Lint | 75 constats, dont **57 sont des montées de version** bloquées par le mur AGP 9 ; les 18 autres sont listés dans « Dette connue » |
-| APK release | 5,0 Mo, signé, R8 actif |
+| APK release | 4,66 Mo, signé, R8 actif |
 
 Un audit complet a été mené (`../AUDIT.md`) : tous les constats des phases 1 à 6
 sont traités. Depuis, quatre demandes livrées : une seule photo par défi photo,
