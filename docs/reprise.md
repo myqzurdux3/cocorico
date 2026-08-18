@@ -14,11 +14,11 @@ l'utilisateur veut qu'il le reste.
 **Pull request :** https://github.com/myqzurdux3/wake-up/pull/1 (ouverte).
 **Base :** `main`.
 
-**État mesuré** — 45 commits au-delà de `190d41c` :
+**État mesuré** — 51 commits au-delà de `190d41c` :
 
 | | |
 |---|---|
-| Tests unitaires | **331, 0 échec** |
+| Tests unitaires | **342, 0 échec** |
 | Tests instrumentés | **10, 0 échec** (Pixel 9a / Android 17) |
 | Avertissements du compilateur | **0** |
 | Lint | 66 constats, dont **2 hors versions de dépendances** |
@@ -31,14 +31,41 @@ du lint.
 
 ---
 
+## Ce que l'essai du 18 août 2026 a donné
+
+Le mode Sur mesure **a sonné pour de vrai**, à 1 sur 7, séquence
+`1 calcul → 1 pompe → 1 photo` :
+
+- l'enchaînement, l'en-tête « Épreuve N sur M » et la fin de séquence qui
+  coupe la sonnerie : **corrects** ;
+- le renoncement à une épreuve la remplace bien par des calculs **sans
+  toucher aux autres** ni au rang affiché ;
+- l'épreuve photo, faute de clé d'API, est remplacée **d'office** : rien ne
+  piège l'utilisateur ;
+- la composition (compteurs, flèches, ordre) est persistée telle quelle :
+  `MATHS:1,POMPES:1,PHOTO:1`.
+
+**Quatre défauts trouvés là où les tests unitaires ne regardaient pas**, tous
+corrigés depuis : nom du défi dans l'historique, distinction désarmé / aucun
+jour actif, comptage des fautes en Sur mesure, débordement de la carte « Défi ».
+
+### Ce que l'essai n'a pas pu couvrir
+
+- **Une vraie pompe.** Le geste ne se simule pas par `adb` : l'épreuve a été
+  abandonnée pour tester le repli. La tenue basse à 100 ms **n'a toujours pas
+  été réessayée** sur l'appareil.
+- **Une vraie photo.** Pas de clé d'API sur cette installation.
+- **La version publiée.** La chaîne d'alarme n'a jamais tourné sous R8.
+
 ## LA CHOSE À FAIRE ENSUITE
 
-**Essayer le mode Sur mesure sur l'appareil.** Il n'a jamais sonné : son
-enchaînement n'est vérifié que par tests unitaires et par des captures des
-écrans de réglage.
+Refaire sonner le mode Sur mesure avec **de vraies pompes et une vraie photo**,
+clé d'API renseignée. C'est le seul morceau du mode que personne n'a encore vu
+fonctionner de bout en bout.
 
 **L'utilisateur a donné son accord pour faire sonner, à deux conditions :**
 volume bridé à **10 %**, et **tout remis à son état d'origine ensuite**.
+L'accord vaut pour l'occasion où il est donné, pas pour les suivantes.
 
 ---
 
@@ -61,7 +88,7 @@ volume bridé à **10 %**, et **tout remis à son état d'origine ensuite**.
 |---|---|
 | Volume du flux d'alarme | **5 sur 7** |
 | `font_scale` | **1.0** |
-| Application | **pas installée** au 18 août 2026, 11 h 30 |
+| Application | **installée** (débogage), **désarmée**, sans atténuation, au 18 août 2026 après l'essai |
 
 L'application disparaît régulièrement du téléphone entre deux sessions —
 constaté trois fois. Vérifier avant d'agir plutôt que de le supposer :
@@ -98,8 +125,36 @@ Sans cette ligne, **la consigne n'est pas active**. C'est exactement l'erreur
 commise la première fois : le fichier avait été posé dans le stockage externe,
 qui n'existe pas encore à ce moment-là, et l'alarme a sonné à 7 sur 7.
 
+`files/` **n'existe pas tant que l'application n'a jamais été lancée** : après
+une installation neuve, la lancer une fois avant d'écrire le fichier.
+
 Pour retirer l'atténuation :
 `adb shell "run-as com.cocorico rm -f files/attenuation_essai"`
+
+### La preuve qui ne ment pas : le journal audio du système
+
+La trace `ATTENUATION` peut **disparaître du tampon** `logcat`, qui tourne. Le
+18 août, une boucle d'attente `until` sans pause a saturé le tampon et effacé
+la ligne de la sonnerie : impossible de savoir après coup si l'atténuation
+avait joué. Deux leçons.
+
+**Ne jamais interroger l'appareil en boucle serrée pendant l'attente.** Mettre
+une pause entre deux sondages.
+
+**Et vérifier après coup sur le journal du système, qui enregistre chaque
+changement de volume avec son auteur :**
+
+```bash
+adb shell dumpsys audio | grep 'STREAM_ALARM index' | tail -5
+```
+
+```
+12:14:00 setStreamVolume(stream:STREAM_ALARM index:1 flags:0x0 oldIndex:5) from com.cocorico
+```
+
+`index:1` venant de `com.cocorico` **prouve** que l'atténuation s'est
+appliquée. La trace applicative sert de feu vert avant de faire sonner ; ce
+journal-là sert de constat après.
 
 ### Restaurer le volume
 
@@ -139,7 +194,32 @@ Coordonnées relevées sur ce Pixel 9a (1080 × 2424), écran d'accueil :
 | Carte « Défi » | `538 1186` |
 
 Le sélecteur d'heure ne passe pas automatiquement des heures aux minutes : il
-faut toucher chaque champ, effacer avec `KEYCODE_DEL`, puis saisir.
+faut toucher chaque champ, effacer, puis saisir.
+
+**Attention, le dialogue se déplace.** Toucher un champ fait apparaître le pavé
+numérique du système, qui remonte le dialogue : les coordonnées relevées avant
+ne valent plus après. Passer par les touches du pavé plutôt que par
+`input text` / `KEYCODE_DEL`, et **recapturer entre chaque étape**. Sans ça, un
+appui tombe à côté et ferme le dialogue sans rien changer — arrivé du premier
+coup le 18 août.
+
+| Cible, pavé numérique ouvert | Appui |
+|---|---|
+| Champ des heures | `290 934` |
+| Champ des minutes | `419 934` |
+| Retour arrière | `940 2009` |
+| `1` / `2` / `3` | `138 1670` · `404 1670` · `670 1670` |
+| `4` | `138 1839` |
+| OK du dialogue | `801 1136` |
+
+### L'alarme ne prend pas l'écran si le téléphone est en main
+
+Android ne donne l'intention plein écran que si l'écran est verrouillé ou
+éteint. Téléphone déverrouillé et en cours d'utilisation, la sonnerie part mais
+`AlarmActivity` **ne passe pas au premier plan** : il n'y a qu'une notification,
+et l'accueil affiche son écran de garde « Le coq n'a pas fini » avec
+**Reprendre le défi**. Ce n'est pas une panne, c'est le comportement prévu — ne
+pas le diagnostiquer comme un bug une seconde fois.
 
 Un dialogue système « Compatibilité des applis Android » peut s'afficher au
 lancement d'une version de débogage. Le fermer par **OK** (`560 1959`), jamais
@@ -166,15 +246,17 @@ adb shell dumpsys alarm | grep -E 'Next wakeup alarm|Next wake from idle'
 
 - **Essai des pompes en conditions réelles.** Il a testé et validé le comptage,
   puis demandé la tenue basse à 100 ms — c'est fait, mais **pas réessayé
-  depuis**.
-- **Essai du mode Sur mesure.** Jamais sonné.
+  depuis**, et le geste ne se simule pas par `adb`.
+- **Essai de la photo en Sur mesure.** Jamais faite : sans clé d'API, l'épreuve
+  se replie sur des calculs.
 - La version **release n'a jamais sonné** : la chaîne d'alarme n'a été éprouvée
   qu'en débogage, sans R8.
 
 ## Dette connue, assumée
 
 - **Aucun test instrumenté Compose.** Tous les défauts d'écran de l'audit ont
-  été trouvés à l'œil. C'est le seul manque de fond.
+  été trouvés à l'œil, et les quatre du 18 août l'ont été en faisant sonner
+  pour de vrai. C'est le seul manque de fond, et il coûte à chaque fois.
 - **AGP 9 non migré** : il exige Gradle 9.5 puis entre en conflit avec le
   greffon Kotlin. Toute la dernière génération d'AndroidX est derrière lui.
 - **Triche à la paume** sur les pompes, aggravée volontairement par la tenue
