@@ -2,169 +2,186 @@
 
 Note de passation, à lire en premier après une compaction de contexte ou au
 début d'une nouvelle session. Décrit où en est le travail et comment le
-reprendre. Le produit lui-même est décrit dans `cocorico.md`.
+reprendre. Le produit lui-même est décrit dans `cocorico.md`, l'audit dans
+`../AUDIT.md`.
 
 ---
 
 ## Où en est le travail
 
-**Branche :** `cocorico-v1`, poussée sur `origin`.
-**Pull request :** https://github.com/myqzurdux3/wake-up/pull/1 (ouverte, non fusionnée).
+**Branche :** `cocorico-v1`, poussée sur `origin`. Dépôt **privé**, et
+l'utilisateur veut qu'il le reste.
+**Pull request :** https://github.com/myqzurdux3/wake-up/pull/1 (ouverte).
 **Base :** `main`.
 
-La V1 est terminée, revue et testée sur appareil. Deux correctifs issus du test
-sur téléphone sont livrés : marges système (bord-à-bord) et détection de prise
-en main réécrite.
+**État mesuré** — 45 commits au-delà de `190d41c` :
 
-**Le défi pompes est terminé** : 7 tâches, relecture par tâche, revue
-d'ensemble des douze commits, et trois vagues de correction. 23 commits au-delà
-de `d101d68`, 75 tests verts.
+| | |
+|---|---|
+| Tests unitaires | **331, 0 échec** |
+| Tests instrumentés | **10, 0 échec** (Pixel 9a / Android 17) |
+| Avertissements du compilateur | **0** |
+| Lint | 66 constats, dont **2 hors versions de dépendances** |
+| APK release | 5,0 Mo, signé, R8 actif |
 
-- Plan : `superpowers/plans/2026-08-17-pompes.md` (7 tâches, toutes exécutées)
-- Spec : `superpowers/specs/2026-08-17-pompes-design.md`
-- Journal des décisions : `.superpowers/sdd/2026-08-17-pompes/progress.md`
-  (non versionné — l'essentiel a été recopié dans `cocorico.md`)
-
-**Le défi photo est terminé** : 8 tâches, revue d'ensemble, et une vague de
-correction qui a traité deux défauts bloquants. 154 tests verts.
-
-- Plan : `superpowers/plans/2026-08-17-photo.md`
-- Spec : `superpowers/specs/2026-08-17-photo-design.md`
-
-Trois autres demandes livrées depuis : aperçu des sonneries, compte à rebours
-qui ne passe plus en négatif, écran de statistiques, et le mouvement du
-téléphone qui réarme le compte à rebours du volume.
-
-**Suite immédiate : la recette sur appareil.** Rien du défi photo n'a été
-essayé sur un téléphone — ni la caméra, ni la reconnaissance, ni le juge
-distant. **Demander l'accord de l'utilisateur avant toute sonnerie.**
-
-Ordre conseillé, du moins bruyant au plus bruyant :
-
-1. Les replis de `recette-appareil.md` — ce sont eux qui décident si
-   l'utilisateur peut rester bloqué devant une sirène.
-2. La reconnaissance et son seuil, dans la lumière d'une chambre au réveil.
-3. Le mode en ligne, seulement si l'utilisateur fournit sa clé.
+Un audit complet a été mené (`../AUDIT.md`) : tous les constats des phases 1 à 6
+sont traités. Depuis, quatre demandes livrées : une seule photo par défi photo,
+tenue basse des pompes ramenée à 100 ms, mode **Sur mesure**, et le nettoyage
+du lint.
 
 ---
 
-## Comment exécuter
+## LA CHOSE À FAIRE ENSUITE
 
-Scripts de la compétence, chemin complet :
+**Essayer le mode Sur mesure sur l'appareil.** Il n'a jamais sonné : son
+enchaînement n'est vérifié que par tests unitaires et par des captures des
+écrans de réglage.
 
-```
-/home/user/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/subagent-driven-development/scripts/
-├── sdd-workspace PLAN_FILE          # imprime le répertoire de travail du plan
-├── task-brief PLAN_FILE N           # extrait le texte d'une tâche
-└── review-package PLAN_FILE BASE HEAD  # prépare le diff pour un relecteur
-```
-
-Le répertoire de travail est sous `.superpowers/sdd/`, **non versionné** — il a
-déjà été effacé une fois par un agent. Tout ce qui doit survivre va dans `docs/`.
-
-### Conventions de dispatch qui ont fait leurs preuves
-
-Coûteuses à redécouvrir, elles ont chacune corrigé un problème réel :
-
-- **Modèle selon la tâche.** Transcription de code fourni : modèle rapide.
-  Intégration Android, jugement, câblage : modèle standard. Revue finale de
-  branche et corrections subtiles : modèle le plus capable. Toujours préciser le
-  modèle explicitement.
-- **Preuve d'échec TDD réellement capturée.** Trois tâches de suite ont rendu une
-  sortie prédite. Exiger la procédure : déplacer le fichier de production hors de
-  l'arbre avec `mv` vers `/tmp`, lancer les tests, capturer la console, remettre
-  le fichier. Jamais `git stash`, `checkout` ou `reset`.
-- **Les implémenteurs ne touchent pas au plan ni à la spec.** Quand une tâche
-  révèle un défaut du plan, c'est le contrôleur qui le corrige, et le correctif
-  est transmis dans le message de reprise.
-- **Un relecteur par tâche, jamais d'agent qui engendre son propre relecteur.**
-- **Vérifier soi-même les affirmations de test** plutôt que croire les rapports :
-  `grep -ho 'tests="[0-9]*"' app/build/test-results/testDebugUnitTest/*.xml`
-  puis `grep -l '<failure' ...`.
+**L'utilisateur a donné son accord pour faire sonner, à deux conditions :**
+volume bridé à **10 %**, et **tout remis à son état d'origine ensuite**.
 
 ---
 
-## État vérifié
+## Protocole d'essai sur appareil
 
-56 tests unitaires verts. `./gradlew :app:assembleDebug` et
-`:app:testDebugUnitTest` passent.
+### Règles de sécurité, non négociables
 
-Téléphone de test : **Pixel 9a, Android 17 (API 37)**, connecté en USB.
-`export PATH="$PATH:/home/user/Android/Sdk/platform-tools"` avant tout `adb`.
-
-Vérifié sur appareil le 16 août 2026 : planification exacte avec sortie du Doze
-mode confirmée par `dumpsys alarm`, déclenchement à la seconde, écran allumé
-seul, activité par-dessus le verrouillage, volume forcé de 5 à 7, alarme qui
-repart après extinction du téléphone en pleine sonnerie, marges système
-corrigées.
-
-### Précautions sur le téléphone
-
-C'est le téléphone personnel de l'utilisateur.
-
-- **Ne jamais déclencher l'alarme sans son accord explicite.** Elle l'a déjà fait
-  paniquer au point d'éteindre l'appareil.
-- Toujours faire une capture d'écran avant un appui : des appuis à l'aveugle ont
+- **Ne jamais déclencher l'alarme sans accord explicite pour cette fois-là.**
+  Téléphone personnel. Un essai à plein volume l'a déjà fait paniquer.
+- **Capture d'écran avant chaque `adb input tap`.** Des appuis à l'aveugle ont
   déjà atterri dans ses réglages système.
-- Ne pas naviguer hors de Cocorico.
+- **Vérifier l'application au premier plan avant toute capture.** Si ce n'est
+  pas Cocorico, ne pas capturer ; si une capture a été prise par erreur, la
+  détruire sans l'ouvrir. C'est déjà arrivé deux fois (Telegram, Snapchat).
+- **Remettre l'état d'origine à la fin**, et le vérifier.
+
+### État d'origine du téléphone
+
+| Réglage | Valeur |
+|---|---|
+| Volume du flux d'alarme | **5 sur 7** |
+| `font_scale` | **1.0** |
+| Application | installée, sur la liste blanche batterie |
+
+### Atténuation d'essai — sans elle, ça sonne à fond
+
+Elle n'existe qu'en version de débogage et **doit être posée à la main** :
+
+```bash
+adb shell "run-as com.cocorico sh -c 'echo 10 > files/attenuation_essai'"
+```
+
+**Vérifier qu'elle est lue avant de faire sonner quoi que ce soit.** Lancer
+l'application et chercher dans le journal :
+
+```bash
+adb logcat -c && adb shell am start -n com.cocorico/.ui.MainActivity && sleep 3
+adb logcat -d | grep -i ATTENUATION
+```
+
+Sans cette ligne, **la consigne n'est pas active**. C'est exactement l'erreur
+commise la première fois : le fichier avait été posé dans le stockage externe,
+qui n'existe pas encore à ce moment-là, et l'alarme a sonné à 7 sur 7.
+
+Pour retirer l'atténuation :
+`adb shell "run-as com.cocorico rm -f files/attenuation_essai"`
+
+### Restaurer le volume
+
+`adb shell cmd media_session volume --set` **ne fonctionne pas** sur ce flux.
+La commande qui marche :
+
+```bash
+adb shell cmd audio set-volume 4 5
+```
+
+### Permissions, après chaque réinstallation
+
+Une réinstallation les révoque. À redonner par adb, sinon l'onboarding bloque :
+
+```bash
+adb shell pm grant com.cocorico android.permission.POST_NOTIFICATIONS
+adb shell pm grant com.cocorico android.permission.CAMERA
+adb shell appops set com.cocorico USE_FULL_SCREEN_INTENT allow
+adb shell dumpsys deviceidle whitelist +com.cocorico
+```
+
+### Régler une alarme par l'interface
+
+`AlarmActivity` n'est **pas exportée** : impossible de l'ouvrir directement par
+`am start`. Il faut une vraie alarme.
+
+Coordonnées relevées sur ce Pixel 9a (1080 × 2424), écran d'accueil :
+
+| Cible | Appui |
+|---|---|
+| Horloge (ouvre le sélecteur) | `538 529` |
+| Bascule clavier du sélecteur | `255 1700` |
+| Champ des heures | `290 1326` |
+| Champ des minutes | `419 933` |
+| OK | `800 1136` |
+| Armer / Désarmer | `538 1615` |
+| Carte « Défi » | `538 1186` |
+
+Le sélecteur d'heure ne passe pas automatiquement des heures aux minutes : il
+faut toucher chaque champ, effacer avec `KEYCODE_DEL`, puis saisir.
+
+Un dialogue système « Compatibilité des applis Android » peut s'afficher au
+lancement d'une version de débogage. Le fermer par **OK** (`560 1959`), jamais
+par « Ne plus afficher » — c'est un réglage système de l'utilisateur.
+
+### Vérifier que l'alarme est bien posée
+
+```bash
+adb shell dumpsys alarm | grep -E 'Next wakeup alarm|Next wake from idle'
+```
+
+`Next wake from idle: … com.cocorico` est la preuve que l'exemption Doze joue.
+
+### Après l'essai
+
+1. Résoudre le défi (ou couper : `adb shell am force-stop com.cocorico`).
+2. **Désarmer l'alarme** — sinon elle sonnera le lendemain à la même heure.
+3. Retirer l'atténuation.
+4. Vérifier volume à 5, `font_scale` à 1.0, aucune alarme programmée.
 
 ---
 
-## Reste à faire
+## Ce que l'utilisateur a demandé et qui reste ouvert
 
-- **Calibrer les seuils de prise en main sur appareil.** `PriseEnMainDetector`
-  expose `BUDGET_ENERGIE` (0,25), `PLANCHER_ENERGIE` (0,30) et
-  `DUREE_INCLINAISON_MS` (400) — simulés, jamais mesurés. `SEUIL_ANGLE_DEG` (27°)
-  est le plus sûr. L'utilisateur testera la prise en main maintenant que les
-  pompes sont finies.
-- **Calibrer les seuils du compteur de pompes et d'`EstimateurGravite`.** Même
-  situation : tout vient de simulations.
-- **Rejouer la migration de base sur une base peuplée.** Installer la version
-  précédente, faire un vrai réveil, installer la nouvelle par-dessus sans
-  désinstaller. Seul chemin irréversible du lot, couvert par aucun test.
-- Les écarts ouverts sont listés dans `cocorico.md`.
+- **Essai des pompes en conditions réelles.** Il a testé et validé le comptage,
+  puis demandé la tenue basse à 100 ms — c'est fait, mais **pas réessayé
+  depuis**.
+- **Essai du mode Sur mesure.** Jamais sonné.
+- La version **release n'a jamais sonné** : la chaîne d'alarme n'a été éprouvée
+  qu'en débogage, sans R8.
 
-### Ce que la revue du défi photo a appris
+## Dette connue, assumée
 
-Deux défauts bloquants qu'aucun test n'aurait pu attraper, et qui valent comme
-mise en garde générale :
-
-- **La permission caméra n'était jamais demandée** dans le parcours réel. Le
-  repli sur les calculs faisait son travail — donc le défi photo ne marchait
-  jamais, en silence, et l'accueil promettait pourtant « Photo ». Un filet de
-  sécurité devenu le comportement normal ne se voit pas : le vérifier fait
-  désormais partie de la recette.
-- **Le budget de jetons du juge distant** était un pari serré qui, s'il était
-  faux, faisait refuser toutes les photos. Corrigé par un budget large, pas par
-  le champ `thinking` que la revue suggérait : cette requête n'a jamais été
-  confrontée à l'API réelle, et un champ mal formé produirait exactement le
-  défaut qu'on corrige.
-
-Ces deux-là étaient passés parce que **les tests de la requête vérifiaient des
-sous-chaînes** au lieu de la structure. Ils l'analysent maintenant.
-
-### La triche connue
-
-Le capteur de proximité ne distingue pas un torse d'une paume : tenir la main
-au-dessus du capteur au bon rythme valide les dix pompes en une dizaine de
-secondes, téléphone posé. L'utilisateur a choisi le 16 août 2026 de l'accepter
-pour l'instant et de décider après la calibration, parce qu'empiler une règle
-non mesurée sur des seuils non mesurés risque surtout de faire échouer de
-vraies pompes. Piste retenue si ça le gêne : exiger un choc au sol pendant la
-phase basse. Détail dans `recette-appareil.md`.
+- **Aucun test instrumenté Compose.** Tous les défauts d'écran de l'audit ont
+  été trouvés à l'œil. C'est le seul manque de fond.
+- **AGP 9 non migré** : il exige Gradle 9.5 puis entre en conflit avec le
+  greffon Kotlin. Toute la dernière génération d'AndroidX est derrière lui.
+- **Triche à la paume** sur les pompes, aggravée volontairement par la tenue
+  basse à 100 ms. **Triche à l'écran** sur la photo. Les deux sont assumées.
+- Pas de direct boot.
 
 ---
 
-## Décisions produit prises avec l'utilisateur
+## Conventions qui ont fait leurs preuves
 
-- **Pas de blocage de désinstallation.** Le Device Admin n'ajoute qu'une
-  friction, se désactive en quelques manipulations, et fait refuser l'application
-  sur le Play Store. À reconsidérer seulement s'il se surprend à désinstaller.
-- **Bouton de renoncement immédiat aux pompes**, contre mon conseil d'un délai.
-  Compensé par l'enregistrement du renoncement dans l'historique.
-- **Le contrôle de régularité de cadence n'est pas implémenté** : il rejetterait
-  un athlète régulier pour un gain faible.
-- **La barrière d'onboarding sur la permission d'écran plein reste bloquante** sur
-  Android 14+. Arbitrage produit resté ouvert : la revue finale suggérait de
-  laisser passer après refus explicite, avec un bandeau. À soumettre à
-  l'utilisateur, pas à trancher seul.
+- **Français** pour les échanges, l'interface, les commentaires et la KDoc.
+  **Anglais** pour les messages de commit et les PR.
+- **La KDoc explique le *pourquoi*.** Le *quoi* est déjà dans le code.
+- **Toute logique décidable dans une classe sans import `android.*`**, testée.
+  Les composants Android ne font que du câblage.
+- **Test écrit avant la correction, échec réel capturé.** Une sortie d'échec
+  prédite ne prouve rien. Pour prouver l'échec sur du code existant : déplacer
+  le fichier hors de l'arbre avec `mv` vers `/tmp`, lancer, capturer, remettre.
+  Jamais `git stash`, `checkout` ou `reset`.
+- **Un test qui passe du premier coup est suspect** : le muter pour vérifier
+  qu'il mord, puis restaurer.
+- **`./gradlew spotlessCheck` avant de pousser.** Une fois oublié, la CI aurait
+  cassé.
+- **Sous-agents** : périmètres de fichiers disjoints, aucune commande `git`,
+  le contrôleur commite. Ils ne touchent ni à `docs/` ni à `AUDIT.md`.
