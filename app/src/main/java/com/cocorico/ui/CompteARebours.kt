@@ -28,8 +28,17 @@ object CompteARebours {
      * Une cible déjà passée n'est pas une erreur : entre la sonnerie et la
      * replanification, c'est l'état normal. On l'annonce comme imminent plutôt
      * que d'afficher un délai faux.
+     *
+     * [armee] tranche les deux raisons possibles d'une absence d'occurrence.
+     * Sans ce paramètre, l'accueil annonçait « Aucun jour actif » alors que
+     * cinq jours étaient cochés et que l'alarme était seulement désarmée : le
+     * message accusait la sélection de jours d'un état qui ne venait pas d'elle,
+     * et laissait croire qu'elle avait été perdue. La valeur par défaut est
+     * `true` : un appelant qui ne sait pas suppose l'alarme armée, donc affiche
+     * le message le plus prudent.
      */
-    fun libelle(depuis: LocalDateTime, cible: LocalDateTime?, zone: ZoneId): String {
+    fun libelle(depuis: LocalDateTime, cible: LocalDateTime?, zone: ZoneId, armee: Boolean = true): String {
+        if (!armee) return DESARME
         if (cible == null) return SANS_OCCURRENCE
         val duree = ecart(depuis, cible, zone)
         if (duree.isZero || duree.isNegative) return IMMINENT
@@ -70,5 +79,8 @@ object CompteARebours {
         Duration.between(depuis.atZone(zone).toInstant(), InstantSonnerie.resoudre(cible, zone))
 
     const val SANS_OCCURRENCE = "Aucun jour actif. Le coq dort."
+
+    /** Alarme désarmée : ce n'est pas la sélection de jours qui est en cause. */
+    const val DESARME = "Coq désarmé. Rien ne sonnera."
     const val IMMINENT = "Réveil imminent."
 }

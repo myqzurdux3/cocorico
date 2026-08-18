@@ -136,7 +136,7 @@ fun HomeScreen(
         Text("Cocorico", style = MaterialTheme.typography.titleLarge)
 
         Text(
-            text = CompteARebours.libelle(maintenant, prochaine, fuseau),
+            text = CompteARebours.libelle(maintenant, prochaine, fuseau, armee = config.armed),
             fontSize = 15.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
