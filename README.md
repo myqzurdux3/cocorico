@@ -94,6 +94,7 @@ voir [SECURITY.md](SECURITY.md).
 | [`docs/cocorico.md`](docs/cocorico.md) | État du produit, décisions qui lient encore, écarts connus |
 | [`docs/recette-appareil.md`](docs/recette-appareil.md) | Recette manuelle sur téléphone |
 | [`docs/reprise.md`](docs/reprise.md) | Note de passation entre sessions de travail |
+| [`docs/sonneries.md`](docs/sonneries.md) | Provenance des sonneries embarquées, et la licence qui reste à trancher |
 | [`AUDIT.md`](AUDIT.md) | Audit du dépôt : défauts relevés, correctifs, dette restante |
 
 ## Licence
@@ -103,5 +104,8 @@ compris commerciales, tant que l'avis de licence est conservé. La licence porte
 une concession de brevets explicite — c'est ce qui la distingue de MIT, et c'est
 celle de Kotlin, d'AndroidX et de Jetpack Compose.
 
-Les quatre sonneries de `app/src/main/res/raw/` sont **synthétisées** par
+Trois des quatre sonneries de `app/src/main/res/raw/` sont **synthétisées** par
 `tools/generer_sonneries.py` : aucun échantillon tiers, aucun droit attaché.
+La quatrième, `coq.wav`, est un **enregistrement dont la licence d'origine
+n'est pas documentée** — à trancher avant toute publication. Voir
+[`docs/sonneries.md`](docs/sonneries.md).

@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-"""Génère les quatre sonneries de remplacement de Cocorico.
+"""Génère les sonneries de remplacement de Cocorico.
 
 La machine de développement n'a ni accès réseau ni encodeur audio (pas de
 ffmpeg, pas de sox) : impossible de suivre la consigne initiale « sourcer
 quatre .ogg sur freesound.org ». Ce script synthétise donc quatre sonneries
 avec numpy et le module `wave` de la bibliothèque standard, et les écrit
 directement dans `app/src/main/res/raw/` au format WAV PCM 16 bits, mono,
-22 050 Hz, 8 secondes.
+22 050 Hz, 8 secondes. **Il n'écrit que trois fichiers : `coq.wav` est un
+enregistrement, pas une synthèse, et ce script ne doit jamais l'écraser.**
 
 Le nom de ressource Android ignore l'extension : `klaxon.wav` reste bien
 `R.raw.klaxon`, donc `Sonneries.kt` n'a besoin d'aucun changement.
 
-Le coq et le réveil-matin ont été resynthétisés le 18 août 2026 : le premier
-ne ressemblait pas à un coq (trois sinusoïdes pures), le second sonnait comme
-un buzzer et non comme un réveil à cloches. Les deux autres restent des
-sonneries de remplacement sans prétention, à
+Le réveil-matin a été resynthétisé le 18 août 2026 : il sonnait comme un
+buzzer électronique et non comme un réveil à cloches. Le coq, lui, ne se
+génère plus du tout — un vrai enregistrement fourni par l'utilisateur a
+remplacé la synthèse. Le klaxon et la sirène restent des sonneries de
+remplacement sans prétention, à
 substituer par de vrais enregistrements avant toute publication.
 
 Dépend de `numpy`, seule dépendance externe du dépôt hors Gradle.
@@ -103,100 +105,30 @@ def normaliser(buf: np.ndarray, crete: float) -> np.ndarray:
 
 
 # --------------------------------------------------------------------------
-# coq.wav — chant de coq. La version précédente n'était que trois glissandos
-# sinusoïdaux : un sifflement propre, sans rapport avec un coq. Un cri de coq
-# est **riche et râpeux**, pas pur. Trois ingrédients le font entendre :
+# coq.wav n'est plus synthétisé. Une version de synthèse a été tentée — pile
+# d'harmoniques, tremblement de hauteur, souffle — et restait reconnaissable
+# comme une imitation : l'utilisateur a fourni un vrai enregistrement, qui la
+# remplace. Ce script ne le régénère donc pas, et ne doit pas l'écraser.
 #
-#   1. un empilement d'harmoniques (une sinusoïde seule n'a pas de timbre) ;
-#   2. un micro-tremblement de la hauteur, qui donne le grain « animal » ;
-#   3. une modulation d'amplitude rapide et un souffle, qui donnent le côté
-#      forcé, éraillé — c'est ce qui rend le cri agaçant plutôt que joli.
+# Conversion appliquée à l'enregistrement, pour le mettre au format des autres
+# (mono, PCM 16 bits, crête à 0,85, bords à zéro sur 8 ms) :
 #
-# La structure est celle d'un vrai « co-co-ri-cooo » : deux syllabes brèves,
-# une montée, puis une longue tenue descendante et forcée.
+#     python3 -c "
+#     import miniaudio, numpy as np, wave
+#     d = miniaudio.decode_file('coq.mp3')
+#     x = np.array(d.samples, dtype=np.float64).reshape(-1, d.nchannels)
+#     m = x.mean(axis=1); m = m / np.max(np.abs(m)) * 0.85 * 32767
+#     n = int(d.sample_rate * 0.008); r = np.linspace(0, 1, n)
+#     m[:n] *= r; m[-n:] *= r[::-1]
+#     w = wave.open('app/src/main/res/raw/coq.wav', 'wb')
+#     w.setnchannels(1); w.setsampwidth(2); w.setframerate(d.sample_rate)
+#     w.writeframes(np.clip(m, -32768, 32767).astype(np.int16).tobytes()); w.close()"
+#
+# La fréquence d'échantillonnage de la source est conservée (44 100 Hz) plutôt
+# que ramenée aux 22 050 Hz des sonneries de synthèse : rééchantillonner un
+# vrai enregistrement pour ressembler à des fichiers de remplacement serait
+# dégrader le seul son authentique du lot.
 # --------------------------------------------------------------------------
-def lisser(x: np.ndarray, largeur: int) -> np.ndarray:
-    """Moyenne glissante. Sert à fabriquer du bruit **lent** : un bruit blanc
-    module la hauteur en un souffle inaudible, un bruit lissé la fait trembler
-    comme une vraie voix."""
-    largeur = max(1, min(largeur, len(x)))
-    noyau = np.ones(largeur) / largeur
-    return np.convolve(x, noyau, mode="same")
-
-
-def enveloppe_cri(frac: np.ndarray, attaque: float) -> np.ndarray:
-    """Attaque brutale puis décroissance, au lieu de la cloche symétrique de
-    `ajouter_impulsion`. Un cri commence d'un coup ; une montée progressive
-    l'adoucirait, et c'est exactement ce qu'on ne veut pas ici. Vaut zéro aux
-    deux bords, donc pas de claquement."""
-    attaque = max(attaque, 1e-4)
-    montee = np.clip(frac / attaque, 0.0, 1.0)
-    descente = np.clip((1.0 - frac) / (1.0 - attaque), 0.0, 1.0) ** 0.55
-    return montee * descente
-
-
-def cri_coq(
-    buf: np.ndarray,
-    t0: float,
-    duree: float,
-    f0: float,
-    f1: float,
-    amp: float,
-    rng: np.random.Generator,
-    rasp: float = 1.0,
-    harmoniques: int = 16,
-    attaque: float = 0.05,
-) -> None:
-    idx = (T >= t0) & (T < t0 + duree)
-    if not np.any(idx):
-        return
-    local = T[idx] - t0
-    n = local.size
-    frac = local / duree
-
-    # Hauteur : glissando, plus un tremblement lent de +/- 3 %. Sans lui, le
-    # cri sonne synthétique quel que soit le reste.
-    tremble = lisser(rng.standard_normal(n), max(2, int(SR * 0.012)))
-    tremble /= max(float(np.max(np.abs(tremble))), 1e-9)
-    freq = (f0 + (f1 - f0) * frac) * (1.0 + 0.03 * rasp * tremble)
-    # Phase par intégration : la fréquence varie à chaque échantillon, une
-    # multiplication directe produirait des sauts de phase donc des clics.
-    phase = 2 * np.pi * np.cumsum(freq) / SR
-
-    # Timbre : harmoniques décroissant lentement. Un coq crie « clair », donc
-    # les aigus doivent rester présents — d'où l'exposant faible.
-    sig = np.zeros(n)
-    for k in range(1, harmoniques + 1):
-        sig += np.sin(k * phase) / (k ** 0.62)
-    sig /= max(float(np.max(np.abs(sig))), 1e-9)
-
-    # Éraillement : modulation d'amplitude à 45 Hz — trop rapide pour être
-    # entendue comme un rythme, assez pour être entendue comme une rugosité.
-    rugosite = 1.0 - 0.45 * rasp * (0.5 + 0.5 * np.sin(2 * np.pi * 45 * local))
-    # Souffle : bruit suivant l'amplitude du cri, jamais indépendant, sinon on
-    # entend un sifflement de fond au lieu d'une voix.
-    souffle = 0.22 * rasp * lisser(rng.standard_normal(n), 3) * np.abs(sig)
-
-    buf[idx] += amp * enveloppe_cri(frac, attaque) * (sig * rugosite + souffle)
-
-
-def generer_coq() -> np.ndarray:
-    # Graine fixe : le fichier livré doit être reproductible d'une exécution à
-    # l'autre, sinon la sonnerie change à chaque régénération du dépôt.
-    rng = np.random.default_rng(20260818)
-    buf = np.zeros(N)
-    periode = DUREE / 2
-    for i in range(2):
-        base = i * periode + 0.20
-        # « co- » « co- » : deux appels brefs et secs.
-        cri_coq(buf, base + 0.00, 0.17, 780, 900, 0.55, rng, attaque=0.06)
-        cri_coq(buf, base + 0.26, 0.17, 820, 960, 0.60, rng, attaque=0.06)
-        # « -ri- » : la montée, le sommet du cri.
-        cri_coq(buf, base + 0.52, 0.26, 900, 1350, 0.85, rng, attaque=0.05)
-        # « -cooo » : la tenue forcée qui retombe. Deux fois plus longue que
-        # tout le reste, et la plus râpeuse : c'est elle qu'on retient.
-        cri_coq(buf, base + 0.84, 1.05, 1300, 620, 1.00, rng, rasp=1.35, attaque=0.03)
-    return fondu_bords(normaliser(buf, 0.85))
 
 
 # --------------------------------------------------------------------------
@@ -331,7 +263,7 @@ def ecrire_wav(chemin: str, flottants: np.ndarray) -> np.ndarray:
 def main() -> None:
     os.makedirs(DOSSIER_RAW, exist_ok=True)
     sonneries = {
-        "coq.wav": generer_coq,
+        # "coq.wav" absent volontairement : vrai enregistrement, voir plus haut.
         "reveil_matin.wav": generer_reveil,
         "klaxon.wav": generer_klaxon,
         "sirene.wav": generer_sirene,
@@ -345,7 +277,7 @@ def main() -> None:
         taille = os.path.getsize(chemin)
         print(f"{nom}: {taille} octets, RMS={np.sqrt(np.mean(pcm.astype(np.float64) ** 2)):.0f}, "
               f"crête={np.max(np.abs(pcm))}")
-    print("OK : quatre sonneries générées dans", DOSSIER_RAW)
+    print("OK : trois sonneries générées dans", DOSSIER_RAW, "(coq.wav non touché)")
 
 
 if __name__ == "__main__":

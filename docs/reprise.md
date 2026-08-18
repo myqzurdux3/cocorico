@@ -16,11 +16,11 @@ l'utilisateur veut qu'il le reste.
 **Pull request :** https://github.com/myqzurdux3/cocorico/pull/1 (ouverte).
 **Base :** `main`.
 
-**État mesuré** — 52 commits au-delà de `190d41c` :
+**État mesuré** — 57 commits au-delà de `190d41c` :
 
 | | |
 |---|---|
-| Tests unitaires | **342, 0 échec** |
+| Tests unitaires | **352, 0 échec** |
 | Tests instrumentés | **10, 0 échec** (Pixel 9a / Android 17) |
 | Avertissements du compilateur | **0** |
 | Lint | 66 constats, dont **2 hors versions de dépendances** |
@@ -256,6 +256,9 @@ adb shell dumpsys alarm | grep -E 'Next wakeup alarm|Next wake from idle'
 - **L'écran de victoire n'a pas été revu après la correction de sa mise en
   page** (valeur du défi ramenée à 17 sp) : il ne s'affiche qu'après une vraie
   sonnerie.
+- **La licence de `coq.wav` n'est pas documentée.** C'est un enregistrement
+  fourni par l'utilisateur, pas une synthèse de ce dépôt : à trancher avant
+  toute publication, voir [`sonneries.md`](sonneries.md).
 
 Réglé depuis :
 
