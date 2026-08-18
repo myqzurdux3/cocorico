@@ -3,6 +3,7 @@ package com.cocorico.challenge.combine
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,7 +15,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
 import com.cocorico.challenge.Challenge
 import com.cocorico.data.ChallengeId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,17 +45,19 @@ class DefiCombine(
 
     override val id = ChallengeId.COMBINE
 
-    private val _etat = MutableStateFlow(EtatSequence(EtapesCombine.assainir(etapes)))
+    /**
+     * Sans propriété publique correspondante, donc sans tiret bas : rien à
+     * l'extérieur n'a besoin de savoir où en est la suite. Le service ne
+     * connaît que [isSolved], et l'en-tête se dessine ici même.
+     */
+    private val sequence = MutableStateFlow(EtatSequence(EtapesCombine.assainir(etapes)))
 
     private val _isSolved = MutableStateFlow(false)
     override val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
 
-    /** Rang de l'épreuve en cours et nombre total, pour l'en-tête. */
-    val avancement: StateFlow<EtatSequence> = _etat.asStateFlow()
-
     private fun avancer() {
-        val suivant = _etat.value.suivante()
-        _etat.value = suivant
+        val suivant = sequence.value.suivante()
+        sequence.value = suivant
         // L'ordre compte : le drapeau ne passe à vrai qu'une fois l'état
         // avancé, sinon l'écran afficherait encore la dernière épreuve alors
         // que le service a déjà commencé à s'arrêter.
@@ -63,12 +65,12 @@ class DefiCombine(
     }
 
     private fun remplacerParCalculs() {
-        _etat.value = _etat.value.remplacerParCalculs()
+        sequence.value = sequence.value.remplacerParCalculs()
     }
 
     @Composable
     override fun Content(modifier: Modifier) {
-        val etat by _etat.collectAsState()
+        val etat by sequence.collectAsState()
         if (etat.estTerminee) return
 
         val courante = etat.courante

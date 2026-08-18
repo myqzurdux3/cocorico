@@ -4,12 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.cocorico.alarm.AlarmScheduler
+import com.cocorico.challenge.combine.EtapeCombine
+import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.challenge.photo.Piece
 import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
-import com.cocorico.challenge.combine.EtapeCombine
-import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import com.cocorico.ring.NiveauxVolume

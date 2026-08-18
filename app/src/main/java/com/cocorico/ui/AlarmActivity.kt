@@ -48,18 +48,18 @@ import androidx.lifecycle.lifecycleScope
 import com.cocorico.alarm.AlarmService
 import com.cocorico.alarm.AlarmState
 import com.cocorico.challenge.Challenge
-import com.cocorico.challenge.combine.DefiCombine
-import com.cocorico.challenge.combine.EtapeCombine
 import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
 import com.cocorico.challenge.MathProblemGenerator
+import com.cocorico.challenge.combine.DefiCombine
+import com.cocorico.challenge.combine.EtapeCombine
 import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.data.ChallengeId
-import com.cocorico.data.Difficulty
 import com.cocorico.data.CocoricoDatabase
+import com.cocorico.data.Difficulty
 import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
 import com.cocorico.ring.InactivityTracker
@@ -312,54 +312,51 @@ class AlarmActivity : ComponentActivity() {
      * décide ce que « impossible » veut dire chez lui — les calculs pour un mode
      * simple, le remplacement de l'étape pour le mode sur mesure.
      */
-    private fun fabriquerEpreuve(
-        etape: EtapeCombine,
-        config: AlarmConfig,
-        onRenoncer: () -> Unit,
-    ): Challenge? = when (etape.type) {
-        ChallengeId.MATHS, ChallengeId.COMBINE -> calculs(etape.nombre, config.difficulty)
+    private fun fabriquerEpreuve(etape: EtapeCombine, config: AlarmConfig, onRenoncer: () -> Unit): Challenge? =
+        when (etape.type) {
+            ChallengeId.MATHS, ChallengeId.COMBINE -> calculs(etape.nombre, config.difficulty)
 
-        ChallengeId.POMPES -> {
-            val pompes = PompesChallenge(
-                context = this,
-                total = etape.nombre,
-                onInteraction = { interaction() },
-                onRenoncer = onRenoncer,
-            )
-            // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
-            pompes.takeIf { it.capteurDisponible }
-        }
-
-        ChallengeId.PHOTO -> {
-            // La permission n'est vérifiée qu'ici, jamais réclamée par cette
-            // activité : la demande vit dans l'onboarding, et seulement quand la
-            // photo est le défi choisi (voir `OnboardingScreen`). Un refus n'est
-            // pas bloquant : il vaut simple repli, comme un capteur absent.
-            val permission = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (!permission) {
-                null
-            } else {
-                val photo = PhotoChallenge(
+            ChallengeId.POMPES -> {
+                val pompes = PompesChallenge(
                     context = this,
-                    cleApi = config.cleApi,
-                    nombre = etape.nombre,
-                    // Sans ce passage, la sélection par pièce serait un réglage
-                    // décoratif : l'écran la montrerait, la persistance la
-                    // garderait, et le réveil piocherait quand même dans tout le
-                    // catalogue — donc dans des objets que l'utilisateur a
-                    // explicitement dit ne pas posséder.
-                    objetsSelectionnes = config.objetsSelectionnes,
+                    total = etape.nombre,
                     onInteraction = { interaction() },
                     onRenoncer = onRenoncer,
                 )
-                // Caméra absente ou clé d'API manquante : même repli.
-                photo.takeIf { it.camerasDisponibles }
+                // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
+                pompes.takeIf { it.capteurDisponible }
+            }
+
+            ChallengeId.PHOTO -> {
+                // La permission n'est vérifiée qu'ici, jamais réclamée par cette
+                // activité : la demande vit dans l'onboarding, et seulement quand la
+                // photo est le défi choisi (voir `OnboardingScreen`). Un refus n'est
+                // pas bloquant : il vaut simple repli, comme un capteur absent.
+                val permission = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.CAMERA,
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!permission) {
+                    null
+                } else {
+                    val photo = PhotoChallenge(
+                        context = this,
+                        cleApi = config.cleApi,
+                        nombre = etape.nombre,
+                        // Sans ce passage, la sélection par pièce serait un réglage
+                        // décoratif : l'écran la montrerait, la persistance la
+                        // garderait, et le réveil piocherait quand même dans tout le
+                        // catalogue — donc dans des objets que l'utilisateur a
+                        // explicitement dit ne pas posséder.
+                        objetsSelectionnes = config.objetsSelectionnes,
+                        onInteraction = { interaction() },
+                        onRenoncer = onRenoncer,
+                    )
+                    // Caméra absente ou clé d'API manquante : même repli.
+                    photo.takeIf { it.camerasDisponibles }
+                }
             }
         }
-    }
 
     /** Regroupe les deux appels que chaque geste de l'utilisateur doit déclencher. */
     private fun interaction() {

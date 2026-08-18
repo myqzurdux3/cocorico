@@ -94,7 +94,7 @@ fun EtapesCombineScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
         if (etapes == EtapesCombine.REPLI && affichees.none { it.nombre > 0 }) {
             Text(
                 text = "Aucune épreuve : le réveil demandera trois calculs. " +
-                        "Une alarme qui ne demande rien n'en est plus une.",
+                    "Une alarme qui ne demande rien n'en est plus une.",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.error,
             )

@@ -439,15 +439,14 @@ private fun Option(
  * Résumé d'une composition sur mesure, dans l'ordre où les épreuves seront
  * demandées — l'ordre étant le réglage, le résumé doit le refléter.
  */
-private fun resumeCombine(etapes: List<EtapeCombine>): String =
-    etapes.joinToString(", ") { etape ->
-        val singulier = when (etape.type) {
-            ChallengeId.MATHS -> "calcul"
-            ChallengeId.POMPES -> "pompe"
-            ChallengeId.PHOTO -> "photo"
-            // Jamais atteignable : l'écran ne propose pas d'imbriquer un défi
-            // sur mesure dans un autre.
-            ChallengeId.COMBINE -> "épreuve"
-        }
-        "${etape.nombre} $singulier${if (etape.nombre > 1) "s" else ""}"
+private fun resumeCombine(etapes: List<EtapeCombine>): String = etapes.joinToString(", ") { etape ->
+    val singulier = when (etape.type) {
+        ChallengeId.MATHS -> "calcul"
+        ChallengeId.POMPES -> "pompe"
+        ChallengeId.PHOTO -> "photo"
+        // Jamais atteignable : l'écran ne propose pas d'imbriquer un défi
+        // sur mesure dans un autre.
+        ChallengeId.COMBINE -> "épreuve"
     }
+    "${etape.nombre} $singulier${if (etape.nombre > 1) "s" else ""}"
+}
