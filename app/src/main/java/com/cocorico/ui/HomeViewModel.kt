@@ -8,6 +8,8 @@ import com.cocorico.challenge.photo.Piece
 import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
+import com.cocorico.challenge.combine.EtapeCombine
+import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
 import com.cocorico.ring.NiveauxVolume
@@ -69,6 +71,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun majDifficulte(difficulte: Difficulty) = modifier { it.copy(difficulty = difficulte) }
 
     fun majDefi(defi: ChallengeId) = modifier { it.copy(challengeId = defi) }
+
+    /**
+     * Compose le défi sur mesure. Assaini à l'écriture **et** à la lecture :
+     * une liste vide serait résolue d'emblée et arrêterait l'alarme sans rien
+     * demander, et cet écran laisse volontairement tout mettre à zéro.
+     */
+    fun majEtapesCombine(etapes: List<EtapeCombine>) =
+        modifier { it.copy(etapesCombine = EtapesCombine.assainir(etapes)) }
 
     fun armer(arme: Boolean) = modifier { it.copy(armed = arme) }
 

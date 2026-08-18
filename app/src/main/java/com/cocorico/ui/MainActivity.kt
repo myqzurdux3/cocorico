@@ -39,7 +39,7 @@ import com.cocorico.ring.AttenuationDebug
 import com.cocorico.ui.theme.CocoricoTheme
 import kotlinx.coroutines.delay
 
-private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, ESSAI_PHOTO, SELECTION_OBJETS, VICTOIRE }
+private enum class Ecran { ACCUEIL, DEFI, SONNERIE, STATS, ESSAI_PHOTO, SELECTION_OBJETS, ETAPES_COMBINE, VICTOIRE }
 
 /**
  * Sauvegarde l'écran courant par son nom : un `Bundle` ne sait pas ranger une
@@ -150,6 +150,7 @@ class MainActivity : ComponentActivity() {
             Ecran.DEFI -> ChallengeSettingsScreen(
                 viewModel = viewModel,
                 onEssayerPhoto = { ecran = Ecran.ESSAI_PHOTO },
+                onComposerCombine = { ecran = Ecran.ETAPES_COMBINE },
                 onOuvrirSelectionObjets = { ecran = Ecran.SELECTION_OBJETS },
                 onRetour = { ecran = Ecran.ACCUEIL },
             )
@@ -158,6 +159,10 @@ class MainActivity : ComponentActivity() {
                 onRetour = { ecran = Ecran.DEFI },
             )
             Ecran.SELECTION_OBJETS -> SelectionObjetsScreen(
+                viewModel = viewModel,
+                onRetour = { ecran = Ecran.DEFI },
+            )
+            Ecran.ETAPES_COMBINE -> EtapesCombineScreen(
                 viewModel = viewModel,
                 onRetour = { ecran = Ecran.DEFI },
             )

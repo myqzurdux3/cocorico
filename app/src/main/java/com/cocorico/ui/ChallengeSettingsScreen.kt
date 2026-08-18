@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import com.cocorico.challenge.combine.EtapeCombine
 import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
@@ -49,6 +50,7 @@ fun ChallengeSettingsScreen(
     viewModel: HomeViewModel,
     onEssayerPhoto: () -> Unit,
     onOuvrirSelectionObjets: () -> Unit,
+    onComposerCombine: () -> Unit,
     onRetour: () -> Unit,
 ) {
     val config by viewModel.config.collectAsState()
@@ -246,14 +248,38 @@ fun ChallengeSettingsScreen(
             )
         }
 
+        Option(
+            titre = "Sur mesure",
+            detail = resumeCombine(config.etapesCombine),
+            selectionne = config.challengeId == ChallengeId.COMBINE,
+            onClick = { viewModel.majDefi(ChallengeId.COMBINE) },
+        )
+        if (config.challengeId == ChallengeId.COMBINE) {
+            Text(
+                text = "Composer les épreuves ›",
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable(onClick = onComposerCombine)
+                    .padding(14.dp),
+            )
+        }
+
         Text("Difficulté", fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
         // Le réglage reste visible et utilisable — il sert aux deux autres défis
         // et l'utilisateur peut changer de défi juste après — mais il ne doit pas
         // laisser croire qu'il agit sur la photo. Un réglage sans effet qui n'en
         // dit rien est exactement le défaut que cet écran a déjà connu ailleurs.
-        if (config.challengeId == ChallengeId.PHOTO) {
+        if (config.challengeId == ChallengeId.PHOTO || config.challengeId == ChallengeId.COMBINE) {
             Text(
-                text = "Sans effet sur le défi photo : une photo, c'est déjà assez.",
+                text = if (config.challengeId == ChallengeId.PHOTO) {
+                    "Sans effet sur le défi photo : une photo, c'est déjà assez."
+                } else {
+                    "Ne règle que la dureté des calculs : le nombre d'épreuves se " +
+                        "compose ci-dessus."
+                },
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -408,3 +434,20 @@ private fun Option(
         }
     }
 }
+
+/**
+ * Résumé d'une composition sur mesure, dans l'ordre où les épreuves seront
+ * demandées — l'ordre étant le réglage, le résumé doit le refléter.
+ */
+private fun resumeCombine(etapes: List<EtapeCombine>): String =
+    etapes.joinToString(", ") { etape ->
+        val singulier = when (etape.type) {
+            ChallengeId.MATHS -> "calcul"
+            ChallengeId.POMPES -> "pompe"
+            ChallengeId.PHOTO -> "photo"
+            // Jamais atteignable : l'écran ne propose pas d'imbriquer un défi
+            // sur mesure dans un autre.
+            ChallengeId.COMBINE -> "épreuve"
+        }
+        "${etape.nombre} $singulier${if (etape.nombre > 1) "s" else ""}"
+    }
