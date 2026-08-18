@@ -30,7 +30,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.ReveilRecent
 import com.cocorico.data.Statistiques
@@ -303,11 +302,7 @@ private fun LigneDetailReveil(libelle: String, valeur: String) {
     }
 }
 
-private fun libelleDefi(defi: String): String = when (defi) {
-    ChallengeId.POMPES.name -> "Pompes"
-    ChallengeId.PHOTO.name -> "Photo"
-    else -> "Maths"
-}
+private fun libelleDefi(defi: String): String = LibelleDefi.libelle(defi)
 
 private fun texteProgression(progressionSecondes: Long): String {
     val duree = StatsCalculator.formatDuree(abs(progressionSecondes))

@@ -23,9 +23,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cocorico.data.ChallengeId
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.SerieCalculator
 import kotlinx.coroutines.currentCoroutineContext
@@ -67,12 +67,7 @@ fun VictoryScreen(onFermer: () -> Unit) {
                 serie = SerieCalculator.serie(records, zone, LocalDate.now(zone)),
                 retardSecondes = SerieCalculator.retardMoyenSecondes(records),
                 defiLibelle = records.lastOrNull()?.let { dernier ->
-                    when {
-                        dernier.abandon -> "Calculs (renoncé)"
-                        dernier.defi == ChallengeId.POMPES.name -> "Pompes"
-                        dernier.defi == ChallengeId.PHOTO.name -> "Photo"
-                        else -> "Calculs"
-                    }
+                    LibelleDefi.avecRenoncement(dernier.defi, dernier.abandon)
                 },
             )
         }
@@ -113,7 +108,10 @@ fun VictoryScreen(onFermer: () -> Unit) {
             libelle = "Retard moyen",
             valeur = bilan?.let { "${it.retardSecondes} s" } ?: "—",
         )
-        bilan?.defiLibelle?.let { Statistique(libelle = "Défi", valeur = it) }
+        // Seule valeur de cet écran qui soit du texte et non un nombre : à
+        // 26 sp elle débordait de sa colonne, et « Calculs (renoncé) » se
+        // cassait sur trois lignes en laissant une parenthèse seule.
+        bilan?.defiLibelle?.let { Statistique(libelle = "Défi", valeur = it, tailleValeur = 17.sp) }
         if (echecLecture) {
             Text(
                 text = "Tes statistiques n'ont pas pu être lues. Le réveil, lui, est " +
@@ -143,7 +141,7 @@ fun VictoryScreen(onFermer: () -> Unit) {
  * tenir sur une ligne dans le cas courant.
  */
 @Composable
-fun Statistique(libelle: String, valeur: String) {
+fun Statistique(libelle: String, valeur: String, tailleValeur: TextUnit = 26.sp) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,7 +155,7 @@ fun Statistique(libelle: String, valeur: String) {
         Text(
             text = valeur,
             fontFamily = FontFamily.Monospace,
-            fontSize = 26.sp,
+            fontSize = tailleValeur,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(2f),
         )
