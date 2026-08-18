@@ -156,9 +156,17 @@ et le niveau de confiance de chacun sont dans `../AUDIT.md`, qui fait foi.
 
 ## Sonneries
 
-Les quatre sonneries sont des **remplacements synthétisés**, générés par
-`tools/generer_sonneries.py` en WAV PCM mono 22 050 Hz, sans droits attachés.
-La machine de développement n'avait ni encodeur audio ni accès réseau.
+**Trois** des quatre sonneries — réveil-matin, klaxon, sirène — sont des
+remplacements **synthétisés** par `tools/generer_sonneries.py` en WAV PCM mono
+22 050 Hz, sans droits attachés. Le script reste versionné pour les régénérer
+ou en ajuster le caractère.
 
-À remplacer par de vrais enregistrements avant toute publication. Le script
-reste versionné pour pouvoir les régénérer ou en ajuster le caractère.
+La quatrième, `coq.wav`, est un **vrai enregistrement** fourni par le
+propriétaire du dépôt le 18 août 2026. La synthèse qui la précédait avait la
+bonne structure — deux appels brefs, une montée, une tenue descendante — et
+restait reconnaissable comme une imitation. Le générateur ne la produit plus et
+ne doit jamais l'écraser.
+
+**Sa licence d'origine n'est pas documentée**, ce qui n'a aucune conséquence
+tant que le dépôt reste privé, et doit être tranché avant toute publication.
+Voir [`sonneries.md`](sonneries.md) pour les options.
