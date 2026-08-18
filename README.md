@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/myqzurdux3/wake-up/actions/workflows/ci.yml"><img src="https://github.com/myqzurdux3/wake-up/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/myqzurdux3/cocorico/actions/workflows/ci.yml"><img src="https://github.com/myqzurdux3/cocorico/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
   <img src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.0">
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">

@@ -23,7 +23,7 @@ requests, revues de code, discussions.
 
 ## Signaler
 
-Écris au mainteneur via un [avis privé](https://github.com/myqzurdux3/wake-up/security/advisories/new)
+Écris au mainteneur via un [avis privé](https://github.com/myqzurdux3/cocorico/security/advisories/new)
 ou en message direct. Les signalements sont traités discrètement.
 
 Le mainteneur peut supprimer un commentaire, refuser une contribution ou

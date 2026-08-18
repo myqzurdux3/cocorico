@@ -11,7 +11,7 @@ reprendre. Le produit lui-même est décrit dans `cocorico.md`, l'audit dans
 
 **Branche :** `cocorico-v1`, poussée sur `origin`. Dépôt **privé**, et
 l'utilisateur veut qu'il le reste.
-**Pull request :** https://github.com/myqzurdux3/wake-up/pull/1 (ouverte).
+**Pull request :** https://github.com/myqzurdux3/cocorico/pull/1 (ouverte).
 **Base :** `main`.
 
 **État mesuré** — 52 commits au-delà de `190d41c` :

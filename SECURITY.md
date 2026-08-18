@@ -2,7 +2,7 @@
 
 ## Signaler une faille
 
-Ouvre un [avis de sécurité privé](https://github.com/myqzurdux3/wake-up/security/advisories/new)
+Ouvre un [avis de sécurité privé](https://github.com/myqzurdux3/cocorico/security/advisories/new)
 plutôt qu'une issue publique. Ce projet est maintenu sur du temps libre : il n'y
 a aucun engagement de délai, et le dire franchement vaut mieux qu'afficher une
 promesse qui ne sera pas tenue.
