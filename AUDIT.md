@@ -459,7 +459,7 @@ démarrage suivant.
 
 ### Ce qui reste ouvert
 
-- **L'écran d'alarme ne défile pas tant que le défi est fermé.** Trancher demande de l'afficher à taille de police maximale, donc de forcer le volume du flux d'alarme sur le téléphone de l'utilisateur : non fait sans son accord.
+- ~~L'écran d'alarme ne défile pas tant que le défi est fermé.~~ **Tranché par la mesure** : sur un Pixel 9a, le contenu de l'état fermé occupe 849 px sur 2224 utilisables, soit 2,6 fois la place nécessaire. La police maximale d'Android double le texte : le débordement redouté n'a pas lieu. Le défilement reste conditionnel, ce qui préserve le centrage vertical voulu.
 - **Aucun seuil de capteur n'a été mesuré sur un vrai geste.** Même raison : la mesure exige l'écran d'alarme.
 - **La recette d'appareil complète** (`docs/recette-appareil.md`) n'a pas été jouée : elle fait sonner.
 

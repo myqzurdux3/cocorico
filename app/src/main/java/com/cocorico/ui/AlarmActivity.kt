@@ -513,12 +513,16 @@ private fun EcranAlarme(
             // Énoncé, saisie et pavé numérique dépassent la hauteur d'un petit
             // écran dès que la police système est agrandie. Sans défilement, la
             // touche de validation devient inatteignable : alarme inarrêtable.
-            // Écart connu, non corrigé : défi fermé, il n'y a pas de
-            // défilement, et à taille de police maximale l'horloge à 68 sp
-            // pourrait rogner « Faire taire ce coq ». Rendre le défilement
-            // inconditionnel supprime le centrage vertical de cet état — une
-            // régression visuelle certaine contre un débordement supposé, que
-            // seul un rendu sur appareil peut trancher. Voir AUDIT.md.
+            // Défilement conditionnel, et c'est délibéré. Le rendre
+            // inconditionnel supprimerait le centrage vertical de l'état fermé,
+            // qui est voulu.
+            //
+            // Le débordement qu'on pouvait craindre a été mesuré sur un Pixel 9a
+            // (1080 × 2424) : défi fermé, le contenu occupe 849 px sur les
+            // 2224 utilisables, soit un facteur 2,6 de marge. La police maximale
+            // d'Android double le texte, donc on reste dedans. Réserve : sur un
+            // écran nettement plus court, cette marge fond — c'est là qu'il
+            // faudrait revoir l'arbitrage, pas ici.
             // La zone sûre est appliquée **avant** le défilement : la fenêtre de
             // défilement s'arrête donc au-dessus de la barre de navigation au
             // lieu de passer dessous. La dernière rangée du pavé (dont la touche
