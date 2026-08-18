@@ -94,10 +94,18 @@ d'origine ensuite**.
 |---|---|
 | Volume du flux d'alarme | **5 sur 7** |
 | `font_scale` | **1.0** |
-| Application | **installée** (débogage), **désarmée**, sans atténuation, au 18 août 2026 après l'essai |
+| Application | **installée en version publiée 1.0**, désarmée, au 18 août 2026 |
 
-L'application disparaît régulièrement du téléphone entre deux sessions —
-constaté trois fois. Vérifier avant d'agir plutôt que de le supposer :
+**L'application ne disparaît pas toute seule.** Cette note l'a affirmé
+plusieurs fois comme un fait établi ; c'était faux. Le 18 août 2026, une
+disparition signalée a été tracée : les deux seules suppressions du journal
+étaient des `adb uninstall` lancés par l'assistant lui-même, et l'application
+était installée au moment du signalement. Un redémarrage du téléphone, ce
+jour-là, ne l'avait pas retirée.
+
+La leçon vaut au-delà de ce cas : une absence constatée n'est pas une cause
+constatée. **Chercher la trace avant de conclure**, et vérifier l'état plutôt
+que de le supposer :
 
 ```bash
 adb shell pm list packages | grep cocorico
@@ -146,6 +154,18 @@ avait joué. Deux leçons.
 
 **Ne jamais interroger l'appareil en boucle serrée pendant l'attente.** Mettre
 une pause entre deux sondages.
+
+Le tampon fait **256 Ko par défaut** sur ce téléphone, soit quelques heures
+d'historique à peine. `persist.logd.size` est refusée sans les droits
+d'administration, mais la taille se règle pour la session :
+
+```bash
+adb logcat -b main -G 8M && adb logcat -b system -G 8M
+```
+
+À reposer après chaque redémarrage. C'est ce qui permet de retrouver, un jour
+plus tard, **qui** a supprimé un paquet et pourquoi — `usagestats`, lui, ne
+garde aucun événement d'installation.
 
 **Et vérifier après coup sur le journal du système, qui enregistre chaque
 changement de volume avec son auteur :**
