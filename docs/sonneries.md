@@ -23,24 +23,39 @@ python3 tools/generer_sonneries.py
 
 Le script **n'écrase pas `coq.wav`**, et ne doit jamais le faire.
 
-## `coq.wav` — point d'attention avant toute publication
+## `coq.wav` — licence non établie
 
-Ce fichier n'est **pas** une création de ce dépôt. Sa licence d'origine n'est
-pas documentée : elle n'a pas été fournie avec l'enregistrement.
+Ce fichier n'est **pas** une création de ce dépôt : c'est un enregistrement
+fourni par le propriétaire, dont la source et la licence d'origine n'ont pas
+été documentées.
 
-Tant que le dépôt reste privé, cela n'a pas de conséquence. **Avant de le
-rendre public, ou de publier l'application, il faut trancher :**
+**`LICENSE` ne le couvre pas.** Apache 2.0 porte sur le code de ce dépôt. Un
+fichier audio tiers n'en relève pas automatiquement, et personne n'a vérifié
+que celui-ci autorise la redistribution.
 
-- soit retrouver la source de l'enregistrement et vérifier qu'elle autorise la
-  redistribution sous Apache 2.0 — auquel cas la mentionner ici et dans
-  `README.md` ;
-- soit la remplacer par un enregistrement dont la licence est connue
-  (Freesound en CC0, par exemple) ;
-- soit revenir à une version synthétisée.
+Le dépôt a été rendu public le 18 août 2026 en connaissance de ce point : le
+propriétaire a choisi de publier en l'état plutôt que de remplacer le fichier.
+La question n'est donc pas *ouverte*, elle est *assumée* — mais elle reste
+vraie, et ce paragraphe existe pour qu'elle ne soit jamais découverte par
+surprise.
 
-`LICENSE` couvre le code du dépôt. Un fichier audio tiers n'en relève pas
-automatiquement, et le laisser sans mention reviendrait à affirmer une licence
-qui n'a pas été vérifiée.
+### Si tu réutilises ce dépôt
+
+**Ne considère pas `coq.wav` comme du contenu sous Apache 2.0.** Avant toute
+redistribution, tout paquet publié ou tout usage commercial, remplace-le :
+
+- par un enregistrement dont la licence est connue (Freesound en CC0,
+  Wikimedia Commons en domaine public) ;
+- ou par une version synthétisée, sur le modèle des trois autres sonneries.
+
+Le nom de fichier et le format attendus sont ceux du tableau ci-dessus : mono,
+WAV PCM. Rien d'autre dans le code n'a besoin de changer.
+
+### Si tu es l'ayant droit
+
+Ouvre une issue, ou écris au mainteneur via un
+[avis privé](https://github.com/myqzurdux3/cocorico/security/advisories/new) :
+le fichier sera retiré sans discussion.
 
 ## Pourquoi le coq n'est plus synthétisé
 

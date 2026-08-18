@@ -94,7 +94,7 @@ voir [SECURITY.md](SECURITY.md).
 | [`docs/cocorico.md`](docs/cocorico.md) | État du produit, décisions qui lient encore, écarts connus |
 | [`docs/recette-appareil.md`](docs/recette-appareil.md) | Recette manuelle sur téléphone |
 | [`docs/reprise.md`](docs/reprise.md) | Note de passation entre sessions de travail |
-| [`docs/sonneries.md`](docs/sonneries.md) | Provenance des sonneries embarquées, et la licence qui reste à trancher |
+| [`docs/sonneries.md`](docs/sonneries.md) | Provenance des sonneries embarquées, et la licence de `coq.wav` |
 | [`AUDIT.md`](AUDIT.md) | Audit du dépôt : défauts relevés, correctifs, dette restante |
 
 ## Licence
@@ -106,6 +106,9 @@ celle de Kotlin, d'AndroidX et de Jetpack Compose.
 
 Trois des quatre sonneries de `app/src/main/res/raw/` sont **synthétisées** par
 `tools/generer_sonneries.py` : aucun échantillon tiers, aucun droit attaché.
-La quatrième, `coq.wav`, est un **enregistrement dont la licence d'origine
-n'est pas documentée** — à trancher avant toute publication. Voir
-[`docs/sonneries.md`](docs/sonneries.md).
+
+**La quatrième, `coq.wav`, n'est pas couverte par cette licence.** C'est un
+enregistrement tiers dont la licence d'origine n'est pas documentée. Si tu
+redistribues ce dépôt, publies un paquet ou en fais un usage commercial,
+remplace-le d'abord — [`docs/sonneries.md`](docs/sonneries.md) dit par quoi et
+comment. Si tu en es l'ayant droit, dis-le : il sera retiré.
