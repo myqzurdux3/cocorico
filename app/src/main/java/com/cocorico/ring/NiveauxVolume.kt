@@ -30,6 +30,27 @@ object NiveauxVolume {
     fun normaliser(pourcent: Int): Int = pourcent.coerceIn(POURCENT_MINIMAL, POURCENT_MAXIMAL)
 
     /**
+     * Amplitude de l'aperçu au plafond maximal.
+     *
+     * L'aperçu ne touche pas au volume du système — voir [ApercuSonnerie] — il
+     * n'agit que sur le lecteur. Cette valeur existe donc pour une raison
+     * différente du plafond produit : cet écran se consulte en pleine journée,
+     * à côté d'autres gens, et l'extrait ne doit pas faire sursauter.
+     */
+    const val ATTENUATION_APERCU = 0.35f
+
+    /**
+     * L'amplitude d'un extrait d'aperçu, proportionnelle au plafond choisi.
+     *
+     * L'aperçu jouait à [ATTENUATION_APERCU] quel que soit le réglage : deux
+     * plafonds différents s'entendaient identiques. Un aperçu ne sert qu'à
+     * savoir ce qu'on entendra le matin ; il doit donc suivre le plafond, comme
+     * [plein] le fait pour la vraie sonnerie. Même plancher, pour la même
+     * raison : ne pas laisser espérer plus bas que ce que l'alarme sait faire.
+     */
+    fun volumeApercu(pourcent: Int): Float = ATTENUATION_APERCU * normaliser(pourcent) / 100f
+
+    /**
      * Le niveau de la sonnerie à pleine puissance, une fois le plafond
      * appliqué. Jamais nul : une alarme silencieuse est le seul échec que ce
      * produit n'a pas le droit de commettre.

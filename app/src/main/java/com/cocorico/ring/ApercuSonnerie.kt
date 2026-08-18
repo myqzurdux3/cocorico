@@ -7,6 +7,9 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /**
  * Joue un court extrait d'une sonnerie, pour l'écouter avant de la choisir.
@@ -33,17 +36,33 @@ class ApercuSonnerie(private val context: Context) {
     private var lecteur: MediaPlayer? = null
 
     /**
+     * L'identifiant de la sonnerie dont l'extrait joue, ou `null`.
+     *
+     * `mutableStateOf` et non un simple champ : l'écran s'en sert pour décider
+     * ce que fera le prochain appui (voir [BasculeApercu]), et il doit se
+     * recomposer quand l'extrait se termine tout seul — sinon un deuxième appui
+     * après la fin tenterait d'arrêter un son déjà éteint et ne relancerait
+     * rien.
+     */
+    var enCours: String? by mutableStateOf(null)
+        private set
+
+    /**
      * Coupe l'extrait en cours et lance le nouveau. Enchaîner les appuis sur
      * plusieurs sonneries ne doit jamais les superposer.
+     *
+     * [volumeMaxPourcent] est le plafond réglé par l'utilisateur : l'extrait le
+     * suit, faute de quoi l'aperçu s'entendrait pareil quel que soit le
+     * réglage — voir [NiveauxVolume.volumeApercu].
      *
      * Renvoie `false` si le lecteur n'a pas pu être créé — voir [jouer] sur URI
      * pour la raison de ce retour.
      */
-    fun jouer(sonnerie: Sonneries.Sonnerie): Boolean {
+    fun jouer(sonnerie: Sonneries.Sonnerie, volumeMaxPourcent: Int): Boolean {
         arreter()
 
         val nouveau = creer(sonnerie.resId) ?: return false
-        demarrerExtrait(nouveau)
+        demarrerExtrait(nouveau, sonnerie.id, volumeMaxPourcent)
         return true
     }
 
@@ -59,18 +78,20 @@ class ApercuSonnerie(private val context: Context) {
      * qu'il vient de rencontrer est exactement celle qu'il doit découvrir
      * maintenant plutôt que le lendemain matin.
      */
-    fun jouer(uri: Uri): Boolean {
+    fun jouer(uri: Uri, volumeMaxPourcent: Int): Boolean {
         arreter()
 
         val nouveau = runCatching { creerDepuisUri(uri) }.getOrNull() ?: return false
-        demarrerExtrait(nouveau)
+        demarrerExtrait(nouveau, Sonneries.ID_PERSONNALISEE, volumeMaxPourcent)
         return true
     }
 
-    private fun demarrerExtrait(nouveau: MediaPlayer) {
+    private fun demarrerExtrait(nouveau: MediaPlayer, id: String, volumeMaxPourcent: Int) {
+        val volume = NiveauxVolume.volumeApercu(volumeMaxPourcent)
+        enCours = id
         lecteur = nouveau.also {
             it.isLooping = false
-            it.setVolume(ATTENUATION, ATTENUATION)
+            it.setVolume(volume, volume)
             // Extrait plus court que le fichier : on coupe au bout du temps
             // imparti. Extrait plus court que le temps imparti : on libère dès
             // la fin plutôt que de garder un lecteur inutile.
@@ -83,6 +104,10 @@ class ApercuSonnerie(private val context: Context) {
     /** Idempotent : appelable à la sortie de l'écran sans savoir si ça joue. */
     fun arreter() {
         minuteur.removeCallbacksAndMessages(null)
+        // Remis avant le test de sortie anticipée : l'extrait qui se termine
+        // seul passe aussi par ici, et laisser l'identifiant en place ferait
+        // croire à l'écran qu'un son joue encore.
+        enCours = null
         val courant = lecteur ?: return
         lecteur = null
         runCatching { courant.stop() }
@@ -124,12 +149,5 @@ class ApercuSonnerie(private val context: Context) {
     private companion object {
         /** Assez pour reconnaître le caractère d'une sonnerie, trop court pour agacer. */
         const val DUREE_MS = 3_000L
-
-        /**
-         * Le volume d'alarme est souvent au maximum, et cet écran se consulte en
-         * pleine journée, à côté d'autres gens. Un tiers d'amplitude laisse le
-         * timbre reconnaissable sans faire sursauter.
-         */
-        const val ATTENUATION = 0.35f
     }
 }

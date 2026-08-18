@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.ring.ApercuSonnerie
+import com.cocorico.ring.BasculeApercu
 import com.cocorico.ring.NiveauxVolume
 import com.cocorico.ring.SondeSonnerie
 import com.cocorico.ring.SonneriePersonnaliseeLogique
@@ -126,7 +127,7 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 nomPersonnalisee = nom
                 erreurImport = null
                 viewModel.majSonnerie(Sonneries.ID_PERSONNALISEE)
-                if (!apercu.jouer(uri)) erreurImport = ECHEC_APERCU
+                if (!apercu.jouer(uri, config.volumeMaxPourcent)) erreurImport = ECHEC_APERCU
             } else {
                 erreurImport = "Ce fichier ne peut pas servir de sonnerie : format illisible, " +
                     "fichier corrompu ou accès refusé. Choisis-en un autre."
@@ -163,8 +164,17 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 nom = sonnerie.nom,
                 choisie = sonnerie.id == config.ringtoneId,
                 onClick = {
+                    // La sélection est prise dans tous les cas : le deuxième
+                    // appui ne sert qu'à couper le son, pas à revenir sur un
+                    // choix que l'utilisateur vient de faire.
                     viewModel.majSonnerie(sonnerie.id)
-                    if (!apercu.jouer(sonnerie)) erreurImport = ECHEC_APERCU
+                    when (BasculeApercu.decider(apercu.enCours, sonnerie.id)) {
+                        BasculeApercu.Bascule.ARRETER -> apercu.arreter()
+                        BasculeApercu.Bascule.JOUER ->
+                            if (!apercu.jouer(sonnerie, config.volumeMaxPourcent)) {
+                                erreurImport = ECHEC_APERCU
+                            }
+                    }
                 },
             )
         }
@@ -179,7 +189,13 @@ fun RingtoneScreen(viewModel: HomeViewModel, onRetour: () -> Unit) {
                 val uriTexte = uriPersonnalisee
                 if (uriTexte != null) {
                     viewModel.majSonnerie(Sonneries.ID_PERSONNALISEE)
-                    if (!apercu.jouer(Uri.parse(uriTexte))) erreurImport = ECHEC_APERCU
+                    when (BasculeApercu.decider(apercu.enCours, Sonneries.ID_PERSONNALISEE)) {
+                        BasculeApercu.Bascule.ARRETER -> apercu.arreter()
+                        BasculeApercu.Bascule.JOUER ->
+                            if (!apercu.jouer(Uri.parse(uriTexte), config.volumeMaxPourcent)) {
+                                erreurImport = ECHEC_APERCU
+                            }
+                    }
                 } else {
                     lanceurImport.launch(arrayOf("audio/*"))
                 }
