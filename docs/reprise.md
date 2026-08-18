@@ -23,7 +23,7 @@ l'utilisateur veut qu'il le reste.
 | Tests unitaires | **352, 0 échec** |
 | Tests instrumentés | **10, 0 échec** (Pixel 9a / Android 17) |
 | Avertissements du compilateur | **0** |
-| Lint | 66 constats, dont **2 hors versions de dépendances** |
+| Lint | 75 constats, dont **57 sont des montées de version** bloquées par le mur AGP 9 ; les 18 autres sont listés dans « Dette connue » |
 | APK release | 5,0 Mo, signé, R8 actif |
 
 Un audit complet a été mené (`../AUDIT.md`) : tous les constats des phases 1 à 6
@@ -311,6 +311,19 @@ Attendu : `0x4000` partout.
 - **Triche à la paume** sur les pompes, aggravée volontairement par la tenue
   basse à 100 ms. **Triche à l'écran** sur la photo. Les deux sont assumées.
 - Pas de direct boot.
+- **17 constats `UseKtx`**, laissés tels quels. Ce sont des propositions de
+  style (`SharedPreferences.edit {}`, `String.toUri()`, `Bitmap.scale()`), sauf
+  que la variante KTX de `edit` appelle `apply()` par défaut : appliquer la
+  suggestion là où le code écrit `commit()` — l'état d'alarme, qui doit
+  survivre à la mort du processus — changerait le comportement sous couvert de
+  cosmétique. À ne toucher qu'un par un, avec la raison de chacun.
+- **1 constat `ObsoleteSdkInt`** sur `mipmap-anydpi-v26`. Le renommage a été
+  tenté et cassait la résolution des ressources (`resource mipmap/ic_launcher
+  not found`) : l'avertissement coûte moins cher que la panne.
+- **Les quatre sonneries pèsent 1,2 Mo sur 4,66**, stockées **non compressées**
+  dans l'APK. Les passer en OGG rendrait environ 1,1 Mo, soit un quart de
+  l'APK — mais ajoute un décodage sur le chemin qui fait sonner l'alarme.
+  Arbitrage non tranché.
 
 ---
 

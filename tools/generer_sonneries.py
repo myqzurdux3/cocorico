@@ -19,7 +19,8 @@ remplacé la synthèse. Le klaxon et la sirène restent des sonneries de
 remplacement sans prétention, à
 substituer par de vrais enregistrements avant toute publication.
 
-Dépend de `numpy`, seule dépendance externe du dépôt hors Gradle.
+Dépend de `numpy`. La conversion de `coq.mp3` documentée plus bas a demandé
+`miniaudio` en plus, mais une seule fois : ce script ne s'en sert pas.
 
 Usage : `python3 tools/generer_sonneries.py`
 """
