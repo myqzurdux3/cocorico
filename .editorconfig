@@ -1,0 +1,25 @@
+# Conventions de mise en forme, appliquées par l'éditeur plutôt que par un
+# formateur automatique. Le choix est délibéré : brancher ktlint ou Spotless
+# maintenant reformaterait des milliers de lignes qui fonctionnent, ce qui
+# noierait l'historique sans corriger un seul défaut. Un `.editorconfig` fige
+# les conventions pour ce qui s'écrit ensuite, sans réécrire l'existant.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+max_line_length = 120
+
+[*.{xml,yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+# Deux espaces en fin de ligne sont un retour à la ligne en Markdown.
+trim_trailing_whitespace = false

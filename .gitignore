@@ -10,7 +10,13 @@ captures/
 *.apk
 *.aab
 *.keystore
+# Décrit où trouver la clé de signature : chemins et mots de passe locaux.
+keystore.properties
+*.jks
 !debug.keystore
+
+# Cache du compilateur Kotlin, créé à la racine par les versions récentes.
+.kotlin/
 
 # OS
 .DS_Store

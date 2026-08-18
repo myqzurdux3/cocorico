@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Le défi photo est un choix parmi trois : sans caméra, l'application
+         fonctionne entièrement. Sans cette déclaration, le Play Store la
+         rendrait invisible aux appareils qui n'en ont pas. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <!-- Uniquement pour le défi photo, qui fait juger l'image par un modèle de
+         vision distant. C'est la seule fonction de l'application qui sorte une
+         donnée du téléphone ; tout le reste — alarme, sonneries, défis,
+         historique — fonctionne sans réseau. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/regles_extraction"
+        android:fullBackupContent="@xml/regles_sauvegarde"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Cocorico"
+        android:supportsRtl="false"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Portrait imposé, et lint a raison de le déconseiller en général.
+             Ici c'est délibéré : cet écran s'affiche par-dessus le
+             verrouillage, souvent sur un téléphone posé de travers, et une
+             rotation en pleine résolution de défi ferait perdre la saisie en
+             cours. Le défi reste franchissable en portrait sur tout format. -->
+        <activity
+            android:name=".ui.AlarmActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity,DiscouragedApi"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <service
+            android:name=".alarm.AlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".alarm.AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".alarm.BootReceiver"
+            android:exported="true">
+            <!-- Pas de LOCKED_BOOT_COMPLETED : le récepteur n'est pas
+                 directBootAware, cette action ne lui serait jamais délivrée.
+                 Le vrai support du démarrage direct exigerait de basculer
+                 AlarmState et le DataStore sur le stockage protégé par
+                 l'appareil. Limite consignée dans docs/recette-appareil.md. -->
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <!-- Une mise à jour de l'application annule ses alarmes
+                 programmées. Sans cette action, chaque nouvelle version
+                 désarmerait le réveil du lendemain en silence. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <!-- `setAlarmClock` mémorise un instant absolu, calculé une fois
+                 depuis l'heure murale choisie. Un vol vers un autre fuseau ou
+                 un réglage manuel de l'horloge laisse cet instant intact
+                 pendant que l'heure visée a bougé : le réveil sonnerait au
+                 mauvais moment, ou sauterait son tour. La replanification
+                 étant idempotente, la rejouer ici ne coûte rien. -->
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

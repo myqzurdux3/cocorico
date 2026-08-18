@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="24" android:translateY="24"
+        android:scaleX="0.47" android:scaleY="0.47">
+        <!-- crête -->
+        <path android:fillColor="#E3372B"
+            android:pathData="M31,40 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0z" />
+        <path android:fillColor="#E3372B"
+            android:pathData="M46,32 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0z" />
+        <path android:fillColor="#E3372B"
+            android:pathData="M64,38 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0z" />
+        <path android:fillColor="#E3372B" android:pathData="M38,40 h42 v18 h-42z" />
+        <!-- barbillon -->
+        <path android:fillColor="#E3372B" android:pathData="M66,82 h20 v14 h-20z" />
+        <path android:fillColor="#E3372B"
+            android:pathData="M66,96 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0z" />
+        <!-- tête -->
+        <path android:fillColor="#FAF7F2"
+            android:pathData="M26,70 a32,30 0 1,0 64,0 a32,30 0 1,0 -64,0z" />
+        <!-- bec -->
+        <path android:fillColor="#F7B32B" android:pathData="M86,62 L122,52 L88,74z" />
+        <path android:fillColor="#E09A16" android:pathData="M86,78 L118,92 L88,86z" />
+        <!-- œil -->
+        <path android:fillColor="#101638"
+            android:pathData="M66.5,62 a5.5,5.5 0 1,0 11,0 a5.5,5.5 0 1,0 -11,0z" />
+    </group>
+</vector>

@@ -1,0 +1,143 @@
+package com.cocorico.data
+
+import android.content.Context
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.cocorico.challenge.combine.EtapesCombine
+import com.cocorico.challenge.photo.CatalogueObjets
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import java.time.DayOfWeek
+
+/**
+ * Sans `corruptionHandler`, un fichier de préférences tronqué — batterie vide
+ * en pleine écriture, système à court d'espace — fait échouer **toutes** les
+ * lectures à venir, définitivement. Les trois appelants de `current()` avalent
+ * l'exception : l'alarme ne serait alors plus jamais reprogrammée, et l'accueil
+ * continuerait d'annoncer l'heure du prochain réveil.
+ *
+ * Repartir des valeurs par défaut perd la configuration de l'utilisateur, ce
+ * qui se voit et se répare en dix secondes. Le silence, lui, ne se répare
+ * qu'après avoir raté un réveil.
+ */
+private val Context.dataStore by preferencesDataStore(
+    name = "cocorico_alarm",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
+
+/** Encodage des jours en chaîne, isolé pour être testable sans appareil. */
+object AlarmConfigCodec {
+
+    fun encodeDays(days: Set<DayOfWeek>): String = days.joinToString(",") { it.name }
+
+    fun decodeDays(raw: String): Set<DayOfWeek> = raw.split(",")
+        .mapNotNull { token ->
+            runCatching { DayOfWeek.valueOf(token.trim()) }.getOrNull()
+        }
+        .toSet()
+}
+
+/**
+ * Persists the unique alarm configuration to DataStore.
+ *
+ * @param context The application context (not an activity context).
+ */
+class AlarmConfigRepository(private val context: Context) {
+
+    private object Keys {
+        val HOUR = intPreferencesKey("hour")
+        val MINUTE = intPreferencesKey("minute")
+        val DAYS = stringPreferencesKey("days")
+        val RINGTONE = stringPreferencesKey("ringtone")
+        val CHALLENGE = stringPreferencesKey("challenge")
+        val DIFFICULTY = stringPreferencesKey("difficulty")
+        val ARMED = booleanPreferencesKey("armed")
+        val VOLUME_MAX = intPreferencesKey("volume_max_pourcent")
+        val CLE_API = stringPreferencesKey("cle_api")
+        val OBJETS_SELECTIONNES = stringSetPreferencesKey("objets_selectionnes")
+        val ETAPES_COMBINE = stringPreferencesKey("etapes_combine")
+    }
+
+    /** Lecture d'un instantané de préférences, partagée par le flux et l'écriture. */
+    private fun lire(prefs: Preferences): AlarmConfig {
+        val default = AlarmConfig.DEFAULT
+        return AlarmConfig(
+            hour = prefs[Keys.HOUR] ?: default.hour,
+            minute = prefs[Keys.MINUTE] ?: default.minute,
+            days = prefs[Keys.DAYS]?.let(AlarmConfigCodec::decodeDays) ?: default.days,
+            ringtoneId = prefs[Keys.RINGTONE] ?: default.ringtoneId,
+            challengeId = prefs[Keys.CHALLENGE]
+                ?.let { runCatching { ChallengeId.valueOf(it) }.getOrNull() }
+                ?: default.challengeId,
+            difficulty = prefs[Keys.DIFFICULTY]
+                ?.let { runCatching { Difficulty.valueOf(it) }.getOrNull() }
+                ?: default.difficulty,
+            armed = prefs[Keys.ARMED] ?: default.armed,
+            volumeMaxPourcent = prefs[Keys.VOLUME_MAX] ?: default.volumeMaxPourcent,
+            // Déchiffrée à la lecture, et rendue telle quelle si elle vient
+            // d'une version qui l'écrivait en clair. Voir [CoffreCle].
+            cleApi = CoffreCle.lire(prefs[Keys.CLE_API] ?: default.cleApi),
+            // Un identifiant persisté qui n'existe plus dans le catalogue —
+            // objet retiré depuis une mise à jour — est ignoré par
+            // `idsValides` plutôt que de fausser le tirage ou l'écran de
+            // sélection avec une case qu'il n'affichera jamais.
+            objetsSelectionnes = prefs[Keys.OBJETS_SELECTIONNES]
+                ?.let(CatalogueObjets::idsValides)
+                ?: default.objetsSelectionnes,
+            // Absente pour tout utilisateur d'une version antérieure : la
+            // proposition de départ vaut mieux qu'une liste vide, que `assaini`
+            // remplacerait de toute façon par un repli moins parlant.
+            etapesCombine = prefs[Keys.ETAPES_COMBINE]
+                ?.let(EtapesCombine::decoder)
+                ?: default.etapesCombine,
+        ).assaini()
+    }
+
+    val config: Flow<AlarmConfig> = context.dataStore.data.map(::lire)
+
+    suspend fun current(): AlarmConfig = config.first()
+
+    /**
+     * Réécrit la configuration à l'identique, ce qui suffit à faire chiffrer une
+     * clé d'API héritée : [update] repasse tous les champs par [CoffreCle].
+     *
+     * Nécessaire parce que la lecture ne peut pas écrire, et qu'un utilisateur
+     * qui ne touche plus jamais à ses réglages garderait sa clé en clair
+     * indéfiniment. Sans effet — et sans écriture inutile — si la clé est déjà
+     * chiffrée ou absente.
+     */
+    suspend fun migrerCleApi() {
+        val stockee = context.dataStore.data.first()[Keys.CLE_API].orEmpty()
+        if (stockee.isEmpty() || EnveloppeCle.estEnveloppe(stockee)) return
+        update { it }
+    }
+
+    /**
+     * Lecture et écriture dans la même transaction `edit` : deux mises à jour
+     * concurrentes (deux jours cochés coup sur coup) ne doivent pas se perdre.
+     */
+    suspend fun update(transform: (AlarmConfig) -> AlarmConfig) {
+        context.dataStore.edit { prefs ->
+            val updated = transform(lire(prefs))
+            prefs[Keys.HOUR] = updated.hour
+            prefs[Keys.MINUTE] = updated.minute
+            prefs[Keys.DAYS] = AlarmConfigCodec.encodeDays(updated.days)
+            prefs[Keys.RINGTONE] = updated.ringtoneId
+            prefs[Keys.CHALLENGE] = updated.challengeId.name
+            prefs[Keys.DIFFICULTY] = updated.difficulty.name
+            prefs[Keys.ARMED] = updated.armed
+            prefs[Keys.VOLUME_MAX] = updated.volumeMaxPourcent
+            prefs[Keys.CLE_API] = CoffreCle.ecrire(updated.cleApi)
+            prefs[Keys.OBJETS_SELECTIONNES] = updated.objetsSelectionnes
+            prefs[Keys.ETAPES_COMBINE] = EtapesCombine.encoder(updated.etapesCombine)
+        }
+    }
+}
