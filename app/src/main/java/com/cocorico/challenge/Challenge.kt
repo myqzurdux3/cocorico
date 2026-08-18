@@ -16,6 +16,20 @@ interface Challenge {
     val id: ChallengeId
     val isSolved: StateFlow<Boolean>
 
+    /**
+     * Fautes commises pendant le défi, telles qu'elles partent dans
+     * l'historique. Zéro par défaut : tous les défis n'en comptent pas, et un
+     * défi qui n'en compte pas n'en invente pas.
+     *
+     * Existe parce que `AlarmActivity` reconnaissait les compteurs par le type
+     * du défi (`when (challengeFinal) { is MathChallenge -> … }`). Un
+     * `DefiCombine` ne correspondant à aucune branche, tout matin en Sur mesure
+     * enregistrait zéro faute quel qu'ait été le nombre d'erreurs. Le contrat
+     * appartient à l'interface : chaque défi répond pour lui-même, et ajouter
+     * un défi ne peut plus faire disparaître un compteur en silence.
+     */
+    val fautes: Int get() = 0
+
     @Composable
     fun Content(modifier: Modifier)
 }

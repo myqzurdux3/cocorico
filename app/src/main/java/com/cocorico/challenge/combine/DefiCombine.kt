@@ -55,7 +55,29 @@ class DefiCombine(
     private val _isSolved = MutableStateFlow(false)
     override val isSolved: StateFlow<Boolean> = _isSolved.asStateFlow()
 
-    private fun avancer() {
+    /**
+     * Cumul des fautes des épreuves **terminées**. Les épreuves sont construites
+     * puis relâchées une à une : sans ce cumul, seule la dernière compterait.
+     *
+     * Une épreuve abandonnée n'y entre pas. Le renoncement est déjà enregistré
+     * pour lui-même dans l'historique ; le compter en plus comme une série de
+     * fautes punirait deux fois le même geste.
+     */
+    private var fautesTerminees = 0
+
+    override val fautes: Int get() = fautesTerminees
+
+    /**
+     * Passe à l'épreuve suivante en retenant les fautes de celle qui vient de
+     * se résoudre.
+     *
+     * Reçoit l'épreuve en paramètre plutôt que de la garder en champ : elle
+     * n'existe que dans la composition, qui la construit et la relâche.
+     * `internal` pour que cette arithmétique — la seule de cette classe qui
+     * puisse fausser une statistique — se vérifie sans appareil ni composition.
+     */
+    internal fun avancer(epreuve: Challenge) {
+        fautesTerminees += epreuve.fautes
         val suivant = sequence.value.suivante()
         sequence.value = suivant
         // L'ordre compte : le drapeau ne passe à vrai qu'une fois l'état
@@ -90,7 +112,7 @@ class DefiCombine(
         }
 
         val resolue by epreuve.isSolved.collectAsState()
-        LaunchedEffect(resolue, etat.index) { if (resolue) avancer() }
+        LaunchedEffect(resolue, etat.index) { if (resolue) avancer(epreuve) }
 
         Column(
             modifier = modifier.fillMaxWidth(),

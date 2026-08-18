@@ -31,8 +31,10 @@ class MathChallenge(private val engine: MathChallengeEngine, private val onInter
     override val id = ChallengeId.MATHS
     override val isSolved: StateFlow<Boolean> = engine.isSolved
 
-    /** Exposé pour l'enregistrement du réveil dans l'historique. */
+    /** Exposé pour l'écran : le compteur se met à jour pendant le défi. */
     val erreurs: StateFlow<Int> = engine.erreurs
+
+    override val fautes: Int get() = erreurs.value
 
     @Composable
     override fun Content(modifier: Modifier) {

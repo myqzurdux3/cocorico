@@ -425,14 +425,13 @@ class AlarmActivity : ComponentActivity() {
         // Lu ici, pas au démarrage : c'est le défi qui vient effectivement de
         // se résoudre, celui d'après un éventuel renoncement.
         val challengeFinal = defi.value
-        // Chaque défi compte ses ratés à sa façon : fautes de calcul d'un côté,
-        // photos refusées de l'autre. Les pompes n'ont rien à compter — une
-        // répétition mal faite n'est simplement pas comptée.
-        val erreurs = when (challengeFinal) {
-            is MathChallenge -> challengeFinal.erreurs.value
-            is PhotoChallenge -> challengeFinal.essaisTotal.value
-            else -> 0
-        }
+        // Chaque défi répond pour lui-même : fautes de calcul d'un côté, photos
+        // refusées de l'autre, somme des épreuves pour le sur-mesure. Les
+        // pompes n'ont rien à compter — une répétition mal faite n'est
+        // simplement pas comptée. Cette ligne triait naguère par type de
+        // classe, et le sur-mesure, qui n'était d'aucun des types cités,
+        // enregistrait zéro faute tous les matins.
+        val erreurs = challengeFinal?.fautes ?: 0
         lifecycleScope.launch {
             withContext(NonCancellable) {
                 runCatching {

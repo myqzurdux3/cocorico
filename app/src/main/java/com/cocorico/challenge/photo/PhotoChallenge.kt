@@ -155,12 +155,12 @@ class PhotoChallenge(
     override val isSolved: StateFlow<Boolean> get() = etat.isSolved
 
     /**
-     * Essais ratés sur tout le réveil, pour l'historique. Exposé ici parce que
-     * l'activité d'alarme ne connaît que l'interface [com.cocorico.challenge.Challenge] :
-     * elle transtype pour lire ce compteur, comme elle le fait déjà pour les
-     * fautes du défi de calcul mental.
+     * Essais ratés sur tout le réveil. Exposé en flux pour l'écran, qui les
+     * affiche au fil des tentatives ; l'historique, lui, lit [fautes].
      */
     val essaisTotal: StateFlow<Int> get() = etat.essaisTotal
+
+    override val fautes: Int get() = essaisTotal.value
 
     /**
      * Exposé pour que l'appelant refuse le défi photo sur un appareil sans
