@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -113,8 +114,8 @@ class AlarmActivity : ComponentActivity() {
      * pourcentage qui corresponde à ce qu'il a réglé. Renseigné avec le reste
      * de la configuration ; jusque-là, le maximum, comme le lecteur.
      */
-    private val plafondVolume = mutableStateOf(NiveauxVolume.POURCENT_MAXIMAL)
-    private val secondesAvantRemontee = mutableStateOf(SECONDES_INACTIVITE)
+    private val plafondVolume = mutableIntStateOf(NiveauxVolume.POURCENT_MAXIMAL)
+    private val secondesAvantRemontee = mutableIntStateOf(SECONDES_INACTIVITE)
 
     /**
      * État observable, pas un simple champ : le renoncement au défi pompes le
@@ -179,11 +180,11 @@ class AlarmActivity : ComponentActivity() {
                 val challengeActuel by defi
                 challengeActuel?.let { challenge ->
                     EcranAlarme(
-                        plafondPourcent = plafondVolume.value,
+                        plafondPourcent = plafondVolume.intValue,
                         detectionPriseEnMain = detector.capteurDisponible(),
                         challenge = challenge,
                         volume = volumeAffiche.value,
-                        secondes = secondesAvantRemontee.value,
+                        secondes = secondesAvantRemontee.intValue,
                     )
                 }
             }
@@ -200,7 +201,7 @@ class AlarmActivity : ComponentActivity() {
             // du service, sans quoi la remontée après inactivité repousserait
             // le son au maximum de l'appareil.
             player.volumeMaxPourcent = config.volumeMaxPourcent
-            plafondVolume.value = config.volumeMaxPourcent
+            plafondVolume.intValue = config.volumeMaxPourcent
             defi.value = construireDefi(config)
 
             // Horloge monotone, exigée par `InactivityTracker` : l'horloge
@@ -360,7 +361,7 @@ class AlarmActivity : ComponentActivity() {
     private fun majCompteARebours(maintenant: Long) {
         if (!compteAReboursAffiche(volumeAffiche.value)) return
         val restant = inactivite.millisRestantes(maintenant)
-        secondesAvantRemontee.value = ((restant + 999L) / 1000L).toInt()
+        secondesAvantRemontee.intValue = ((restant + 999L) / 1000L).toInt()
     }
 
     /**

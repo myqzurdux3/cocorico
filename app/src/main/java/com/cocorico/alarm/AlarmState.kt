@@ -13,6 +13,15 @@ import android.content.Context
  * l'application ferait sonner une alarme fantôme. On horodate donc chaque signe
  * de vie et on considère le drapeau comme faux au-delà de [FENETRE_VALIDITE_MS].
  */
+// `commit()` est délibéré, et lint a raison de le signaler par défaut : il
+// écrit de façon synchrone. C'est précisément ce qu'on veut ici. La valeur doit
+// être sur le disque **avant** que le processus puisse mourir — un `apply()`
+// asynchrone perdrait le drapeau si le système tuait l'application entre
+// l'écriture et le vidage, et l'alarme repartirait au démarrage suivant alors
+// qu'elle a été résolue, ou l'inverse. Supprimé avec sa raison plutôt que laissé
+// dans la liste : un avertissement qu'on sait faux finit par faire ignorer les
+// autres.
+@Suppress("ApplySharedPref")
 object AlarmState {
 
     private const val FICHIER = "cocorico_alarm_state"

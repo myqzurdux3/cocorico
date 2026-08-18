@@ -31,6 +31,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -210,7 +211,7 @@ class PhotoChallenge(
         // Échecs d'affilée non imputables au modèle. Au-delà d'un seuil, rien
         // ne sert de continuer à photographier : c'est le repli calculs qu'il
         // faut proposer, puis prendre.
-        var pannesJuge by remember { mutableStateOf(0) }
+        var pannesJuge by remember { mutableIntStateOf(0) }
 
         // La capture et la conversion de l'image quittent le thread principal :
         // décoder, réduire et pivoter une photo de 12 Mpx gèle sinon l'écran

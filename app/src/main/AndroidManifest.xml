@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
@@ -42,12 +43,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Portrait imposé, et lint a raison de le déconseiller en général.
+             Ici c'est délibéré : cet écran s'affiche par-dessus le
+             verrouillage, souvent sur un téléphone posé de travers, et une
+             rotation en pleine résolution de défi ferait perdre la saisie en
+             cours. Le défi reste franchissable en portrait sur tout format. -->
         <activity
             android:name=".ui.AlarmActivity"
             android:exported="false"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
             android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity,DiscouragedApi"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />

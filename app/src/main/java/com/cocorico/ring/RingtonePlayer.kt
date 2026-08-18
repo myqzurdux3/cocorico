@@ -304,6 +304,11 @@ class RingtonePlayer(private val context: Context) {
  * n'est pas réinitialisé à la mort du processus : sans cette trace, un arrêt
  * forcé pendant l'alarme laisserait le téléphone à fond toute la journée.
  */
+// `commit()` délibéré : cette trace n'a de valeur que si elle est sur le disque
+// avant que le processus puisse mourir. Un `apply()` asynchrone la perdrait
+// exactement dans le cas qu'elle sert à couvrir — un arrêt forcé pendant la
+// sonnerie — et le téléphone resterait à fond pour la journée.
+@Suppress("ApplySharedPref")
 private object VolumeOrigine {
 
     private const val FICHIER = "cocorico_volume"

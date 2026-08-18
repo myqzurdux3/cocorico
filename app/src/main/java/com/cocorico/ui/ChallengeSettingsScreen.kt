@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.photo.SelectionObjets
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
@@ -154,7 +155,15 @@ fun ChallengeSettingsScreen(
         )
         Option(
             titre = "Photo",
-            detail = "Un objet précis, validé par l'IA",
+            // La difficulté ne rend jamais un objet plus dur à trouver — un
+            // objet « difficile » n'aurait aucun sens à six heures du matin.
+            // Elle change leur nombre, exactement comme les pompes changent de
+            // nombre de répétitions. La carte doit le dire, sinon le réglage
+            // paraît sans effet sur ce défi.
+            detail = when (val nombre = PhotoChallenge.nombrePour(config.difficulty)) {
+                1 -> "Un objet à photographier, validé par l'IA"
+                else -> "$nombre objets à photographier, validés par l'IA"
+            },
             selectionne = config.challengeId == ChallengeId.PHOTO,
             indisponible = !cameraDisponibleAppareil,
             // Choisir la photo sans avoir accordé la caméra ne doit plus

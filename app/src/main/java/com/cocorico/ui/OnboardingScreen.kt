@@ -34,6 +34,11 @@ import com.cocorico.data.ChallengeId
  * la KDoc d'[EtatPermissions.camera]).
  */
 @Composable
+// Signalé par lint comme contraire aux règles du Play Store, à juste titre pour
+// la plupart des applications. Un réveil est l'exception explicitement prévue :
+// sans exemption, le système peut retarder l'alarme, et une alarme retardée
+// n'est plus une alarme. La justification sera fournie à la publication.
+@Suppress("BatteryLife")
 fun OnboardingScreen(etat: EtatPermissions, challengeId: ChallengeId, onRafraichir: () -> Unit) {
     val context = LocalContext.current
     val demanderCamera = rememberLauncherForActivityResult(
