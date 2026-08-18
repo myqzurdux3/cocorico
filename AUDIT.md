@@ -457,6 +457,24 @@ l'alarme, ce qui serait bien pire que redemander une clé.
 Migration : une clé héritée en clair reste lisible et est rechiffrée au premier
 démarrage suivant.
 
+### Mise à jour des dépendances et nettoyage du lint
+
+`targetSdk` et `compileSdk` passent de 35 à 36 — c'est le point qui compte,
+Play exigeant une cible récente. Avec eux : AGP 8.9.1, Kotlin 2.1.0, Room 2.7.2,
+Compose BOM 2025.06, coroutines 1.10.2, lifecycle 2.9.4.
+
+**AGP 9 a été tenté et écarté volontairement.** Il exige Gradle 9.5, puis
+enregistre sa propre extension `kotlin` qui entre en conflit avec le greffon
+Kotlin appliqué par le projet : c'est une migration, pas un changement de
+numéro. Toute la dernière génération d'AndroidX étant verrouillée derrière
+AGP 9.1, elle reste en arrière elle aussi. Une chaîne à moitié migrée sur un
+réveil est pire qu'une génération de retard.
+
+Lint : de 77 constats à 66, et de 14 à 2 une fois le bruit de versions écarté.
+Les `commit()` délibérés et l'orientation figée portent désormais leur
+justification dans le code, pour que la liste redevienne un signal plutôt
+qu'un fond sonore qu'on cesse de lire.
+
 ### Ce qui reste ouvert
 
 - ~~L'écran d'alarme ne défile pas tant que le défi est fermé.~~ **Tranché par la mesure** : sur un Pixel 9a, le contenu de l'état fermé occupe 849 px sur 2224 utilisables, soit 2,6 fois la place nécessaire. La police maximale d'Android double le texte : le débordement redouté n'a pas lieu. Le défilement reste conditionnel, ce qui préserve le centrage vertical voulu.
