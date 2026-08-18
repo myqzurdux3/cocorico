@@ -9,6 +9,8 @@ reprendre. Le produit lui-même est décrit dans `cocorico.md`, l'audit dans
 
 ## Où en est le travail
 
+**Dépôt :** `myqzurdux3/cocorico` — renommé depuis `wake-up` le 18 août 2026,
+en même temps que le dossier local `~/Documents/cocorico`.
 **Branche :** `cocorico-v1`, poussée sur `origin`. Dépôt **privé**, et
 l'utilisateur veut qu'il le reste.
 **Pull request :** https://github.com/myqzurdux3/cocorico/pull/1 (ouverte).
