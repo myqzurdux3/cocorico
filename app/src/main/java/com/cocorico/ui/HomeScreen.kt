@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cocorico.alarm.AttenteSonnerie
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.CapteurPompes
@@ -64,6 +67,7 @@ fun HomeScreen(
 ) {
     val config by viewModel.config.collectAsState()
     val prochaine by viewModel.prochaine.collectAsState()
+    val manquee by viewModel.manquee.collectAsState()
 
     // Le délai était calculé une seule fois, à la composition. Passé l'heure
     // prévue il devenait négatif et l'accueil annonçait « Réveil dans -2 min ».
@@ -134,6 +138,10 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text("Cocorico", style = MaterialTheme.typography.titleLarge)
+
+        // Au-dessus de tout le reste, et en couleur d'erreur : c'est la seule
+        // chose de cet écran que l'utilisateur ne peut pas deviner autrement.
+        manquee?.let { quand -> BandeauManquee(quand, viewModel::acquitterManquee) }
 
         Text(
             text = CompteARebours.libelle(maintenant, prochaine, fuseau, armee = config.armed),
@@ -233,6 +241,42 @@ fun HomeScreen(
  * Le disque, lui, grandit avec la police système au lieu de rogner la lettre :
  * sa taille est un minimum, pas une taille fixe.
  */
+/**
+ * Signale une sonnerie qui n'est jamais partie.
+ *
+ * Un réveil qui échoue en silence est le pire défaut de ce produit : sans ce
+ * bandeau, l'utilisateur ne l'apprenait qu'en ne se réveillant pas. Il faut donc
+ * l'acquitter à la main — le faire disparaître tout seul reviendrait à cacher
+ * l'échec une deuxième fois.
+ */
+@Composable
+private fun BandeauManquee(quand: LocalDateTime, onAcquitter: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = AttenteSonnerie.libelle(quand),
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Text(
+            text = "J'ai compris",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clickable(onClick = onAcquitter)
+                .wrapContentHeight(),
+        )
+    }
+}
+
 @Composable
 private fun RowScope.PastilleJour(jour: DayOfWeek, actif: Boolean, onClick: () -> Unit) {
     val lettre = when (jour) {

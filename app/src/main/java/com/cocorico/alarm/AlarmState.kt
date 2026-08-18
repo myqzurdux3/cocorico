@@ -36,6 +36,21 @@ object AlarmState {
     private const val CLE_DECLENCHEMENT = "alarme_declenchement"
 
     /**
+     * L'instant de la sonnerie **attendue**, écrit à la programmation et effacé
+     * par [marquerDemarree] quand elle part réellement. Une attente passée et
+     * jamais effacée est la seule trace qu'une alarme a échoué en silence.
+     */
+    private const val CLE_ATTENDUE = "alarme_attendue"
+
+    /**
+     * L'instant d'une sonnerie constatée manquée, en attente d'être vue par
+     * l'utilisateur. Séparée de [CLE_ATTENDUE] parce que reprogrammer écrase
+     * l'attente : sans ce second emplacement, la preuve de l'échec serait
+     * effacée par la reprogrammation qui suit immédiatement le constat.
+     */
+    private const val CLE_MANQUEE = "alarme_manquee"
+
+    /**
      * Une alarme qui hurle depuis plus d'une heure sans être résolue est déjà
      * perdue : la relancer au démarrage suivant n'aiderait personne, alors
      * qu'une alarme fantôme au milieu de la journée est un bug visible.
@@ -68,6 +83,10 @@ object AlarmState {
         prefs(context).edit()
             .putBoolean(CLE_EN_COURS, true)
             .putLong(CLE_DERNIER_SIGNE, System.currentTimeMillis())
+            // L'attente est honorée : la sonnerie est partie. C'est le seul
+            // endroit qui l'efface, et c'est voulu — toute autre sortie laisse
+            // la trace, donc l'échec reste constatable.
+            .remove(CLE_ATTENDUE)
             .commit()
     }
 
@@ -108,6 +127,47 @@ object AlarmState {
             .remove(CLE_DERNIER_SIGNE)
             .remove(CLE_DECLENCHEMENT)
             .commit()
+    }
+
+    /**
+     * Enregistre l'instant de la prochaine sonnerie attendue.
+     *
+     * Promeut d'abord une attente précédente restée sans réponse : c'est le
+     * seul moment où on peut la constater, juste avant de l'écraser.
+     */
+    fun noterAttente(context: Context, instantMs: Long) {
+        promouvoirSiManquee(context)
+        prefs(context).edit().putLong(CLE_ATTENDUE, instantMs).commit()
+    }
+
+    /**
+     * Plus rien n'est attendu : désarmement, ou aucun jour actif. Le constat de
+     * manquement est fait avant l'oubli — désarmer après une alarme ratée ne
+     * doit pas effacer le fait qu'elle a raté.
+     */
+    fun oublierAttente(context: Context) {
+        promouvoirSiManquee(context)
+        prefs(context).edit().remove(CLE_ATTENDUE).commit()
+    }
+
+    /** L'instant de la sonnerie manquée à signaler, ou `0`. */
+    fun sonnerieManquee(context: Context): Long = prefs(context).getLong(CLE_MANQUEE, 0L)
+
+    /** L'utilisateur a vu le message : on ne le lui remontre pas. */
+    fun acquitterManquee(context: Context) {
+        prefs(context).edit().remove(CLE_MANQUEE).commit()
+    }
+
+    /**
+     * Une seule sonnerie manquée est retenue, la plus récente. Empiler les
+     * échecs d'un téléphone resté éteint une semaine noierait le message qui
+     * compte — celui de ce matin.
+     */
+    private fun promouvoirSiManquee(context: Context) {
+        val prefs = prefs(context)
+        val attendue = prefs.getLong(CLE_ATTENDUE, 0L)
+        if (!AttenteSonnerie.estManquee(attendue, System.currentTimeMillis())) return
+        prefs.edit().putLong(CLE_MANQUEE, attendue).remove(CLE_ATTENDUE).commit()
     }
 
     fun estEnCours(context: Context): Boolean {

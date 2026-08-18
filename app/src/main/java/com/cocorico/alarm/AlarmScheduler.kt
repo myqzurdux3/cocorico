@@ -30,11 +30,13 @@ class AlarmScheduler(private val context: Context) {
     fun schedule(config: AlarmConfig): ResultatPlanification {
         if (!config.armed) {
             cancel()
+            AlarmState.oublierAttente(context)
             return ResultatPlanification.Desarmee
         }
         if (!canScheduleExact()) return ResultatPlanification.PermissionManquante
         val next = NextOccurrenceCalculator.next(config, LocalDateTime.now()) ?: run {
             cancel()
+            AlarmState.oublierAttente(context)
             return ResultatPlanification.AucunJourActif
         }
         // `atZone` résolvait seul les deux jours de bascule de l'heure d'été, et
@@ -46,6 +48,11 @@ class AlarmScheduler(private val context: Context) {
                 AlarmManager.AlarmClockInfo(epochMillis, pendingShowIntent()),
                 pendingFireIntent(),
             )
+            // Après `setAlarmClock`, jamais avant : noter une attente pour une
+            // alarme qui n'a pas pu être posée la ferait signaler comme
+            // manquée, alors que le vrai défaut — la permission, le système —
+            // est déjà rapporté par les autres branches.
+            AlarmState.noterAttente(context, epochMillis)
             ResultatPlanification.Programmee(next)
         } catch (_: SecurityException) {
             ResultatPlanification.PermissionManquante

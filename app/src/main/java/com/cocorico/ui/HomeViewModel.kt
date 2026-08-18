@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.cocorico.alarm.AlarmScheduler
+import com.cocorico.alarm.AlarmState
 import com.cocorico.challenge.combine.EtapeCombine
 import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.challenge.photo.Piece
@@ -20,7 +21,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -36,6 +39,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val _prochaine = MutableStateFlow<LocalDateTime?>(null)
     val prochaine: StateFlow<LocalDateTime?> = _prochaine.asStateFlow()
 
+    /**
+     * L'instant d'une sonnerie qui n'est jamais partie, ou `null`.
+     *
+     * Lu **après** [planifier], jamais avant : c'est la programmation qui
+     * constate le manquement en écrasant l'attente périmée. Lire d'abord
+     * rendrait toujours `null` le matin où ça compte.
+     */
+    private val _manquee = MutableStateFlow<LocalDateTime?>(null)
+    val manquee: StateFlow<LocalDateTime?> = _manquee.asStateFlow()
+
     init {
         // Sans ça, l'accueil afficherait « Aucun jour actif » au lancement, même
         // alarme armée : `prochaine` ne serait renseignée qu'au premier réglage.
@@ -44,8 +57,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             // clair. Ne fait rien si elle l'est déjà, ou s'il n'y en a pas.
             runCatching { repo.migrerCleApi() }
             _prochaine.value = planifier()
+            _manquee.value = lireManquee()
         }
     }
+
+    /** L'utilisateur a vu le message : il ne revient pas au lancement suivant. */
+    fun acquitterManquee() {
+        viewModelScope.launch {
+            AlarmState.acquitterManquee(getApplication())
+            _manquee.value = null
+        }
+    }
+
+    private fun lireManquee(): LocalDateTime? = AlarmState.sonnerieManquee(getApplication())
+        .takeIf { it > 0L }
+        ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
 
     /**
      * Recalcule l'occurrence affichée. L'accueil l'appelle quand celle qu'il
@@ -55,6 +81,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun rafraichirProchaine() {
         viewModelScope.launch {
             _prochaine.value = planifier()
+            _manquee.value = lireManquee()
         }
     }
 
@@ -105,6 +132,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.update(transform)
             _prochaine.value = planifier()
+            _manquee.value = lireManquee()
         }
     }
 
