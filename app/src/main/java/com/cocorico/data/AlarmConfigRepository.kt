@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.challenge.photo.CatalogueObjets
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -62,6 +63,7 @@ class AlarmConfigRepository(private val context: Context) {
         val VOLUME_MAX = intPreferencesKey("volume_max_pourcent")
         val CLE_API = stringPreferencesKey("cle_api")
         val OBJETS_SELECTIONNES = stringSetPreferencesKey("objets_selectionnes")
+        val ETAPES_COMBINE = stringPreferencesKey("etapes_combine")
     }
 
     /** Lecture d'un instantané de préférences, partagée par le flux et l'écriture. */
@@ -90,6 +92,12 @@ class AlarmConfigRepository(private val context: Context) {
             objetsSelectionnes = prefs[Keys.OBJETS_SELECTIONNES]
                 ?.let(CatalogueObjets::idsValides)
                 ?: default.objetsSelectionnes,
+            // Absente pour tout utilisateur d'une version antérieure : la
+            // proposition de départ vaut mieux qu'une liste vide, que `assaini`
+            // remplacerait de toute façon par un repli moins parlant.
+            etapesCombine = prefs[Keys.ETAPES_COMBINE]
+                ?.let(EtapesCombine::decoder)
+                ?: default.etapesCombine,
         ).assaini()
     }
 
@@ -129,6 +137,7 @@ class AlarmConfigRepository(private val context: Context) {
             prefs[Keys.VOLUME_MAX] = updated.volumeMaxPourcent
             prefs[Keys.CLE_API] = CoffreCle.ecrire(updated.cleApi)
             prefs[Keys.OBJETS_SELECTIONNES] = updated.objetsSelectionnes
+            prefs[Keys.ETAPES_COMBINE] = EtapesCombine.encoder(updated.etapesCombine)
         }
     }
 }

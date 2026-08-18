@@ -48,7 +48,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cocorico.challenge.Challenge
 import com.cocorico.data.ChallengeId
-import com.cocorico.data.Difficulty
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -85,8 +84,12 @@ internal enum class SuiteApresPanne {
  */
 class PhotoChallenge(
     context: Context,
-    difficulty: Difficulty,
     private val cleApi: String,
+    /**
+     * Nombre d'objets à photographier. Vaut [NOMBRE_OBJETS] pour le mode photo
+     * simple ; le défi sur mesure laisse l'utilisateur en demander davantage.
+     */
+    private val nombre: Int = NOMBRE_OBJETS,
     private val onInteraction: () -> Unit,
     private val onRenoncer: () -> Unit,
     /**
@@ -103,7 +106,7 @@ class PhotoChallenge(
 
     private val juge: JugePhoto = JugeGemini(cleApi)
 
-    private val total = NOMBRE_OBJETS
+    private val total = nombre.coerceAtLeast(1)
 
     /**
      * Tirage figé au **premier usage** du défi, en excluant les objets du

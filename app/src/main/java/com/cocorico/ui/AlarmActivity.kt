@@ -48,6 +48,8 @@ import androidx.lifecycle.lifecycleScope
 import com.cocorico.alarm.AlarmService
 import com.cocorico.alarm.AlarmState
 import com.cocorico.challenge.Challenge
+import com.cocorico.challenge.combine.DefiCombine
+import com.cocorico.challenge.combine.EtapeCombine
 import com.cocorico.challenge.MathChallenge
 import com.cocorico.challenge.MathChallengeEngine
 import com.cocorico.challenge.MathProblemGenerator
@@ -56,6 +58,7 @@ import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.AlarmConfig
 import com.cocorico.data.AlarmConfigRepository
 import com.cocorico.data.ChallengeId
+import com.cocorico.data.Difficulty
 import com.cocorico.data.CocoricoDatabase
 import com.cocorico.data.WakeRecord
 import com.cocorico.ring.HandDetector
@@ -258,81 +261,102 @@ class AlarmActivity : ComponentActivity() {
      * permission caméra ou sans juge embarqué disponible, le défi photo non
      * plus. Le repli est décidé ici, avant tout affichage — jamais après.
      */
+    /**
+     * Construit le défi qui va s'afficher.
+     *
+     * La disponibilité de chaque épreuve — capteur de proximité, permission
+     * caméra, clé d'API — est décidée **une seule fois**, dans
+     * [fabriquerEpreuve]. Le défi sur mesure appelle la même fonction pour
+     * chacune de ses étapes : deux listes de conditions séparées finiraient par
+     * diverger, et c'est déjà arrivé ici.
+     */
     private fun construireDefi(config: AlarmConfig): Challenge {
-        val maths = {
-            MathChallenge(
-                MathChallengeEngine(MathProblemGenerator(), config.difficulty),
-            ) { interaction() }
-        }
-        // Renoncement commun aux deux défis actifs : le nouvel écran remplace
+        // Renoncement des trois modes simples : le nouvel écran remplace
         // l'ancien dans la composition, et ses capteurs (pompes) ou sa caméra
         // (photo) sont libérés par le `DisposableEffect` du `Content` sortant
         // quand celui-ci quitte la composition.
         val onRenoncer = {
             abandon = true
-            defi.value = maths()
+            defi.value = calculs(NOMBRE_CALCULS_DEFAUT, config.difficulty)
         }
 
-        return when (config.challengeId) {
-            ChallengeId.MATHS -> maths()
+        if (config.challengeId == ChallengeId.COMBINE) {
+            return DefiCombine(config.etapesCombine) { etape, renoncerEpreuve ->
+                // `abandon` marque l'historique dès qu'une seule épreuve a été
+                // abandonnée : le matin n'a pas été fait tel qu'il était réglé,
+                // même si le reste a été accompli.
+                fabriquerEpreuve(etape, config) {
+                    abandon = true
+                    renoncerEpreuve()
+                }
+            }
+        }
 
-            ChallengeId.POMPES -> {
-                val pompes = PompesChallenge(
+        val nombre = when (config.challengeId) {
+            ChallengeId.POMPES -> PompesChallenge.nombrePour(config.difficulty)
+            ChallengeId.PHOTO -> PhotoChallenge.NOMBRE_OBJETS
+            else -> NOMBRE_CALCULS_DEFAUT
+        }
+        return fabriquerEpreuve(EtapeCombine(config.challengeId, nombre), config, onRenoncer)
+            ?: calculs(NOMBRE_CALCULS_DEFAUT, config.difficulty)
+    }
+
+    /** Les calculs : le seul défi toujours disponible, donc le repli de tous les autres. */
+    private fun calculs(nombre: Int, difficulty: Difficulty): Challenge = MathChallenge(
+        MathChallengeEngine(MathProblemGenerator(), difficulty = difficulty, total = nombre),
+    ) { interaction() }
+
+    /**
+     * Construit une épreuve, ou rend `null` si elle est impossible sur cet
+     * appareil ce matin. Ne se replie pas elle-même : c'est l'appelant qui
+     * décide ce que « impossible » veut dire chez lui — les calculs pour un mode
+     * simple, le remplacement de l'étape pour le mode sur mesure.
+     */
+    private fun fabriquerEpreuve(
+        etape: EtapeCombine,
+        config: AlarmConfig,
+        onRenoncer: () -> Unit,
+    ): Challenge? = when (etape.type) {
+        ChallengeId.MATHS, ChallengeId.COMBINE -> calculs(etape.nombre, config.difficulty)
+
+        ChallengeId.POMPES -> {
+            val pompes = PompesChallenge(
+                context = this,
+                total = etape.nombre,
+                onInteraction = { interaction() },
+                onRenoncer = onRenoncer,
+            )
+            // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
+            pompes.takeIf { it.capteurDisponible }
+        }
+
+        ChallengeId.PHOTO -> {
+            // La permission n'est vérifiée qu'ici, jamais réclamée par cette
+            // activité : la demande vit dans l'onboarding, et seulement quand la
+            // photo est le défi choisi (voir `OnboardingScreen`). Un refus n'est
+            // pas bloquant : il vaut simple repli, comme un capteur absent.
+            val permission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!permission) {
+                null
+            } else {
+                val photo = PhotoChallenge(
                     context = this,
-                    difficulty = config.difficulty,
+                    cleApi = config.cleApi,
+                    nombre = etape.nombre,
+                    // Sans ce passage, la sélection par pièce serait un réglage
+                    // décoratif : l'écran la montrerait, la persistance la
+                    // garderait, et le réveil piocherait quand même dans tout le
+                    // catalogue — donc dans des objets que l'utilisateur a
+                    // explicitement dit ne pas posséder.
+                    objetsSelectionnes = config.objetsSelectionnes,
                     onInteraction = { interaction() },
                     onRenoncer = onRenoncer,
                 )
-                // Un téléphone sans capteur de proximité ne doit pas piéger l'utilisateur.
-                if (challengeEffectif(ChallengeId.POMPES, capteurPompesDisponible = pompes.capteurDisponible) ==
-                    ChallengeId.POMPES
-                ) {
-                    pompes
-                } else {
-                    maths()
-                }
-            }
-
-            ChallengeId.PHOTO -> {
-                // La permission n'est vérifiée qu'ici, jamais réclamée par cette
-                // activité : la demande vit dans l'onboarding, et seulement
-                // quand la photo est le défi choisi (voir `OnboardingScreen`).
-                // Un refus n'est pas bloquant : il vaut simple repli, comme un
-                // capteur de proximité absent.
-                val permissionCameraAccordee = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.CAMERA,
-                ) == PackageManager.PERMISSION_GRANTED
-                if (!permissionCameraAccordee) {
-                    maths()
-                } else {
-                    val photo = PhotoChallenge(
-                        context = this,
-                        difficulty = config.difficulty,
-                        cleApi = config.cleApi,
-                        // Sans ce passage, la sélection par pièce serait un
-                        // réglage décoratif : l'écran la montrerait, la
-                        // persistance la garderait, et le réveil piocherait
-                        // quand même dans tout le catalogue — donc dans des
-                        // objets que l'utilisateur a explicitement dit ne pas
-                        // posséder. C'est exactement le blocage que cette
-                        // fonctionnalité existe pour éviter.
-                        objetsSelectionnes = config.objetsSelectionnes,
-                        onInteraction = { interaction() },
-                        onRenoncer = onRenoncer,
-                    )
-                    // Caméra absente ou juge embarqué indisponible : même repli.
-                    if (challengeEffectif(
-                            ChallengeId.PHOTO,
-                            permissionCameraAccordee = true,
-                            camerasDisponibles = photo.camerasDisponibles,
-                        ) == ChallengeId.PHOTO
-                    ) {
-                        photo
-                    } else {
-                        maths()
-                    }
-                }
+                // Caméra absente ou clé d'API manquante : même repli.
+                photo.takeIf { it.camerasDisponibles }
             }
         }
     }
@@ -472,6 +496,10 @@ internal fun challengeEffectif(
     ChallengeId.POMPES -> if (capteurPompesDisponible) ChallengeId.POMPES else ChallengeId.MATHS
     ChallengeId.PHOTO ->
         if (permissionCameraAccordee && camerasDisponibles) ChallengeId.PHOTO else ChallengeId.MATHS
+    // Le défi sur mesure ne se replie jamais en bloc : chacune de ses épreuves
+    // se replie pour son propre compte, au moment où son tour vient. Se rabattre
+    // ici sur les calculs annulerait les épreuves encore possibles.
+    ChallengeId.COMBINE -> ChallengeId.COMBINE
 }
 
 /**
@@ -644,6 +672,13 @@ private fun Jauge(volume: VolumeState, secondes: Int, plafondPourcent: Int) {
 }
 
 /** Affiché tant que le volume est à fond : le décompte n'a pas encore commencé. */
+/**
+ * Nombre de calculs des modes simples, et du repli. Trois : assez pour sortir du
+ * sommeil, assez peu pour ne pas devenir une punition quand on s'y rabat faute
+ * de capteur.
+ */
+private const val NOMBRE_CALCULS_DEFAUT = 3
+
 private const val AVERTISSEMENT_REMONTEE = "Sans réponse pendant 10 s, ça repart à fond."
 
 /** En dessous de ce reste, l'avertissement passe en mode alarmant. */

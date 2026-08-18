@@ -341,4 +341,5 @@ private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): 
     ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
     ChallengeId.PHOTO -> "Une photo et elle se tait."
     ChallengeId.MATHS -> "Trois calculs et elle se tait."
+    ChallengeId.COMBINE -> "Plusieurs épreuves et elle se tait."
 }

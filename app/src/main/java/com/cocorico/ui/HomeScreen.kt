@@ -192,6 +192,9 @@ fun HomeScreen(
                 // défi, et l'afficher laisserait croire le contraire.
                 ChallengeId.PHOTO -> "Photo — un objet à trouver"
                 ChallengeId.MATHS -> "Maths — ${config.difficulty.name.lowercase()}"
+                // Le détail des épreuves vit dans son propre écran : le résumer
+                // ici tiendrait mal sur une ligne dès qu'il y en a trois.
+                ChallengeId.COMBINE -> "Sur mesure — ${config.etapesCombine.size} épreuves"
             } + if (defiEffectif != config.challengeId) " · se rabattra sur les calculs" else "",
             onClick = onOuvrirDefi,
         )

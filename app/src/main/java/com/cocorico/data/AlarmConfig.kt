@@ -1,10 +1,22 @@
 package com.cocorico.data
 
+import com.cocorico.challenge.combine.EtapeCombine
+import com.cocorico.challenge.combine.EtapesCombine
 import com.cocorico.challenge.photo.CatalogueObjets
 import com.cocorico.ring.NiveauxVolume
 import java.time.DayOfWeek
 
-enum class ChallengeId { MATHS, POMPES, PHOTO }
+/**
+ * `COMBINE` enchaîne plusieurs épreuves choisies par l'utilisateur ; sa
+ * composition vit dans [AlarmConfig.etapesCombine], pas ici.
+ *
+ * Ajouté en fin d'énumération : ces noms sont écrits en toutes lettres dans le
+ * DataStore et dans la colonne `defi` de l'historique, et relus par `valueOf`.
+ * Insérer une valeur au milieu ne casserait rien — c'est le nom qui est
+ * persisté, pas l'ordinal — mais R8 renommerait les constantes sans la règle de
+ * conservation de `proguard-rules.pro`.
+ */
+enum class ChallengeId { MATHS, POMPES, PHOTO, COMBINE }
 
 enum class Difficulty { FACILE, MOYEN, DIFFICILE }
 
@@ -49,6 +61,15 @@ data class AlarmConfig(
      * configuration.
      */
     val objetsSelectionnes: Set<String> = emptySet(),
+    /**
+     * Composition du défi sur mesure : les épreuves, dans l'ordre où elles
+     * seront demandées. N'a d'effet que si [challengeId] vaut
+     * [ChallengeId.COMBINE].
+     *
+     * Toujours non vide après [assaini] : une suite vide serait résolue
+     * d'emblée et arrêterait l'alarme sans rien demander.
+     */
+    val etapesCombine: List<EtapeCombine> = EtapesCombine.DEFAUT,
 ) {
     /**
      * Ramène les trois champs numériques dans leur plage utilisable, et ne
@@ -70,6 +91,7 @@ data class AlarmConfig(
         // quelle en en-tête HTTP, elle fait échouer **tous** les verdicts du
         // juge, et l'écran ne sait dire que « pas reconnu ».
         cleApi = cleApi.trim(),
+        etapesCombine = EtapesCombine.assainir(etapesCombine),
     )
 
     companion object {

@@ -43,12 +43,17 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class PompesChallenge(
     context: Context,
-    difficulty: Difficulty,
+    /**
+     * Nombre de répétitions exigées. Fourni explicitement plutôt que déduit
+     * d'une difficulté : le défi sur mesure laisse l'utilisateur poser ce
+     * nombre lui-même, et les trois modes simples le calculent via
+     * [nombrePour] avant d'appeler.
+     */
+    private val total: Int,
     private val onInteraction: () -> Unit,
     private val onRenoncer: () -> Unit,
 ) : Challenge {
 
-    private val total = nombrePour(difficulty)
     private val compteur = CompteurPompes(total)
 
     private val capteur = CapteurPompes(context) { echantillon ->
