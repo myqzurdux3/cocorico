@@ -2,9 +2,9 @@
 
 Réveil Android à alarme unique, sans snooze. La sonnerie part à plein volume sur
 `STREAM_ALARM` derrière un écran plein qui passe par-dessus le verrouillage, et
-ne s'arrête qu'une fois le défi résolu — calcul mental, dix pompes comptées au
-capteur de proximité, ou la photo d'un objet tiré au sort, jugée par l'API
-Gemini. Prendre le téléphone en main baisse le volume ; dix secondes sans rien
+ne s'arrête qu'une fois le défi résolu — calcul mental, pompes comptées au
+capteur de proximité, photo d'un objet tiré au sort jugée par l'API Gemini, ou
+une suite sur mesure de ces trois-là, dans l'ordre choisi. Prendre le téléphone en main baisse le volume ; dix secondes sans rien
 faire le remontent. Le plafond sonore est réglable, jamais sous 50 % du maximum
 de l'appareil.
 
@@ -34,6 +34,7 @@ Trois briques indépendantes, plus la persistance et l'interface.
 | `challenge/` | Défis derrière l'interface `Challenge` — le service ne connaît que `isSolved` |
 | `challenge/pompes/` | Comptage des pompes : machine à états pure et règles anti-triche |
 | `challenge/photo/` | Défi photo : catalogue d'objets par pièce, tirage, capture CameraX, juge distant |
+| `challenge/combine/` | Défi sur mesure : suite d'épreuves choisies et ordonnées par l'utilisateur |
 | `data/` | Configuration unique (DataStore), historique des réveils (Room) |
 | `ui/` | Écrans Compose, onboarding des permissions |
 
@@ -81,6 +82,13 @@ C'est ce découpage qui permet de tout tester sans téléphone.
   démarrage après mise à jour.
 - **Le défi se replie sur le calcul mental** quand les capteurs manquent, avant
   tout affichage. Sans ce repli, l'alarme serait impossible à arrêter.
+- **Une seule fonction décide de la disponibilité d'une épreuve**
+  (`AlarmActivity.fabriquerEpreuve`), pour les modes simples comme pour le mode
+  sur mesure. Deux listes de conditions séparées finiraient par diverger : c'est
+  déjà arrivé trois fois ici.
+- **Le défi sur mesure construit ses épreuves une à une**, quand leur tour
+  vient. Tout construire d'avance ferait tirer — et exclure du lendemain — des
+  objets photo que l'utilisateur ne verra jamais.
 
 ---
 

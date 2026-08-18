@@ -23,13 +23,14 @@ défi accompli. Prendre le téléphone en main baisse le volume sans jamais le
 couper ; dix secondes d'inactivité le font remonter — le marché est affiché en
 clair à l'écran du début à la fin.
 
-## Les trois défis
+## Les défis
 
 | | Défi | Ce qu'il faut vraiment faire pour le passer |
 |---|---|---|
 | 🔢 | **Calcul mental** | Résoudre des opérations, sur trois niveaux de difficulté. Toujours disponible : c'est le repli de tous les autres. |
 | 💪 | **Pompes** | Dix pompes comptées au capteur de proximité, avec une garde qui refuse de compter si le téléphone bouge. |
 | 📷 | **Photo** | Photographier un objet tiré au sort dans ta maison, pièce par pièce. Un modèle de vision juge l'image. |
+| 🧩 | **Sur mesure** | Enchaîner les trois : combien de chaque, dans l'ordre que tu poses. |
 
 Un défi n'est jamais un cul-de-sac : sans capteur, sans caméra, sans réseau ou
 sans clé d'API, l'application se replie sur le calcul mental **avant** d'afficher
