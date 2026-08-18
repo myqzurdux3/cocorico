@@ -8,6 +8,12 @@ on:
     branches: [main]
   pull_request:
 
+# Dépôt public : le jeton du coureur ne sert qu'à lire le code. Le restreindre
+# ici plutôt que de compter sur le réglage par défaut du compte, qui peut
+# changer sans que ce fichier bouge.
+permissions:
+  contents: read
+
 # Une nouvelle poussée annule la vérification précédente de la même branche :
 # seul le dernier état compte.
 concurrency:

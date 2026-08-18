@@ -17,7 +17,8 @@ et non en `squash` : les 100 commits disent chacun pourquoi une décision a ét�
 prise, et cet historique vaut mieux qu'une ligne propre. La branche
 `cocorico-v1` a été supprimée après vérification qu'elle ne contenait rien que
 `main` n'ait déjà : **`main` est désormais la seule branche**, locale comme
-distante. Dépôt **privé**, et l'utilisateur veut qu'il le reste.
+distante. Dépôt **public** depuis le 18 août 2026 — ce qui est écrit ici est
+lisible par tout le monde, y compris les notes de travail.
 
 **État mesuré** — 170 commits sur `main` :
 
@@ -80,12 +81,13 @@ d'origine ensuite**.
 ### Règles de sécurité, non négociables
 
 - **Ne jamais déclencher l'alarme sans accord explicite pour cette fois-là.**
-  Téléphone personnel. Un essai à plein volume l'a déjà fait paniquer.
+  C'est le téléphone dont quelqu'un se sert vraiment : une sonnerie non
+  voulue n'est pas un désagrément d'essai, c'est une sonnerie non voulue.
 - **Capture d'écran avant chaque `adb input tap`.** Des appuis à l'aveugle ont
-  déjà atterri dans ses réglages système.
+  déjà atterri hors de l'application.
 - **Vérifier l'application au premier plan avant toute capture.** Si ce n'est
   pas Cocorico, ne pas capturer ; si une capture a été prise par erreur, la
-  détruire sans l'ouvrir. C'est déjà arrivé deux fois (Telegram, Snapchat).
+  détruire sans l'ouvrir. Le cas s'est déjà produit.
 - **Remettre l'état d'origine à la fin**, et le vérifier.
 
 ### État d'origine du téléphone
