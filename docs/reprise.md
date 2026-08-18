@@ -14,9 +14,10 @@ en même temps que le dossier local `~/Documents/cocorico`.
 **Branche de travail :** `main`. La V1 y a été fusionnée le 18 août 2026 par la
 [PR #1](https://github.com/myqzurdux3/cocorico/pull/1), en **commit de fusion**
 et non en `squash` : les 100 commits disent chacun pourquoi une décision a été
-prise, et cet historique vaut mieux qu'une ligne propre. `cocorico-v1` est
-conservée telle quelle, sans rien de plus que `main`.
-Dépôt **privé**, et l'utilisateur veut qu'il le reste.
+prise, et cet historique vaut mieux qu'une ligne propre. La branche
+`cocorico-v1` a été supprimée après vérification qu'elle ne contenait rien que
+`main` n'ait déjà : **`main` est désormais la seule branche**, locale comme
+distante. Dépôt **privé**, et l'utilisateur veut qu'il le reste.
 
 **État mesuré** — 170 commits sur `main` :
 
