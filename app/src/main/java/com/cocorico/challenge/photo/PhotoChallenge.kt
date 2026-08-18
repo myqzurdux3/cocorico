@@ -103,7 +103,7 @@ class PhotoChallenge(
 
     private val juge: JugePhoto = JugeGemini(cleApi)
 
-    private val total = nombrePour(difficulty)
+    private val total = NOMBRE_OBJETS
 
     /**
      * Tirage figé au **premier usage** du défi, en excluant les objets du
@@ -558,11 +558,22 @@ class PhotoChallenge(
     }
 
     companion object {
-        fun nombrePour(difficulty: Difficulty): Int = when (difficulty) {
-            Difficulty.FACILE -> 1
-            Difficulty.MOYEN -> 2
-            Difficulty.DIFFICILE -> 3
-        }
+        /**
+         * Une photo, et une seule, quelle que soit la difficulté.
+         *
+         * Le réglage de difficulté ne s'applique pas à ce défi, et c'est
+         * délibéré. Il ne pouvait de toute façon pas rendre un objet plus dur à
+         * trouver — un objet « difficile » n'a aucun sens à six heures du matin
+         * — donc il ne jouait que sur le nombre. Or se lever, traverser le
+         * logement et cadrer un objet est déjà l'effort demandé : en exiger
+         * deux ou trois n'ajoutait pas de la difficulté, seulement de la durée
+         * devant une sirène.
+         *
+         * Constante et non fonction : un paramètre `difficulty` ignoré serait
+         * un mensonge de signature, et le prochain lecteur y chercherait un
+         * comportement qui n'existe pas.
+         */
+        const val NOMBRE_OBJETS = 1
 
         /** Durée d'appui exigée par le bouton de renoncement. Voir sa KDoc. */
         private const val SEUIL_APPUI_LONG_MS = 600L

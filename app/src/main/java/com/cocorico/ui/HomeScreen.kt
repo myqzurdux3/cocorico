@@ -35,7 +35,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.ring.CapteurPompes
@@ -189,9 +188,9 @@ fun HomeScreen(
                 ChallengeId.POMPES ->
                     "Pompes — ${PompesChallenge.nombrePour(config.difficulty)} répétitions, " +
                         config.difficulty.name.lowercase()
-                ChallengeId.PHOTO ->
-                    "Photo — ${PhotoChallenge.nombrePour(config.difficulty)} objets, " +
-                        config.difficulty.name.lowercase()
+                // Pas de difficulté annoncée : elle ne s'applique pas à ce
+                // défi, et l'afficher laisserait croire le contraire.
+                ChallengeId.PHOTO -> "Photo — un objet à trouver"
                 ChallengeId.MATHS -> "Maths — ${config.difficulty.name.lowercase()}"
             } + if (defiEffectif != config.challengeId) " · se rabattra sur les calculs" else "",
             onClick = onOuvrirDefi,

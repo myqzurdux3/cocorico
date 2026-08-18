@@ -1,6 +1,5 @@
 package com.cocorico.challenge.photo
 
-import com.cocorico.data.Difficulty
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,13 +7,13 @@ import org.junit.Test
 
 class SelectionObjetsTest {
 
-    @Test fun `le seuil d avertissement suit le nombre d objets de la difficulte la plus exigeante`() {
-        // Le seuil n'avertit correctement que s'il vaut exactement ce que la
-        // difficulté la plus exigeante peut demander. Recopié à la main, il
-        // survivait à un changement de `nombrePour` sans rien signaler :
-        // l'écran aurait alors cessé d'avertir, ou averti à tort.
+    @Test fun `le seuil d avertissement suit le nombre d objets demandes`() {
+        // Le seuil n'avertit correctement que s'il vaut exactement ce que le
+        // défi peut demander. Recopié à la main, il survivrait à un changement
+        // de `NOMBRE_OBJETS` sans rien signaler : l'écran cesserait d'avertir,
+        // ou avertirait à tort.
         assertEquals(
-            PhotoChallenge.nombrePour(Difficulty.DIFFICILE),
+            PhotoChallenge.NOMBRE_OBJETS,
             SelectionObjets.SEUIL_AVERTISSEMENT,
         )
     }
@@ -114,10 +113,11 @@ class SelectionObjetsTest {
         assertEquals(1, SelectionObjets.totalCoche(setOf(id, "fantome")))
     }
 
-    @Test fun `le seuil d avertissement correspond a la difficulte la plus exigeante`() {
-        // Trois objets, la promesse de Difficulty.DIFFICILE (voir
-        // PhotoChallenge.nombrePour) : en dessous, le tirage peut devoir
-        // compléter hors de la sélection de l'utilisateur.
-        assertEquals(3, SelectionObjets.SEUIL_AVERTISSEMENT)
+    @Test fun `le seuil d avertissement vaut un objet`() {
+        // Décision produit, épinglée volontairement : le défi photo demande une
+        // photo et une seule. Se lever, traverser le logement et cadrer un
+        // objet est déjà l'effort ; en exiger deux n'ajouterait que du temps
+        // devant une sirène. Si quelqu'un remonte ce nombre, ce test le dit.
+        assertEquals(1, SelectionObjets.SEUIL_AVERTISSEMENT)
     }
 }

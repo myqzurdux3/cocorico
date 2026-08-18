@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cocorico.alarm.AlarmState
-import com.cocorico.challenge.photo.PhotoChallenge
 import com.cocorico.challenge.pompes.PompesChallenge
 import com.cocorico.data.ChallengeId
 import com.cocorico.data.Difficulty
@@ -340,6 +339,6 @@ private fun EcranReprise(challengeId: ChallengeId, difficulty: Difficulty, onRep
  */
 private fun texteDefiRestant(challengeId: ChallengeId, difficulty: Difficulty): String = when (challengeId) {
     ChallengeId.POMPES -> "${PompesChallenge.nombrePour(difficulty)} pompes et elle se tait."
-    ChallengeId.PHOTO -> "${PhotoChallenge.nombrePour(difficulty)} photos et elle se tait."
+    ChallengeId.PHOTO -> "Une photo et elle se tait."
     ChallengeId.MATHS -> "Trois calculs et elle se tait."
 }
